@@ -1,48 +1,66 @@
-# 《机器人系统》在线课程网站
 
-Welcome to the interactive course website for the "《机器人系统》" course.
+# 《工程实践》在线网站
 
-This project is designed to provide a comprehensive learning platform that integrates multimedia courseware, interactive experiments, and project practice materials. It aims to facilitate a deep understanding of robotics systems by combining theoretical knowledge with practical applications.
-
----
-
-## Project Overview
-
-The "《机器人系统》" course website offers:
-
-- **Multimedia Courseware:** Rich video lectures, slides, and reading materials to cover fundamental and advanced topics in robotics. These materials are curated by experts and updated regularly to reflect the latest advancements in the field.
-- **Interactive Experiments:** Hands-on virtual labs and simulations that allow students to experiment with robotic algorithms and hardware concepts in a controlled environment. These experiments provide real-time feedback and encourage exploration and innovation.
-- **Project Practice Materials:** Detailed project guidelines, datasets, and code repositories to support real-world robotics system development and research. Students can apply their knowledge by working on practical projects that simulate industry challenges.
+本项目为“《工程实践》”课程的在线学习与实践平台，聚焦工程能力训练与项目式学习。
 
 ---
 
-## Innovative Learning Model
+## 课程结构
 
-Our platform adopts a novel learning model that emphasizes:
+网站内容分为四大工程实践模块，每个模块下设若干章节：
 
-- **Active Learning:** Encouraging students to engage actively with the content through interactive exercises, quizzes, and experiments. This approach helps reinforce concepts and improve retention.
-- **Blended Theory and Practice:** Seamlessly integrating theoretical lessons with practical applications to reinforce understanding. Students can immediately apply what they learn in theory to hands-on activities.
-- **Collaborative Projects:** Facilitating teamwork and knowledge sharing through project-based learning. Students can collaborate on projects, share insights, and develop communication skills essential for robotics engineering.
+- **工程实践1**
+- **工程实践2**
+- **工程实践3**
+- **工程实践4**
 
----
+此外还包含：
+- **附录**（开发环境、工具指南等）
+- **书写规范**（贡献与协作说明）
+- **参考资料**
 
-## Technical Highlights
-
-- Responsive web design for accessibility across devices including desktops, tablets, and smartphones.
-- Integration of multimedia content with interactive web technologies such as WebGL and real-time data visualization.
-- Support for real-time experiment feedback and data visualization to enhance the learning experience.
-- Modular architecture to easily extend course content and features, allowing for future scalability and customization.
-- Secure user authentication and progress tracking to personalize the learning journey.
+导航结构详见 `mkdocs.yml`。
 
 ---
 
-## Getting Started
+## 快速开始
 
-To begin exploring the course materials, navigate through the sections provided on the website. Each module is designed to build upon the previous, ensuring a structured learning path. New users are encouraged to start with the introductory modules before progressing to advanced topics.
+1. 克隆本仓库，安装依赖：
+  ```bash
+  pip install -r requirements.txt
+  ```
+2. 本地预览：
+  ```bash
+  python3 deploy_local_or_coolify.py
+  # 选择 [1] 本地预览
+  ```
+  访问 http://127.0.0.1:8008 查看。
+3. 远程部署：
+  ```bash
+  python3 deploy_local_or_coolify.py
+  # 选择 [2] 远程部署（Coolify）
+  ```
 
 ---
 
-## Development & Deployment
+## 技术亮点
+
+- MkDocs + Material 主题，响应式设计
+- 支持 svgbob/Kroki 图表渲染
+- 评论系统（Utterances，基于 GitHub Issues）
+- Docker 一键部署，预编译 svgbob_cli 加速构建
+
+---
+
+## 贡献与协作
+
+采用分支协作与 PR 审核模式，详细规范见 docs/contributing.md。
+
+---
+
+## 联系方式
+
+如有问题、建议或合作意向，请联系：robotics-course@example.com
 
 ### Prerequisites
 
@@ -133,8 +151,8 @@ In `Dockerfile`, comment out the precompiled approach and uncomment the original
 ├── mkdocs.yml             # MkDocs configuration
 ├── requirements.txt       # Pinned Python dependencies
 ├── Dockerfile             # Multi-stage build (MkDocs → nginx)
-├── docker-compose.yaml    # Coolify deployment configuration
-├── nginx.conf             # nginx serving configuration
+├── docker-compose.yaml    # Coolify deployment configuration (oaepp_web/oaepp_api)
+├── nginx.conf             # nginx serving configuration (oaepp_web/oaepp_api)
 ├── deploy_local_or_coolify.py              # Unified management script (local preview & deploy)
 ├── .env                   # Secrets (not committed to git)
 └── .gitignore

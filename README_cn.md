@@ -132,8 +132,8 @@ git commit -m "chore: 更新 svgbob_cli 到新版本"
 ├── mkdocs.yml             # MkDocs 配置
 ├── requirements.txt       # Python 依赖（锁定主版本）
 ├── Dockerfile             # 多阶段构建（MkDocs → nginx）
-├── docker-compose.yaml    # Coolify 部署配置
-├── nginx.conf             # nginx 服务配置
+├── docker-compose.yaml    # Coolify 部署配置（oaepp_web/oaepp_api）
+├── nginx.conf             # nginx 服务配置（oaepp_web/oaepp_api）
 ├── deploy_local_or_coolify.py              # 统一管理脚本（本地预览 & 远程部署）
 ├── .env                   # 密钥文件（不提交到 git）
 └── .gitignore

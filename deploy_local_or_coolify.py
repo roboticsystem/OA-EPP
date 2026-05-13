@@ -51,7 +51,7 @@ GIT_REPO     = "https://github.com/uwislab/robotics-systems-course.git"
 GIT_BRANCH   = "main"
 DOMAIN       = "https://robotic.uwis.cn"
 ENVIRONMENT  = "production"
-COMPOSE_SERVICE = "web"
+COMPOSE_SERVICE = "oaepp_web"
 API_ENV_VARS    = ["TEACHER_PASSWORD", "JWT_SECRET"]
 # 容器内固定路径的环境变量（不来自本地 .env，而是远程容器的配置）
 CONTAINER_FIXED_ENV = {

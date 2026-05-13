@@ -1,5 +1,6 @@
 services:
-  web:
+  oaepp_web:
+    container_name: oaepp_web
     build:
       context: .
       network: host          # 构建时 pip install 需要访问互联网
@@ -7,7 +8,7 @@ services:
       - "80"
     restart: unless-stopped
     depends_on:
-      - api
+      - oaepp_api
     healthcheck:
       test: ["CMD", "nc", "-z", "127.0.0.1", "80"]
       interval: 30s
@@ -16,12 +17,13 @@ services:
       start_period: 40s
     labels:
       # Caddy docker-proxy 路由标签
-      caddy: "robotics.uwis.cn"
+      caddy: "oaepp.uwis.cn"
       caddy.reverse_proxy: "{{upstreams 80}}"
     networks:
       - coolify              # 让 Caddy 代理可以连接到此容器
 
-  api:
+  oaepp_api:
+    container_name: oaepp_api
     build:
       context: .                        # 构建上下文扩展到项目根目录（需要复制 docs/）
       dockerfile: backend/Dockerfile

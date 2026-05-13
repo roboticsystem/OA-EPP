@@ -1,4 +1,4 @@
-# 排除两个容器都不需要的文件（web 和 api 共用同一个 build context）
+# 排除两个容器都不需要的文件（oaepp_web 和 oaepp_api 共用同一个 build context）
 # 注意：requirements.txt / mkdocs.yml / nginx.conf 由 web(Dockerfile) 使用，不能排除
 # 注意：docs/ 由 api(Dockerfile) 使用（COPY docs/ ./docs_baked/），不能排除
 site/
