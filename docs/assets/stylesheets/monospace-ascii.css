@@ -1,0 +1,23 @@
+/*
+  Ensure ASCII diagrams align in mixed Chinese/English content by forcing
+  monospaced fonts with CJK-capable fallbacks for code blocks.
+*/
+:root {
+  --ascii-mono-font: "Fira Code", "Sarasa Mono SC", "Noto Sans Mono CJK SC", "Source Han Mono SC", "Cascadia Mono", "JetBrains Mono", "Consolas", monospace;
+}
+
+.md-typeset pre,
+.md-typeset code,
+.md-typeset pre code,
+.md-typeset kbd,
+.md-typeset samp {
+  font-family: var(--ascii-mono-font) !important;
+  letter-spacing: 0;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+}
+
+.md-typeset pre code {
+  line-height: 1.45;
+  tab-size: 4;
+}

@@ -1,0 +1,54 @@
+services:
+  web:
+    build:
+      context: .
+      network: host          # 构建时 pip install 需要访问互联网
+    expose:
+      - "80"
+    restart: unless-stopped
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      # Caddy docker-proxy 路由标签
+      caddy: "robotics.uwis.cn"
+      caddy.reverse_proxy: "{{upstreams 80}}"
+    networks:
+      - coolify              # 让 Caddy 代理可以连接到此容器
+
+  api:
+    build:
+      context: .                        # 构建上下文扩展到项目根目录（需要复制 docs/）
+      dockerfile: backend/Dockerfile
+      network: host          # 构建时 pip install 需要访问互联网
+    expose:
+      - "8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - exam_data:/app/data  # SQLite 数据库持久化
+      - ./docs:/app/docs:rw  # Markdown 文件（sync_exams 可自动注入 exam-meta）
+    environment:
+      - TEACHER_PASSWORD=${TEACHER_PASSWORD:-admin123}
+      - JWT_SECRET=${JWT_SECRET:-please-change-this-secret}
+      - DB_PATH=/app/data/exam.db
+      - DOCS_DIR=/app/docs
+    networks:
+      - coolify
+
+volumes:
+  exam_data:
+
+networks:
+  coolify:
+    external: true           # 引用已存在的 Coolify 全局网络

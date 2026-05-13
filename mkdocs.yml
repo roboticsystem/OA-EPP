@@ -1,0 +1,76 @@
+site_name: 研究生课程《机器人系统》
+site_url: http://robotics.uwis.cn
+copyright: 成都信息工程大学 软件工程学院
+nav:
+  - 课程简介: index.md
+  - 教学大纲: syllabus.md
+  - 教师简介: instructor.md
+  - 课程内容:
+      - 机器人基础:
+        - 第1章 机器人系统基础: chapter1.md
+        - 第2章 机器人系统软件设计模式: chapter2.md
+      - 机器人底层:
+        - 第3章 单片机编程: chapter3.md
+        - 第4章 单片机操作系统（FreeRTOS）: chapter4.md
+        - 第5章 STM32 定时器的应用: chapter5.md
+        - 第6章 机器人运动与电机驱动: chapter6.md
+        - 第7章 机器人硬件仿真（PicSimlab与Renode）: chapter7.md
+      - 机器人小脑:
+        - 第8章 闭环控制与PID: chapter8.md
+        - 第9章 传感器融合与状态估计: chapter9.md
+        - 第10章 高级运动控制: chapter10.md
+      - 机器人大脑:
+        - 第11章 ROS程序设计: chapter11.md
+        - 第12章 机器人感知与视觉基础: chapter12.md
+        - 第13章 机器人SLAM: chapter13.md
+        - 第14章 机器人导航与路径规划: chapter14.md
+        - 第15章 多机器人系统与通信: chapter15.md
+        - 第16章 机器学习与机器人: chapter16.md
+  - 课程实验:
+      - 第17章 K3机器人: chapter17.md
+      - 第18章 智能轮椅仿真: chapter18.md
+      - 第19章 多AGV调度: chapter19.md
+  - 附录:
+      - 附录A CubeMX编程指南: appendix_a.md
+      - 附录B 实验用容器与开发环境: appendix_b.md
+      - 附录C STM32实践项目集: appendix_c.md
+  - 书写规范: contributing.md
+  - 参考资料: resources.md
+theme:
+  name: material
+  features:
+    - navigation.expand
+
+extra_css:
+  - assets/stylesheets/exam-login.css
+
+extra_javascript:
+  - assets/javascripts/exam-login.js
+  - assets/javascripts/footer-links.js
+  - assets/javascripts/lib/mermaid.min.js
+  - assets/javascripts/mermaid-init.js
+  - assets/javascripts/utterances.js
+
+plugins:
+  - search:
+      lang:
+        - zh
+        - en
+  - mkdocs_quiz
+  - kroki:
+      fence_prefix: kroki-
+      enable_mermaid: false
+
+markdown_extensions:
+  - toc:
+      permalink: true
+      toc_depth: 2-4
+  - pymdownx.superfences
+  - plantuml_markdown:
+      server: https://www.plantuml.com/plantuml
+      format: svg
+  - markdown_svgbob:
+      tag_type: inline_svg
+      bg_color: white
+      fg_color: black
+      min_char_width: 80

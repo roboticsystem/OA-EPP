@@ -1,0 +1,13 @@
+# Example docker-compose for PicSimLab (used by Coolify or local testing)
+# Adjust image name, volumes and ports as needed for your environment.
+version: "3.8"
+services:
+  picsimlab:
+    image: picsimlab/picsimlab:latest    # replace with your built image if needed
+    restart: unless-stopped
+    ports:
+      - "8080:8080"                     # Web UI or API port
+    volumes:
+      - ./picsimlab-work:/home/picsimlab/work  # Persist simulation projects and data
+    environment:
+      - TZ=Asia/Shanghai
