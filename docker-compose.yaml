@@ -54,11 +54,13 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
-      MYSQL_USER: oaepp
+      MYSQL_USER: user
       MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
-      MYSQL_DATABASE: oaepp_dev
+      MYSQL_DATABASE: oaepp_database
     volumes:
       - oaepp_mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -71,7 +73,6 @@ services:
     container_name: oaepp_phpmyadmin
     image: phpmyadmin:latest
     restart: unless-stopped
-    profiles: ["admin"]
     environment:
       PMA_HOST: oaepp-mysql
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
@@ -82,9 +83,37 @@ services:
     networks:
       - coolify
 
+  oaepp-redis:
+    container_name: oaepp_redis
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - oaepp_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - coolify
+
+  oaepp-redis-commander:
+    container_name: oaepp_redis_commander
+    image: rediscommander/redis-commander:latest
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:oaepp-redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - oaepp-redis
+    networks:
+      - coolify
+
 volumes:
   exam_data:
   oaepp_mysql_data:
+  oaepp_redis_data:
 
 networks:
   coolify:
