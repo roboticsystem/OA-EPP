@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>系统设置 - 教师端 - OA-EPP</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- 顶部导航 -->
+  <nav class="bg-indigo-700 text-white px-6 py-3 flex items-center justify-between shadow">
+    <div class="flex items-center gap-4">
+      <a href="#" class="text-white font-bold text-lg">OA-EPP</a>
+      <span class="px-2 py-0.5 bg-indigo-500 text-xs rounded">教师端</span>
+      <span class="text-indigo-200 text-sm">/ 系统设置</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-sm text-indigo-200">李老师</span>
+      <div class="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-sm font-bold">李</div>
+    </div>
+  </nav>
+
+  <!-- 侧边栏 + 主内容 -->
+  <div class="flex">
+    <!-- 侧边栏 -->
+    <aside class="w-56 bg-white border-r border-gray-200 min-h-screen pt-4">
+      <nav class="px-3 space-y-1">
+        <a href="admin_students.html" class="flex items-center gap-2 px-3 py-2 rounded text-gray-600 hover:bg-gray-100 text-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          学生管理
+        </a>
+        <a href="admin_grades.html" class="flex items-center gap-2 px-3 py-2 rounded text-gray-600 hover:bg-gray-100 text-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          成绩管理
+        </a>
+        <a href="admin_devops.html" class="flex items-center gap-2 px-3 py-2 rounded text-gray-600 hover:bg-gray-100 text-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          开发运维
+        </a>
+        <a href="admin_settings.html" class="flex items-center gap-2 px-3 py-2 rounded bg-indigo-50 text-indigo-700 font-medium text-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+          系统设置
+        </a>
+      </nav>
+    </aside>
+
+    <!-- 主内容 -->
+    <main class="flex-1 p-6">
+      <h1 class="text-xl font-bold text-gray-800 mb-6">系统设置</h1>
+
+      <!-- Tab 切换 -->
+      <div class="flex gap-1 bg-gray-100 p-1 rounded-lg mb-6 w-fit">
+        <button class="px-4 py-1.5 bg-white text-indigo-700 font-medium rounded-md text-sm shadow-sm">学生名单导入</button>
+        <button class="px-4 py-1.5 text-gray-500 hover:text-gray-700 rounded-md text-sm">仓库权限配置</button>
+        <button class="px-4 py-1.5 text-gray-500 hover:text-gray-700 rounded-md text-sm">VS Code 扩展配置</button>
+        <button class="px-4 py-1.5 text-gray-500 hover:text-gray-700 rounded-md text-sm">需求文档编辑器</button>
+      </div>
+
+      <!-- ===== F-T-005 学生名单导入 ===== -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm mb-6">
+        <div class="px-5 py-4 border-b border-gray-100">
+          <h2 class="font-semibold text-gray-800">学生名单导入（F-T-005）</h2>
+          <p class="text-xs text-gray-400 mt-0.5">从教务系统导出 CSV（学号,姓名,班级,课程），上传后自动校验并创建账号</p>
+        </div>
+        <div class="px-5 py-4">
+          <!-- 上传区域 -->
+          <div class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center mb-4 hover:border-indigo-400 hover:bg-indigo-50 cursor-pointer">
+            <svg class="w-10 h-10 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+            <p class="text-sm text-gray-500 mb-1">拖拽 CSV 文件到此处，或</p>
+            <button class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg font-medium">选择文件</button>
+            <p class="text-xs text-gray-400 mt-2">仅支持 .csv 格式，必填列：学号、姓名、班级、课程</p>
+          </div>
+          <!-- 导入模式 -->
+          <div class="flex gap-4 mb-4">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="import_mode" checked class="text-indigo-600">
+              <span class="text-sm text-gray-700">增量导入（重复学号跳过，新增追加）</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="import_mode" class="text-indigo-600">
+              <span class="text-sm text-gray-700">全量覆盖（清除旧名单后重新导入）</span>
+            </label>
+          </div>
+          <!-- 校验结果预览（含错误行高亮） -->
+          <div class="bg-gray-50 rounded-lg p-4 mb-4">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-medium text-gray-700">校验结果预览</span>
+              <span class="text-xs text-gray-400">共 35 行 · 32 条有效 · <span class="text-red-500">3 条错误</span></span>
+            </div>
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="text-gray-400 text-left border-b border-gray-200">
+                  <th class="pb-1">行</th>
+                  <th class="pb-1">学号</th>
+                  <th class="pb-1">姓名</th>
+                  <th class="pb-1">班级</th>
+                  <th class="pb-1">课程</th>
+                  <th class="pb-1">状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-b border-gray-100">
+                  <td class="py-1 text-gray-500">1</td>
+                  <td class="py-1 font-mono">20210001</td>
+                  <td class="py-1">张小明</td>
+                  <td class="py-1">计算机2101</td>
+                  <td class="py-1">工程实践4</td>
+                  <td class="py-1"><span class="text-green-500">✓ 有效</span></td>
+                </tr>
+                <tr class="bg-red-50 border-b border-red-100">
+                  <td class="py-1 text-gray-500">5</td>
+                  <td class="py-1 font-mono text-red-500">2021005</td>
+                  <td class="py-1">—</td>
+                  <td class="py-1">计算机2101</td>
+                  <td class="py-1">工程实践4</td>
+                  <td class="py-1"><span class="text-red-500">✗ 学号格式错误</span></td>
+                </tr>
+                <tr class="border-b border-gray-100">
+                  <td class="py-1 text-gray-500">6</td>
+                  <td class="py-1 font-mono">20210006</td>
+                  <td class="py-1">赵磊</td>
+                  <td class="py-1">计算机2101</td>
+                  <td class="py-1">工程实践4</td>
+                  <td class="py-1"><span class="text-green-500">✓ 有效</span></td>
+                </tr>
+                <tr class="bg-red-50">
+                  <td class="py-1 text-gray-500">18</td>
+                  <td class="py-1 font-mono">20210001</td>
+                  <td class="py-1">张小明</td>
+                  <td class="py-1">计算机2101</td>
+                  <td class="py-1">工程实践4</td>
+                  <td class="py-1"><span class="text-red-500">✗ 学号重复（行1）</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="flex gap-3">
+            <button class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm">
+              确认导入（32 条）
+            </button>
+            <button class="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50">
+              修正后重新上传
+            </button>
+            <a href="#" class="px-4 py-2 text-indigo-500 text-sm self-center hover:underline">查看导入日志</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== F-T-009 仓库权限配置（GitHub Org 模式）===== -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm mb-6">
+        <div class="px-5 py-4 border-b border-gray-100">
+          <h2 class="font-semibold text-gray-800">学生仓库访问权限配置（F-T-009）</h2>
+          <p class="text-xs text-gray-400 mt-0.5">通过 GitHub Organization + Team 统一管理班级仓库权限，依赖 F-T-001 学生账号映射表已完整</p>
+        </div>
+        <div class="px-5 py-4">
+          <div class="grid grid-cols-2 gap-5 mb-5">
+            <!-- Organization 信息 -->
+            <div class="border border-gray-200 rounded-lg p-4">
+              <h3 class="text-sm font-semibold text-gray-700 mb-3">GitHub Organization</h3>
+              <div class="space-y-2">
+                <div>
+                  <label class="block text-xs text-gray-400 mb-0.5">组织名称</label>
+                  <input type="text" value="oa-epp-2025" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-400 mb-0.5">课程仓库名</label>
+                  <input type="text" value="oa-epp-platform" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                </div>
+              </div>
+            </div>
+            <!-- Team 配置 -->
+            <div class="border border-gray-200 rounded-lg p-4">
+              <h3 class="text-sm font-semibold text-gray-700 mb-3">班级 Team</h3>
+              <div class="space-y-2">
+                <div>
+                  <label class="block text-xs text-gray-400 mb-0.5">Team 名称</label>
+                  <input type="text" value="class-2025-spring" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-400 mb-0.5">仓库权限</label>
+                  <select class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    <option>Write（推送代码、创建PR）</option>
+                    <option>Read（只读）</option>
+                    <option>Triage（管理 Issue/PR，不可推代码）</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- 邀请状态看板 -->
+          <div class="border border-gray-200 rounded-lg p-4 mb-4">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-semibold text-gray-700">邀请状态（32 名学生）</h3>
+              <div class="flex gap-3 text-xs">
+                <span class="text-green-600">已接受 <strong>27</strong></span>
+                <span class="text-yellow-500">待接受 <strong>3</strong></span>
+                <span class="text-red-500">未绑定 <strong>2</strong></span>
+              </div>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-2 mb-3">
+              <div class="bg-green-500 h-2 rounded-full" style="width: 84%"></div>
+            </div>
+            <table class="w-full text-xs mb-3">
+              <thead>
+                <tr class="text-gray-400 text-left border-b border-gray-100">
+                  <th class="pb-1">学号</th>
+                  <th class="pb-1">姓名</th>
+                  <th class="pb-1">GitHub 账号</th>
+                  <th class="pb-1">邀请状态</th>
+                  <th class="pb-1">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-b border-gray-50">
+                  <td class="py-1 font-mono">20210001</td>
+                  <td class="py-1">张小明</td>
+                  <td class="py-1 font-mono text-gray-600">zhangxm-github</td>
+                  <td class="py-1"><span class="px-1.5 py-0.5 bg-green-100 text-green-600 rounded">已接受</span></td>
+                  <td class="py-1"><span class="text-gray-300">—</span></td>
+                </tr>
+                <tr class="border-b border-gray-50 bg-yellow-50">
+                  <td class="py-1 font-mono">20210004</td>
+                  <td class="py-1">孙雨</td>
+                  <td class="py-1 font-mono text-gray-600">sunyu2021</td>
+                  <td class="py-1"><span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-600 rounded">待接受</span></td>
+                  <td class="py-1"><button class="text-indigo-500 hover:underline">重新发送邀请</button></td>
+                </tr>
+                <tr class="bg-red-50">
+                  <td class="py-1 font-mono">20210010</td>
+                  <td class="py-1">陈明</td>
+                  <td class="py-1 text-red-400">未绑定 GitHub</td>
+                  <td class="py-1"><span class="px-1.5 py-0.5 bg-red-100 text-red-500 rounded">无法邀请</span></td>
+                  <td class="py-1"><a href="admin_students.html" class="text-indigo-500 hover:underline">去绑定</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="flex gap-3">
+            <button class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm flex items-center gap-2">
+              批量邀请全班加入 Org
+            </button>
+            <button class="px-4 py-2 border border-red-300 text-red-500 rounded-lg text-sm hover:bg-red-50">
+              学期结束：撤销全班权限
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== F-T-002 VS Code 扩展配置 ===== -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm mb-6">
+        <div class="px-5 py-4 border-b border-gray-100">
+          <h2 class="font-semibold text-gray-800">VS Code 扩展配置（F-T-002）</h2>
+          <p class="text-xs text-gray-400 mt-0.5">配置后自动生成 <code class="font-mono">.vscode/extensions.json</code>，并可编辑 Copilot 指令文件</p>
+        </div>
+        <div class="px-5 py-4">
+          <div class="grid grid-cols-2 gap-5 mb-4">
+            <!-- 必装扩展 -->
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-semibold text-gray-700">必装扩展 <span class="text-xs text-gray-400">recommendations</span></h3>
+                <button class="text-xs text-indigo-500 hover:underline">+ 添加</button>
+              </div>
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-2 p-2 bg-blue-50 border border-blue-100 rounded-lg text-xs">
+                  <div class="w-6 h-6 bg-blue-500 rounded flex items-center justify-center text-white flex-shrink-0">G</div>
+                  <div class="flex-1">
+                    <div class="font-medium text-gray-700">GitHub.copilot</div>
+                    <div class="text-gray-400">AI 代码补全必须安装</div>
+                  </div>
+                  <button class="text-red-400 hover:text-red-600">×</button>
+                </div>
+                <div class="flex items-center gap-2 p-2 bg-blue-50 border border-blue-100 rounded-lg text-xs">
+                  <div class="w-6 h-6 bg-green-500 rounded flex items-center justify-center text-white flex-shrink-0">R</div>
+                  <div class="flex-1">
+                    <div class="font-medium text-gray-700">ms-python.python</div>
+                    <div class="text-gray-400">Python 开发环境</div>
+                  </div>
+                  <button class="text-red-400 hover:text-red-600">×</button>
+                </div>
+                <div class="flex items-center gap-2 p-2 bg-blue-50 border border-blue-100 rounded-lg text-xs">
+                  <div class="w-6 h-6 bg-purple-500 rounded flex items-center justify-center text-white flex-shrink-0">C</div>
+                  <div class="flex-1">
+                    <div class="font-medium text-gray-700">charliermarsh.ruff</div>
+                    <div class="text-gray-400">代码风格检查 Ruff</div>
+                  </div>
+                  <button class="text-red-400 hover:text-red-600">×</button>
+                </div>
+              </div>
+            </div>
+            <!-- 禁止安装 -->
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-semibold text-gray-700">禁止安装 <span class="text-xs text-gray-400">unwantedRecommendations</span></h3>
+                <button class="text-xs text-indigo-500 hover:underline">+ 添加</button>
+              </div>
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-2 p-2 bg-red-50 border border-red-100 rounded-lg text-xs">
+                  <div class="w-6 h-6 bg-red-400 rounded flex items-center justify-center text-white flex-shrink-0">!</div>
+                  <div class="flex-1">
+                    <div class="font-medium text-gray-700">ms-python.pylint</div>
+                    <div class="text-gray-400">与 Ruff 冲突，禁止使用</div>
+                  </div>
+                  <button class="text-red-400 hover:text-red-600">×</button>
+                </div>
+              </div>
+              <div class="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <p class="text-xs text-gray-500">预置模板：</p>
+                <div class="flex flex-wrap gap-1 mt-1">
+                  <button class="px-2 py-0.5 border border-gray-300 rounded text-xs text-gray-600 hover:bg-gray-100">Python开发套件</button>
+                  <button class="px-2 py-0.5 border border-gray-300 rounded text-xs text-gray-600 hover:bg-gray-100">Copilot全家桶</button>
+                  <button class="px-2 py-0.5 border border-gray-300 rounded text-xs text-gray-600 hover:bg-gray-100">Reflex开发</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Copilot 指令文件 -->
+          <div class="border border-gray-200 rounded-lg p-4">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-sm font-semibold text-gray-700">Copilot 全局指令文件 <code class="text-xs font-mono text-gray-400">.github/copilot-instructions.md</code></h3>
+              <button class="text-xs text-indigo-500 hover:underline">从仓库加载</button>
+            </div>
+            <textarea rows="6" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"># 课程全局 Copilot 指令
+
+## 技术栈约束
+- 框架：Reflex（Python 全栈，禁止引入 React/Vue/JS 框架）
+- 数据库：MySQL 8.0（通过 SQLModel + Alembic 管理迁移）
+- 代码风格：PEP 8，用 Ruff 检查（不用 pylint）
+
+## 命名规范
+- 状态变量：snake_case
+- 组件函数：返回 rx.Component
+
+## 禁止行为
+- 禁止硬编码密码/密钥，一律用 os.environ 读取
+- 禁止直接推送 main 分支，必须通过 PR</textarea>
+            <div class="flex gap-2 mt-3">
+              <button class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg font-medium">保存并提交到仓库</button>
+              <button class="px-3 py-2 border border-gray-300 text-gray-600 text-sm rounded-lg hover:bg-gray-50">预览渲染效果</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== F-T-006 需求文档编辑器 ===== -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h2 class="font-semibold text-gray-800">需求文档编辑器（F-T-006）</h2>
+            <p class="text-xs text-gray-400 mt-0.5">Markdown 编辑器，内置功能需求模板，集成 Copilot 自动补全功能属性与验收标准</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="px-3 py-1.5 border border-gray-300 text-gray-600 text-xs rounded-lg hover:bg-gray-50">导入 .md 文件</button>
+            <button class="px-3 py-1.5 border border-gray-300 text-gray-600 text-xs rounded-lg hover:bg-gray-50">预览渲染</button>
+            <span class="px-2 py-1.5 bg-gray-100 text-gray-500 text-xs rounded-lg">审阅模式（学生可见）</span>
+          </div>
+        </div>
+        <div class="px-5 py-4">
+          <!-- 模板预置按钮 -->
+          <div class="flex gap-2 mb-3">
+            <span class="text-xs text-gray-500 self-center">插入模板：</span>
+            <button class="px-2 py-1 border border-indigo-200 bg-indigo-50 text-indigo-600 text-xs rounded hover:bg-indigo-100">功能需求块</button>
+            <button class="px-2 py-1 border border-gray-200 text-gray-600 text-xs rounded hover:bg-gray-50">验收标准块</button>
+            <button class="px-2 py-1 border border-gray-200 text-gray-600 text-xs rounded hover:bg-gray-50">安全属性块</button>
+          </div>
+          <!-- 编辑器 -->
+          <div class="border border-gray-300 rounded-lg overflow-hidden">
+            <div class="bg-gray-100 px-3 py-2 flex items-center gap-2 border-b border-gray-200">
+              <span class="text-xs font-mono text-gray-500">第10章_软件产品介绍.md</span>
+              <span class="ml-auto px-1.5 py-0.5 bg-green-100 text-green-600 text-xs rounded">✓ 格式合规</span>
+            </div>
+            <textarea rows="10" class="w-full px-4 py-3 text-xs font-mono text-gray-700 focus:outline-none resize-none">## 5.1 账户与身份认证
+
+### F-S-001 登录/退出
+
+- 学生可通过学号/邮箱 + 密码登录。
+- 登录后可主动退出并清除会话。
+- 连续登录失败达到阈值后触发临时限制与提示。
+
+**验收标准**：
+- [ ] 正确凭证可登录，返回 JWT/Session
+- [ ] 错误凭证显示提示，连续 5 次失败锁定 15 分钟
+- [ ] 退出后 Token 失效，无法访问受保护资源
+
+**安全属性**：密码 bcrypt 哈希存储，禁止明文；限制登录频率防暴力破解。</textarea>
+          </div>
+          <div class="flex gap-3 mt-3">
+            <button class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm">提交到 GitHub 仓库</button>
+            <button class="px-3 py-2 border border-indigo-300 text-indigo-600 text-sm rounded-lg hover:bg-indigo-50 flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/></svg>
+              Copilot 补全建议
+            </button>
+            <button class="px-3 py-2 border border-gray-300 text-gray-600 text-sm rounded-lg hover:bg-gray-50">格式校验</button>
+            <div class="ml-auto flex items-center gap-2">
+              <span class="px-2 py-1 bg-green-50 text-green-600 text-xs rounded border border-green-200">文档已封存（学生只读）</span>
+              <button class="px-3 py-2 border border-red-300 text-red-500 text-sm rounded-lg hover:bg-red-50">解封编辑</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
