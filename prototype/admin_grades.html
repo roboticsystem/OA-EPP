@@ -49,14 +49,15 @@
     <main class="flex-1 p-6">
       <h1 class="text-xl font-bold text-gray-800 mb-6">成绩管理</h1>
 
-      <!-- Tab 切换 -->
+      <!-- Tab 切换（锚链接跳转对应区块）-->
       <div class="flex gap-1 bg-gray-100 p-1 rounded-lg mb-6 w-fit">
-        <button class="px-4 py-1.5 bg-white text-indigo-700 font-medium rounded-md text-sm shadow-sm">成绩单导出</button>
-        <button class="px-4 py-1.5 text-gray-500 hover:text-gray-700 rounded-md text-sm">开发日志导出</button>
-        <button class="px-4 py-1.5 text-gray-500 hover:text-gray-700 rounded-md text-sm">得分权重配置</button>
+        <a href="#tab-grades" class="px-4 py-1.5 bg-white text-indigo-700 font-medium rounded-md text-sm shadow-sm no-underline">成绩单导出</a>
+        <a href="#tab-devlogs" class="px-4 py-1.5 text-gray-500 hover:text-gray-700 rounded-md text-sm no-underline">开发日志导出</a>
+        <a href="#tab-weights" class="px-4 py-1.5 text-gray-500 hover:text-gray-700 rounded-md text-sm no-underline">得分权重配置</a>
       </div>
 
       <!-- ===== 成绩单导出 (F-T-008) ===== -->
+      <div id="tab-grades" class="scroll-mt-4">
 
       <!-- 筛选区 -->
       <div class="bg-white rounded-xl border border-gray-200 shadow-sm mb-5">
@@ -176,7 +177,10 @@
         </div>
       </div>
 
-      <!-- ===== 开发日志导出 (F-T-010) - 隐藏（Tab 切换到时显示） ===== -->
+      </div><!-- /#tab-grades -->
+
+      <!-- ===== 开发日志导出 (F-T-010) ===== -->
+      <div id="tab-devlogs" class="scroll-mt-4">
       <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
         <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <h2 class="font-semibold text-gray-800">学生开发日志导出（F-T-010）</h2>
@@ -254,7 +258,10 @@
         </div>
       </div>
 
+      </div><!-- /#tab-devlogs -->
+
       <!-- ===== 得分权重配置 Tab ===== -->
+      <div id="tab-weights" class="scroll-mt-4">
       <!-- 课程选择 + 说明 -->
       <div class="bg-white rounded-xl border border-gray-200 shadow-sm mb-5">
         <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -501,6 +508,7 @@
           </div>
         </div>
       </div>
+      </div><!-- /#tab-weights -->
 
     </main>
   </div>
