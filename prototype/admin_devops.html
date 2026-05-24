@@ -8,7 +8,7 @@
 </head>
 <body class="bg-gray-50 min-h-screen flex">
 
-  <!-- Sidebar (Teacher, same as admin_students) -->
+  <!-- 侧边栏 -->
   <aside class="w-56 bg-white border-r border-gray-200 flex flex-col min-h-screen fixed left-0 top-0">
     <div class="px-5 py-5 border-b border-gray-100">
       <div class="flex items-center gap-2.5">
@@ -54,115 +54,302 @@
   </aside>
 
   <main class="ml-56 flex-1 p-8">
+    <!-- 页面标题 -->
     <div class="mb-6">
       <h1 class="text-xl font-bold text-gray-800">开发运维</h1>
-      <p class="text-sm text-gray-400 mt-0.5">仓库配置 · CI/CD · GitHub 快捷链接 · AI 提示词管理</p>
+      <p class="text-sm text-gray-400 mt-0.5">按顺序完成以下配置步骤，确保项目开发环境规范就绪</p>
+    </div>
+
+    <!-- 运维步骤总进度条 -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-sm font-semibold text-gray-700">本期配置进度</span>
+        <span class="text-xs text-indigo-600 font-medium bg-indigo-50 px-3 py-1 rounded-full">已完成 3 / 5 步</span>
+      </div>
+      <div class="flex items-center">
+        <!-- Step 1 完成 -->
+        <div class="flex flex-col items-center flex-shrink-0 w-20">
+          <div class="w-9 h-9 rounded-full bg-green-500 text-white flex items-center justify-center text-sm font-bold mb-1.5 shadow-sm">✓</div>
+          <div class="text-xs text-green-600 font-medium text-center leading-tight">仓库<br>初始化</div>
+        </div>
+        <div class="flex-1 h-1.5 bg-green-300 mx-1 rounded-full"></div>
+        <!-- Step 2 完成 -->
+        <div class="flex flex-col items-center flex-shrink-0 w-24">
+          <div class="w-9 h-9 rounded-full bg-green-500 text-white flex items-center justify-center text-sm font-bold mb-1.5 shadow-sm">✓</div>
+          <div class="text-xs text-green-600 font-medium text-center leading-tight">分支保护<br>& Secrets</div>
+        </div>
+        <div class="flex-1 h-1.5 bg-green-300 mx-1 rounded-full"></div>
+        <!-- Step 3 完成 -->
+        <div class="flex flex-col items-center flex-shrink-0 w-20">
+          <div class="w-9 h-9 rounded-full bg-green-500 text-white flex items-center justify-center text-sm font-bold mb-1.5 shadow-sm">✓</div>
+          <div class="text-xs text-green-600 font-medium text-center leading-tight">CI/CD<br>验证</div>
+        </div>
+        <div class="flex-1 h-1.5 bg-gray-200 mx-1 rounded-full"></div>
+        <!-- Step 4 进行中 -->
+        <div class="flex flex-col items-center flex-shrink-0 w-20">
+          <div class="w-9 h-9 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold mb-1.5 shadow-sm ring-4 ring-blue-100">4</div>
+          <div class="text-xs text-blue-600 font-medium text-center leading-tight">工作流<br>规则</div>
+        </div>
+        <div class="flex-1 h-1.5 bg-gray-200 mx-1 rounded-full"></div>
+        <!-- Step 5 待完成 -->
+        <div class="flex flex-col items-center flex-shrink-0 w-20">
+          <div class="w-9 h-9 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center text-sm font-bold mb-1.5">5</div>
+          <div class="text-xs text-gray-400 text-center leading-tight">AI 代码<br>审查</div>
+        </div>
+      </div>
     </div>
 
     <div class="grid grid-cols-3 gap-6">
-      <!-- Left: Script Console + GitHub Quick Links -->
+      <!-- 左侧主内容（按运维步骤顺序） -->
       <div class="col-span-2 space-y-6">
 
-        <!-- Auto Config Wizard -->
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-semibold text-gray-700">仓库一键初始化向导</h3>
-            <div class="flex items-center gap-2 text-xs text-gray-400">
-              <span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
-              Step 3/8 已完成
+        <!-- ① 仓库初始化（F-D-001）已完成 -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 bg-green-50">
+            <span class="w-7 h-7 rounded-full bg-green-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">✓</span>
+            <div class="flex-1">
+              <h3 class="text-sm font-semibold text-gray-700">步骤 ① · 仓库初始化</h3>
+              <p class="text-xs text-green-600">已完成 · 私有仓库 + .gitignore + MIT 协议</p>
             </div>
+            <button class="text-xs text-gray-400 hover:text-indigo-600 border border-gray-200 px-3 py-1 rounded-lg hover:bg-gray-50">重新运行</button>
           </div>
-          <!-- Steps -->
-          <div class="space-y-2 mb-4">
-            <div class="flex items-center gap-3 text-xs">
-              <span class="w-5 h-5 rounded-full bg-green-500 text-white flex items-center justify-center text-xs flex-shrink-0">✓</span>
-              <span class="text-gray-500">创建 GitHub 仓库</span>
+          <div class="px-5 py-4">
+            <div class="grid grid-cols-2 gap-4 mb-4">
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-2 text-xs text-gray-500">
+                  <span class="w-4 h-4 rounded-full bg-green-100 text-green-600 flex items-center justify-center flex-shrink-0 text-xs">✓</span>
+                  创建 GitHub 私有仓库
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-500">
+                  <span class="w-4 h-4 rounded-full bg-green-100 text-green-600 flex items-center justify-center flex-shrink-0 text-xs">✓</span>
+                  写入 Python .gitignore 模板
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-500">
+                  <span class="w-4 h-4 rounded-full bg-green-100 text-green-600 flex items-center justify-center flex-shrink-0 text-xs">✓</span>
+                  初始化 MIT 开源协议
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-500">
+                  <span class="w-4 h-4 rounded-full bg-green-100 text-green-600 flex items-center justify-center flex-shrink-0 text-xs">✓</span>
+                  推送 main 分支初始提交
+                </div>
+              </div>
+              <div class="bg-gray-900 rounded-lg p-3 font-mono text-xs text-green-400 h-24 overflow-y-auto">
+                <p><span class="text-gray-500">$</span> gh repo create OA-EPP --private</p>
+                <p class="text-green-400">✓ Created roboticsystem/OA-EPP</p>
+                <p><span class="text-gray-500">$</span> git push -u origin main</p>
+                <p class="text-green-400">✓ Branch main pushed</p>
+              </div>
             </div>
-            <div class="flex items-center gap-3 text-xs">
-              <span class="w-5 h-5 rounded-full bg-green-500 text-white flex items-center justify-center text-xs flex-shrink-0">✓</span>
-              <span class="text-gray-500">配置 .gitignore 与开源协议</span>
-            </div>
-            <div class="flex items-center gap-3 text-xs">
-              <span class="w-5 h-5 rounded-full bg-green-500 text-white flex items-center justify-center text-xs flex-shrink-0">✓</span>
-              <span class="text-gray-500">设置分支保护规则</span>
-            </div>
-            <div class="flex items-center gap-3 text-xs">
-              <span class="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs animate-pulse flex-shrink-0">4</span>
-              <span class="text-blue-700 font-medium">注入 GitHub Secrets ← 进行中</span>
-            </div>
-            <div class="flex items-center gap-3 text-xs">
-              <span class="w-5 h-5 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center text-xs flex-shrink-0">5</span>
-              <span class="text-gray-400">配置 VS Code 扩展列表</span>
-            </div>
-            <div class="flex items-center gap-3 text-xs">
-              <span class="w-5 h-5 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center text-xs flex-shrink-0">6</span>
-              <span class="text-gray-400">配置 Copilot Instructions</span>
-            </div>
-            <div class="flex items-center gap-3 text-xs">
-              <span class="w-5 h-5 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center text-xs flex-shrink-0">7</span>
-              <span class="text-gray-400">配置 CI/CD Actions</span>
-            </div>
-            <div class="flex items-center gap-3 text-xs">
-              <span class="w-5 h-5 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center text-xs flex-shrink-0">8</span>
-              <span class="text-gray-400">Coolify 部署配置</span>
-            </div>
-          </div>
-
-          <!-- Console Output -->
-          <div class="bg-gray-900 rounded-lg p-4 font-mono text-xs text-green-400 h-36 overflow-y-auto">
-            <p><span class="text-gray-500">$</span> gh secret set DATABASE_URL --body "..."</p>
-            <p class="text-green-400">✓ Secret DATABASE_URL set for roboticsystem/OA-EPP</p>
-            <p><span class="text-gray-500">$</span> gh secret set SESSION_SECRET --body "..."</p>
-            <p class="text-green-400">✓ Secret SESSION_SECRET set for roboticsystem/OA-EPP</p>
-            <p><span class="text-gray-500 animate-pulse">$</span><span class="text-yellow-400 animate-pulse"> 正在注入 DEPLOY_TOKEN...</span></p>
-          </div>
-          <div class="flex gap-3 mt-3">
-            <button class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-4 py-2 rounded-lg transition">
-              继续下一步
-            </button>
-            <button class="flex items-center gap-2 border border-gray-200 text-gray-600 text-xs px-4 py-2 rounded-lg hover:bg-gray-50 transition">
-              重试当前步骤
-            </button>
           </div>
         </div>
 
-        <!-- Issue Close PR Rule -->
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-sm font-semibold text-gray-700">关闭 Issue 必须关联 PR</h3>
-            <!-- Toggle -->
+        <!-- ② 分支保护 + Secrets（F-D-002 / F-D-003）已完成 -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 bg-green-50">
+            <span class="w-7 h-7 rounded-full bg-green-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">✓</span>
+            <div class="flex-1">
+              <h3 class="text-sm font-semibold text-gray-700">步骤 ② · 分支保护规则 &amp; Secrets 管理</h3>
+              <p class="text-xs text-green-600">已完成 · main 分支已保护，3 个 Secrets 已注入</p>
+            </div>
+            <button class="text-xs text-gray-400 hover:text-indigo-600 border border-gray-200 px-3 py-1 rounded-lg hover:bg-gray-50">编辑</button>
+          </div>
+          <div class="px-5 py-4 grid grid-cols-2 gap-5">
+            <!-- 分支保护 -->
+            <div>
+              <h4 class="text-xs font-semibold text-gray-600 mb-3">分支保护规则（F-D-002）</h4>
+              <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-gray-600">PR 审查通过后方可合并</span>
+                  <div class="relative w-9 h-5 flex-shrink-0">
+                    <div class="w-9 h-5 bg-blue-500 rounded-full"></div>
+                    <div class="absolute top-0.5 right-0.5 w-4 h-4 bg-white rounded-full shadow"></div>
+                  </div>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-gray-600">禁止 Force Push 至 main</span>
+                  <div class="relative w-9 h-5 flex-shrink-0">
+                    <div class="w-9 h-5 bg-blue-500 rounded-full"></div>
+                    <div class="absolute top-0.5 right-0.5 w-4 h-4 bg-white rounded-full shadow"></div>
+                  </div>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-gray-600">至少 1 名成员 Approve</span>
+                  <div class="relative w-9 h-5 flex-shrink-0">
+                    <div class="w-9 h-5 bg-blue-500 rounded-full"></div>
+                    <div class="absolute top-0.5 right-0.5 w-4 h-4 bg-white rounded-full shadow"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Secrets -->
+            <div>
+              <h4 class="text-xs font-semibold text-gray-600 mb-3">Secrets 注入（F-D-003）</h4>
+              <div class="space-y-2">
+                <div class="flex items-center gap-2 text-xs">
+                  <span class="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></span>
+                  <span class="font-mono text-gray-600 flex-1">DATABASE_URL</span>
+                  <span class="text-gray-400">已注入</span>
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                  <span class="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></span>
+                  <span class="font-mono text-gray-600 flex-1">SESSION_SECRET</span>
+                  <span class="text-gray-400">已注入</span>
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                  <span class="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></span>
+                  <span class="font-mono text-gray-600 flex-1">DEPLOY_TOKEN</span>
+                  <span class="text-gray-400">已注入</span>
+                </div>
+                <button class="mt-1.5 text-xs text-indigo-500 hover:underline">+ 添加新 Secret</button>
+              </div>
+              <div class="mt-3 bg-gray-900 rounded-lg p-2.5 font-mono text-xs text-green-400">
+                <p><span class="text-gray-500">$</span> gh secret set DATABASE_URL ...</p>
+                <p class="text-green-400">✓ 3 Secrets injected successfully</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ③ CI/CD 配置与验证（F-D-004）已完成 -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 bg-green-50">
+            <span class="w-7 h-7 rounded-full bg-green-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">✓</span>
+            <div class="flex-1">
+              <h3 class="text-sm font-semibold text-gray-700">步骤 ③ · CI/CD 自动化（GitHub Actions）</h3>
+              <p class="text-xs text-green-600">已完成 · Ruff + pytest 工作流已生效，最近一次 CI 通过</p>
+            </div>
+            <a href="#" class="text-xs text-indigo-500 hover:underline">查看 Actions →</a>
+          </div>
+          <div class="px-5 py-4 grid grid-cols-2 gap-4">
+            <div class="border border-gray-100 rounded-lg p-3">
+              <h4 class="text-xs font-semibold text-gray-600 mb-2">工作流规则（F-D-004）</h4>
+              <div class="space-y-1.5 text-xs text-gray-500">
+                <div class="flex gap-2 items-start"><span class="text-green-500 flex-shrink-0">✓</span>每次 PR 自动触发检查</div>
+                <div class="flex gap-2 items-start"><span class="text-green-500 flex-shrink-0">✓</span>Ruff 代码风格 + 类型检查</div>
+                <div class="flex gap-2 items-start"><span class="text-green-500 flex-shrink-0">✓</span>pytest 单元测试覆盖</div>
+                <div class="flex gap-2 items-start"><span class="text-green-500 flex-shrink-0">✓</span>CI 失败时阻止合并</div>
+              </div>
+            </div>
+            <div class="border border-gray-100 rounded-lg p-3">
+              <h4 class="text-xs font-semibold text-gray-600 mb-2">最近 CI 记录</h4>
+              <div class="space-y-2">
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs text-gray-700 truncate">feat: 新增成绩导出功能</p>
+                    <p class="text-xs text-gray-400">main · 2 分钟前</p>
+                  </div>
+                  <span class="text-xs text-green-600 font-medium flex-shrink-0">通过</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></span>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs text-gray-700 truncate">fix: 修复提交页面样式</p>
+                    <p class="text-xs text-gray-400">pr/feature-ui · 1 小时前</p>
+                  </div>
+                  <span class="text-xs text-red-500 font-medium flex-shrink-0">失败</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs text-gray-700 truncate">docs: 更新 README</p>
+                    <p class="text-xs text-gray-400">main · 3 小时前</p>
+                  </div>
+                  <span class="text-xs text-green-600 font-medium flex-shrink-0">通过</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ④ 工作流规则（F-T-007）当前步骤 -->
+        <div class="bg-white rounded-xl border-2 border-blue-400 shadow-sm overflow-hidden">
+          <div class="flex items-center gap-3 px-5 py-3.5 border-b border-blue-100 bg-blue-50">
+            <span class="w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0 ring-4 ring-blue-100">4</span>
+            <div class="flex-1">
+              <h3 class="text-sm font-semibold text-gray-700">步骤 ④ · 工作流规则：Issue 关闭必须关联 PR</h3>
+              <p class="text-xs text-blue-600 font-medium">← 当前步骤，请确认规则配置后点击「完成此步骤」</p>
+            </div>
             <div class="flex items-center gap-2">
               <span class="text-xs text-gray-500">规则已开启</span>
-              <div class="relative w-10 h-5">
-                <div class="w-10 h-5 bg-blue-500 rounded-full"></div>
+              <div class="relative w-9 h-5 flex-shrink-0">
+                <div class="w-9 h-5 bg-blue-500 rounded-full"></div>
                 <div class="absolute top-0.5 right-0.5 w-4 h-4 bg-white rounded-full shadow"></div>
               </div>
             </div>
           </div>
-          <p class="text-xs text-gray-400 mb-3">所有角色在 OAEPP 内关闭 Issue 时必须填写关联 PR 编号（实时校验）。通过 GitHub Web 绕过的关闭将在后台生成警告记录。</p>
-          <div class="bg-orange-50 border border-orange-100 rounded-lg px-4 py-3">
-            <p class="text-xs text-orange-700 font-medium">⚠ 近期警告：3 条 Issue 通过 GitHub Web 直接关闭（未填写 PR），请复查。</p>
-            <a href="#" class="text-xs text-orange-600 hover:underline mt-1 inline-block">查看警告记录 →</a>
+          <div class="px-5 py-4">
+            <p class="text-xs text-gray-500 mb-3 leading-relaxed">
+              规则开启后，所有角色在 OA-EPP 内关闭 Issue 时，系统弹出对话框强制填写关联 PR 编号（调用 GitHub API 校验同仓库内的已存在 PR）。
+            </p>
+            <!-- 推荐方式 -->
+            <div class="bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-3 mb-3">
+              <p class="text-xs text-indigo-700 font-medium mb-1">✦ 推荐方式：PR 描述中自动关联</p>
+              <p class="text-xs text-indigo-600">在 PR 描述中写 <code class="bg-indigo-100 px-1 rounded font-mono">Closes #N</code>，合并后 GitHub 自动关闭 Issue，平台识别并标记为「PR 自动关联关闭」，无需额外操作。</p>
+            </div>
+            <!-- 警告记录 -->
+            <div class="bg-orange-50 border border-orange-100 rounded-lg px-4 py-3 mb-4">
+              <p class="text-xs text-orange-700 font-medium">⚠ 近期警告：3 条 Issue 通过 GitHub Web 直接关闭（未填写 PR），已生成后台记录。</p>
+              <a href="#" class="text-xs text-orange-600 hover:underline mt-1 inline-block">查看警告记录 →</a>
+            </div>
+            <!-- 配置选项 -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">警告策略</label>
+                <select class="w-full border border-gray-300 rounded px-3 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                  <option>严格模式（阻止直接关闭）</option>
+                  <option>宽松模式（警告但允许关闭）</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">允许跨仓库 PR</label>
+                <select class="w-full border border-gray-300 rounded px-3 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                  <option>不允许（仅本仓库 PR 编号）</option>
+                  <option>允许（任意仓库 PR 编号）</option>
+                </select>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg font-medium transition">保存规则配置</button>
+              <button class="px-4 py-2 border border-gray-300 text-gray-600 text-xs rounded-lg hover:bg-gray-50 transition">完成此步骤，进入步骤 ⑤ →</button>
+            </div>
           </div>
         </div>
 
-        <!-- AI Code Review Prompt -->
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-semibold text-gray-700">AI 代码审查提示词</h3>
+        <!-- ⑤ AI 代码审查提示词（F-D-007）待完成 -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 bg-gray-50">
+            <span class="w-7 h-7 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-sm font-bold flex-shrink-0">5</span>
+            <div class="flex-1">
+              <h3 class="text-sm font-semibold text-gray-600">步骤 ⑤ · AI 代码审查提示词配置（pr-agent）</h3>
+              <p class="text-xs text-gray-400">完成步骤 ④ 后激活</p>
+            </div>
             <div class="flex gap-2">
-              <button class="text-xs border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">验证配置</button>
+              <button class="text-xs border border-gray-200 text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-50">验证配置</button>
               <button class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700">保存并应用</button>
             </div>
           </div>
-          <!-- Template selector -->
-          <div class="flex gap-2 mb-3">
-            <button class="text-xs bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full">代码审查（当前）</button>
-            <button class="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full hover:bg-gray-200">PR 描述总结</button>
-            <button class="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full hover:bg-gray-200">安全全面审查</button>
-          </div>
-          <textarea rows="6"
-            class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-xs font-mono text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none">你是一位严格的代码审查专家，遵循以下规范审查 PR：
+          <div class="px-5 py-4">
+            <!-- 模板选择 -->
+            <div class="mb-3">
+              <label class="block text-xs text-gray-500 mb-1.5">选择提示词模板</label>
+              <div class="flex flex-wrap gap-2">
+                <button class="text-xs bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full font-medium">代码质量审查（当前）</button>
+                <button class="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full hover:bg-gray-200">PR 描述总结</button>
+                <button class="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full hover:bg-gray-200">安全全面审查</button>
+                <button class="text-xs border border-dashed border-gray-300 text-gray-400 px-3 py-1.5 rounded-full hover:bg-gray-50">+ 自定义</button>
+              </div>
+            </div>
+            <!-- 可用变量 -->
+            <div class="flex flex-wrap gap-1.5 mb-2">
+              <span class="text-xs text-gray-400">可用变量：</span>
+              <code class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">{diff}</code>
+              <code class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">{pr_title}</code>
+              <code class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">{pr_description}</code>
+              <code class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">{author}</code>
+            </div>
+            <!-- 编辑器 -->
+            <textarea rows="7" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-xs font-mono text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none">你是一位严格的代码审查专家，遵循以下规范审查 PR：
 
 1. 代码规范：遵循 Ruff 格式化规范，变量命名使用 snake_case
 2. 安全检查：检查 SQL 注入、硬编码 Secrets、未授权访问风险
@@ -172,15 +359,36 @@
 变更内容：{diff}
 PR 标题：{pr_title}
 PR 描述：{pr_description}</textarea>
-          <p class="text-xs text-gray-400 mt-2">可用变量：<code class="bg-gray-100 px-1 rounded">{diff}</code> <code class="bg-gray-100 px-1 rounded">{pr_title}</code> <code class="bg-gray-100 px-1 rounded">{pr_description}</code> · 文件路径：<code class="bg-gray-100 px-1 rounded">.github/review-prompts/code-review.prompt.md</code></p>
+            <div class="flex items-center justify-between mt-3">
+              <p class="text-xs text-gray-400">保存至 <code class="bg-gray-100 px-1 rounded font-mono">.github/review-prompts/code-review.prompt.md</code>（纳入 Git）</p>
+              <button class="text-xs border border-gray-200 text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-50 flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                清除验证痕迹
+              </button>
+            </div>
+            <!-- Dry-Run 验证结果预览 -->
+            <div class="mt-3 border border-gray-200 rounded-lg p-3 bg-gray-50">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-gray-600">验证结果预览（Dry-Run）</span>
+                <span class="text-xs text-gray-400">尚未执行验证</span>
+              </div>
+              <div class="bg-gray-900 rounded p-3 font-mono text-xs text-gray-500 h-14 flex items-center justify-center">
+                点击「验证配置」后在此显示 AI 审查输出预览
+              </div>
+            </div>
+          </div>
         </div>
+
       </div>
 
-      <!-- Right: GitHub Quick Links -->
+      <!-- 右侧常驻面板 -->
       <div class="space-y-5">
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <h3 class="text-sm font-semibold text-gray-700 mb-4">GitHub 快捷链接</h3>
-          <div class="space-y-2">
+
+        <!-- GitHub 快捷链接 -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <h3 class="text-sm font-semibold text-gray-700 mb-1">GitHub 快捷链接</h3>
+          <p class="text-xs text-gray-400 mb-3">全流程随时可用（F-D-008）</p>
+          <div class="space-y-1.5">
             <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50 transition text-sm text-gray-700 group">
               <svg class="w-4 h-4 text-gray-400 group-hover:text-indigo-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
               仓库主页
@@ -212,36 +420,52 @@ PR 描述：{pr_description}</textarea>
           </div>
         </div>
 
-        <!-- CI Status Card -->
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <h3 class="text-sm font-semibold text-gray-700 mb-3">最近 CI 状态</h3>
+        <!-- 步骤速查卡 -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">步骤速查</h3>
           <div class="space-y-2.5">
-            <div class="flex items-center gap-3">
-              <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span>
-              <div class="flex-1 min-w-0">
-                <p class="text-xs text-gray-700 truncate">feat: 新增成绩导出功能</p>
-                <p class="text-xs text-gray-400">main · 2 分钟前</p>
+            <div class="flex items-start gap-2.5 text-xs">
+              <span class="w-5 h-5 rounded-full bg-green-100 text-green-600 flex items-center justify-center flex-shrink-0 font-bold mt-0.5">✓</span>
+              <div>
+                <span class="text-gray-600 font-medium">① 仓库初始化</span>
+                <p class="text-gray-400 mt-0.5">私有仓库 + .gitignore + LICENSE</p>
               </div>
-              <span class="text-xs text-green-600 font-medium">通过</span>
             </div>
-            <div class="flex items-center gap-3">
-              <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></span>
-              <div class="flex-1 min-w-0">
-                <p class="text-xs text-gray-700 truncate">fix: 修复作业提交页面样式</p>
-                <p class="text-xs text-gray-400">pr/feature-ui · 1 小时前</p>
+            <div class="flex items-start gap-2.5 text-xs">
+              <span class="w-5 h-5 rounded-full bg-green-100 text-green-600 flex items-center justify-center flex-shrink-0 font-bold mt-0.5">✓</span>
+              <div>
+                <span class="text-gray-600 font-medium">② 分支保护 &amp; Secrets</span>
+                <p class="text-gray-400 mt-0.5">main 保护 + 3 Secrets 注入</p>
               </div>
-              <span class="text-xs text-red-500 font-medium">失败</span>
             </div>
-            <div class="flex items-center gap-3">
-              <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span>
-              <div class="flex-1 min-w-0">
-                <p class="text-xs text-gray-700 truncate">docs: 更新 README</p>
-                <p class="text-xs text-gray-400">main · 3 小时前</p>
+            <div class="flex items-start gap-2.5 text-xs">
+              <span class="w-5 h-5 rounded-full bg-green-100 text-green-600 flex items-center justify-center flex-shrink-0 font-bold mt-0.5">✓</span>
+              <div>
+                <span class="text-gray-600 font-medium">③ CI/CD 验证</span>
+                <p class="text-gray-400 mt-0.5">Ruff + pytest 工作流已生效</p>
               </div>
-              <span class="text-xs text-green-600 font-medium">通过</span>
+            </div>
+            <div class="flex items-start gap-2.5 text-xs">
+              <span class="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 font-bold mt-0.5">4</span>
+              <div>
+                <span class="text-blue-600 font-medium">④ 工作流规则 ← 当前</span>
+                <p class="text-blue-400 mt-0.5">Issue 关闭必须关联 PR</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-2.5 text-xs">
+              <span class="w-5 h-5 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center flex-shrink-0 font-bold mt-0.5">5</span>
+              <div>
+                <span class="text-gray-400 font-medium">⑤ AI 代码审查提示词</span>
+                <p class="text-gray-300 mt-0.5">pr-agent 审查模板配置</p>
+              </div>
             </div>
           </div>
+          <div class="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-400">
+            全部完成后，学生可开始参与开发。<br>
+            <a href="admin_settings.html" class="text-indigo-500 hover:underline">学生名单导入 →</a>
+          </div>
         </div>
+
       </div>
     </div>
   </main>
