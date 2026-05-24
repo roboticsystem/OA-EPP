@@ -526,6 +526,95 @@
               <button class="px-3 py-2 border border-red-300 text-red-500 text-sm rounded-lg hover:bg-red-50">解封编辑</button>
             </div>
           </div>
+
+          <!-- ===== F-T-011 需求转 GitHub Issues ===== -->
+          <div class="mt-6 border-t border-gray-100 pt-5">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                  <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                  一键生成 GitHub Issues（F-T-011）
+                </h3>
+                <p class="text-xs text-gray-400 mt-0.5">解析需求文档中每条 <code class="font-mono">### F-xxx</code> 功能项，批量在 GitHub 仓库创建对应 Issue</p>
+              </div>
+              <button class="flex items-center gap-2 bg-gray-900 hover:bg-black text-white text-sm px-4 py-2 rounded-lg font-medium">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                生成 Issues 预览
+              </button>
+            </div>
+
+            <!-- 预览表格 -->
+            <div class="border border-gray-200 rounded-xl overflow-hidden">
+              <div class="bg-gray-50 px-4 py-2.5 flex items-center justify-between border-b border-gray-200">
+                <div class="flex items-center gap-3">
+                  <input type="checkbox" class="rounded border-gray-300" checked>
+                  <span class="text-xs text-gray-500">全选（共 6 条需求，已识别 6 条）</span>
+                </div>
+                <div class="flex items-center gap-3 text-xs text-gray-400">
+                  <span>目标仓库：<span class="font-mono text-gray-600">oa-epp-2025 / oa-epp-platform</span></span>
+                  <button class="text-indigo-500 hover:underline">修改</button>
+                </div>
+              </div>
+              <table class="w-full text-xs">
+                <thead>
+                  <tr class="text-gray-400 text-left border-b border-gray-100 bg-gray-50">
+                    <th class="px-4 py-2 w-4"></th>
+                    <th class="px-4 py-2">Issue 标题</th>
+                    <th class="px-4 py-2">Label</th>
+                    <th class="px-4 py-2">Milestone</th>
+                    <th class="px-4 py-2">Assignee</th>
+                    <th class="px-4 py-2 text-right">状态</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                  <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-2.5"><input type="checkbox" class="rounded border-gray-300" checked></td>
+                    <td class="px-4 py-2.5 font-medium text-gray-700">F-S-001 登录/退出</td>
+                    <td class="px-4 py-2.5"><span class="px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded">student-feature</span></td>
+                    <td class="px-4 py-2.5 text-gray-500">5.1 账户与身份认证</td>
+                    <td class="px-4 py-2.5"><select class="border border-gray-200 rounded px-1.5 py-0.5 text-xs text-gray-600 focus:outline-none"><option>未分配</option><option>张小明</option></select></td>
+                    <td class="px-4 py-2.5 text-right"><span class="px-1.5 py-0.5 bg-green-100 text-green-600 rounded">新建</span></td>
+                  </tr>
+                  <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-2.5"><input type="checkbox" class="rounded border-gray-300" checked></td>
+                    <td class="px-4 py-2.5 font-medium text-gray-700">F-S-002 个人资料</td>
+                    <td class="px-4 py-2.5"><span class="px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded">student-feature</span></td>
+                    <td class="px-4 py-2.5 text-gray-500">5.1 账户与身份认证</td>
+                    <td class="px-4 py-2.5"><select class="border border-gray-200 rounded px-1.5 py-0.5 text-xs text-gray-600 focus:outline-none"><option>未分配</option><option>李华</option></select></td>
+                    <td class="px-4 py-2.5 text-right"><span class="px-1.5 py-0.5 bg-green-100 text-green-600 rounded">新建</span></td>
+                  </tr>
+                  <tr class="hover:bg-yellow-50 bg-yellow-50/30">
+                    <td class="px-4 py-2.5"><input type="checkbox" class="rounded border-gray-300"></td>
+                    <td class="px-4 py-2.5 font-medium text-yellow-700">F-T-001 学生—GitHub 账号对应表</td>
+                    <td class="px-4 py-2.5"><span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded">teacher-feature</span></td>
+                    <td class="px-4 py-2.5 text-gray-500">教师管理</td>
+                    <td class="px-4 py-2.5 text-gray-400">—</td>
+                    <td class="px-4 py-2.5 text-right"><span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-600 rounded">⚠ 已存在 #3</span></td>
+                  </tr>
+                  <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-2.5"><input type="checkbox" class="rounded border-gray-300" checked></td>
+                    <td class="px-4 py-2.5 font-medium text-gray-700">F-D-004 CI/CD 自动化检查</td>
+                    <td class="px-4 py-2.5"><span class="px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded">devops</span></td>
+                    <td class="px-4 py-2.5 text-gray-500">开发运维</td>
+                    <td class="px-4 py-2.5"><select class="border border-gray-200 rounded px-1.5 py-0.5 text-xs text-gray-600 focus:outline-none"><option>未分配</option><option>王芳</option></select></td>
+                    <td class="px-4 py-2.5 text-right"><span class="px-1.5 py-0.5 bg-green-100 text-green-600 rounded">新建</span></td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="px-4 py-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+                <div class="text-xs text-gray-400">
+                  将创建 5 条 Issue · 跳过 1 条（已存在）· 调用 GitHub API：<code class="font-mono">POST /repos/oa-epp-2025/oa-epp-platform/issues</code>
+                </div>
+                <div class="flex gap-2">
+                  <button class="text-xs border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">取消</button>
+                  <button class="text-xs bg-gray-900 hover:bg-black text-white px-4 py-1.5 rounded-lg font-medium flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12..."/></svg>
+                    确认创建 5 条 Issue
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       </div><!-- /#tab-docs -->
