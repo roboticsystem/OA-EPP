@@ -535,6 +535,46 @@ git push main
 
 ---
 
+## 🖥️ 原型预览：VS Code 端口转发 + start_prototype.sh
+
+**核心原则**：`prototype/*.html` 与 Reflex 编译输出 **1:1 完全一致**
+
+> 原型 HTML 仅使用 Reflex 内置组件对应的 HTML 结构 + Tailwind CSS，  
+> 因此无需运行 Python，直接用浏览器打开静态 HTML 即可验证 UI 效果。
+
+**一行命令启动预览服务器**：
+
+```bash
+bash start_prototype.sh          # 默认端口 8088
+# 或指定端口
+bash start_prototype.sh 9000
+```
+
+脚本自动完成三件事：
+
+| 步骤 | 内容 |
+|------|------|
+| ① 检查端口占用 | 若 8088 已占用，自动改用 8089 |
+| ② 启动静态服务 | `python3 -m http.server 8088 --bind 0.0.0.0` |
+| ③ 打印端口转发指引 | 告知 VS Code 端口面板操作路径 |
+
+**VS Code 端口转发（Remote / Codespaces 场景）**：
+
+```
+① 终端运行：bash start_prototype.sh
+② Ctrl+Shift+P → "Forward a Port" → 输入 8088
+③ VS Code 底部「端口」面板 → 点击「在浏览器中打开」🌐
+```
+
+<div class="highlight-box">
+
+💡 **开发建议**：先在 `prototype/` 中用纯 HTML + Tailwind 敲定 UI，  
+再让 AI 对照原型文件 1:1 翻译为 Reflex Python 代码，效率最高。
+
+</div>
+
+---
+
 <!-- _class: title-slide -->
 <!-- _header: "" -->
 <!-- _footer: "" -->
