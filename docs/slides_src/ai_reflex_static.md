@@ -7,10 +7,11 @@ footer: '成都信息工程大学 软件工程学院 · 2025'
 style: |
   section {
     font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
-    font-size: 22px;
-    padding: 40px 60px;
+    font-size: 20px;
+    padding: 36px 56px;
     background: #ffffff;
     color: #1a1a2e;
+    overflow: hidden;
   }
   section.title-slide {
     background: #ffffff;
@@ -44,8 +45,8 @@ style: |
   h2 { color: #4f46e5; margin-top: 0; }
   h3 { color: #7c3aed; }
   code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: #be185d; }
-  pre { background: #1e1e2e !important; border-radius: 8px; padding: 1.2em !important; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
-  pre code { background: transparent; color: #cdd6f4; font-size: 0.8em; padding: 0; }
+  pre { background: #1e1e2e !important; border-radius: 8px; padding: 0.8em 1.2em !important; box-shadow: 0 4px 16px rgba(0,0,0,0.15); overflow: auto; }
+  pre code { background: transparent; color: #cdd6f4; font-size: 0.72em; padding: 0; line-height: 1.45; }
   table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.9em; }
   th { background: #4f46e5; color: white; padding: 0.5em 0.8em; text-align: left; }
   td { padding: 0.4em 0.8em; border-bottom: 1px solid #e5e7eb; }
@@ -306,7 +307,7 @@ def index():
 
 ```python
 import reflex as rx
-from ..components.navbar import navbar  # 公共导航栏
+from ..components.navbar import navbar
 
 # ① 状态类（数据 + 事件）
 class GradeState(rx.State):
@@ -314,19 +315,15 @@ class GradeState(rx.State):
     score_dist: list[dict] = [
         {"grade": "A", "count": 8},
         {"grade": "B", "count": 14},
-        {"grade": "C", "count": 7},
     ]
-
-    def refresh(self):   # 事件处理器
-        """从后端拉取最新成绩数据"""
-        pass  # 接入 API 时实现
+    def refresh(self):   # 事件处理器，接入后端 API
+        pass
 
 # ② 子组件
 def score_card(label: str, value: rx.Var) -> rx.Component:
     return rx.box(
         rx.text(label, color="gray", font_size="sm"),
-        rx.text(value, font_size="3xl", font_weight="bold",
-                color="indigo"),
+        rx.text(value, font_size="3xl", color="indigo"),
         class_name="p-6 bg-white rounded-xl shadow-sm",
     )
 
@@ -335,8 +332,7 @@ def grades_page() -> rx.Component:
     return rx.vstack(
         navbar(),
         score_card("班级平均分", GradeState.avg_score),
-        spacing="4",
-        padding="6",
+        spacing="4", padding="6",
     )
 ```
 
@@ -415,32 +411,20 @@ Step 5: 将产物复制到 .web/out/ 目录
 ## Docker 多阶段构建集成
 
 ```dockerfile
-# ── Stage 1: 构建 ──────────────────────────────────────────
+# Stage 1: 构建（Python + Node.js）
 FROM python:3.12-slim AS builder
 WORKDIR /app
-
-# 安装系统依赖（Node.js 用于 Reflex 前端编译）
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl nodejs npm \
-    && rm -rf /var/lib/apt/lists/*
-
+    curl nodejs npm && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
 COPY . .
+RUN reflex export --no-zip          # 输出到 .web/out/
 
-# 核心步骤：生成静态资源
-RUN reflex export --no-zip        # 输出到 .web/out/
-
-# ── Stage 2: 运行 ──────────────────────────────────────────
-FROM nginx:alpine AS runner
-
-# 只拷贝静态产物，丢弃 Python/Node 环境（镜像体积：~25MB）
+# Stage 2: 运行（仅 Nginx，~25 MB）
+FROM nginx:alpine
 COPY --from=builder /app/.web/out /usr/share/nginx/html
-
-# 自定义 Nginx 配置（SPA 路由支持）
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 ```
@@ -484,28 +468,23 @@ server {
 
 ---
 
-## CI/CD 自动化流程
+## CI/CD 自动化流程（GitHub Actions）
 
 ```yaml
 # .github/workflows/deploy.yml
 name: 构建并部署到 Coolify
-
 on:
   push:
     branches: [main]
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: 安装 Python 依赖
         run: pip install -r requirements.txt
-
       - name: 生成静态资源
         run: reflex export --no-zip   # 核心步骤
-
       - name: 触发 Coolify 部署
         run: |
           curl -X POST \
@@ -513,17 +492,27 @@ jobs:
             "${{ secrets.COOLIFY_WEBHOOK_URL }}"
 ```
 
-**自动化链路**：
+---
+
+## CI/CD 自动化链路
+
+**从代码提交到上线的完整流程**：
 
 ```
 git push main
-    → GitHub Actions 触发
-    → reflex export --no-zip
-    → 静态产物上传
-    → Coolify Webhook 触发重新部署
-    → Nginx 服务更新
-    → 🌐 https://oaepp.uwis.cn 上线新版本
+    ↓
+GitHub Actions 触发（自动）
+    ↓
+reflex export --no-zip（生成 .web/out/）
+    ↓
+Docker 多阶段构建（Stage 1 build → Stage 2 Nginx）
+    ↓
+Coolify 拉取新镜像，滚动部署
+    ↓
+🌐 https://oaepp.uwis.cn 上线新版本
 ```
+
+> 每次 `git push main` → 约 3~5 分钟后自动上线，**零人工干预**。
 
 ---
 
