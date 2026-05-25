@@ -2,7 +2,7 @@
 site/
 site_build/
 
-# Marp 幻灯片生成物（由构建时自动生成，源文件在 slides_src/）
+# Marp 幻灯片生成物（由构建时自动生成，源文件在 docs/slides_src/）
 docs/slides/
 
 # Python

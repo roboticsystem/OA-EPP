@@ -11,10 +11,10 @@ from pathlib import Path
 
 
 def on_pre_build(config, **kwargs):
-    """MkDocs pre-build hook：slides_src/*.md → docs/slides/*.html"""
-    project_root = Path(config["docs_dir"]).parent
-    slides_src = project_root / "slides_src"
-    slides_out = Path(config["docs_dir"]) / "slides"
+    """MkDocs pre-build hook：docs/slides_src/*.md → docs/slides/*.html"""
+    docs_dir = Path(config["docs_dir"])
+    slides_src = docs_dir / "slides_src"   # Marp 源文件（被 exclude_docs 排除）
+    slides_out = docs_dir / "slides"       # 生成的独立 HTML
 
     if not slides_src.exists():
         return  # 无幻灯片源目录，静默跳过

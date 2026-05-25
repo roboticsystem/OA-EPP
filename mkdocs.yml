@@ -50,6 +50,10 @@ extra_javascript:
 hooks:
   - scripts/build_slides.py
 
+# 排除 Marp 源文件（slides_src/）不作为 MkDocs 文档页处理
+exclude_docs: |
+  slides_src/**
+
 plugins:
   - search:
       lang:
