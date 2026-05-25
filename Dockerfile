@@ -40,6 +40,6 @@ FROM nginx:alpine
 COPY --from=builder /build/site /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
-# Coolify/Traefik 健康检查：wget 是 nginx:alpine(busybox) 内置工具，比 nc -z 更可靠
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD wget -q --spider http://localhost/ || exit 1
+# Coolify/Traefik 健康检查：用 wget -O /dev/null（BusyBox 内置，兼容性最佳）
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD wget -q -O /dev/null http://localhost/ || exit 1

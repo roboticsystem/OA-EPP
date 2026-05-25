@@ -10,8 +10,8 @@ services:
     depends_on:
       - oaepp_api
     healthcheck:
-      # nginx:alpine 的 busybox nc 不支持 -z 标志，改用 wget（内置）
-      test: ["CMD-SHELL", "wget -q --spider http://localhost/ || exit 1"]
+      # nginx:alpine busybox wget 不支持 --spider，改用 -O /dev/null
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
