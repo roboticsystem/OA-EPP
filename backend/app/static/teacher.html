@@ -91,6 +91,21 @@
   </div>
 </div>
 
+    <!-- 需求转 GitHub Issues -->
+    <div class="card">
+      <div class="card-title">🔀 需求转 GitHub Issues（上传 Markdown 预览）</div>
+      <div class="card-body">
+        <div id="issues-msg"></div>
+        <p style="font-size:.88rem;color:#888;margin-bottom:12px">上传包含 F-xxx 标识的 Markdown 文件，系统将解析出候选 Issue。</p>
+        <input type="file" id="md-file" accept=".md" />
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="previewIssues()">解析并预览</button>
+          <button class="btn btn-outline" onclick="document.getElementById('md-file').value=''">清空</button>
+        </div>
+        <div id="preview-area" style="margin-top:12px"></div>
+      </div>
+    </div>
+
 <!-- 主界面 -->
 <div id="app">
   <div class="header">
@@ -471,6 +486,100 @@ if (TOKEN) {
         TOKEN = ''; sessionStorage.removeItem('teacher_token');
       }
     }).catch(() => {});
+}
+
+// ───── 需求转 Issue 功能前端实现 ─────
+async function previewIssues() {
+  const f = document.getElementById('md-file').files[0];
+  if (!f) { showMsg('issues-msg', '请先选择 Markdown 文件', 'error'); return; }
+  const text = await f.text();
+  try {
+    const r = await fetch(`${API}/api/teacher/issues/preview`, {
+      method: 'POST', headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type':'application/json'},
+      body: JSON.stringify({content: text})
+    });
+    if (!r.ok) { const e = await r.json(); showMsg('issues-msg', e.detail||'解析失败', 'error'); return; }
+    const d = await r.json();
+    renderPreviewItems(d.items || []);
+  } catch(e) { showMsg('issues-msg', '网络错误：' + e, 'error'); }
+}
+
+function renderPreviewItems(items) {
+  const area = document.getElementById('preview-area');
+  if (!items.length) { area.innerHTML = '<p style="color:#888">未检测到 F-xxx 项目</p>'; return; }
+  const rows = items.map(it => `
+    <div style="border:1px solid #f0f0f0;padding:10px;border-radius:6px;margin-bottom:8px" data-id="${it.id}">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+        <input style="flex:1;padding:6px;border:1px solid #ddd;border-radius:4px" value="${escapeHtml(it.candidate_title)}" data-field="title" />
+        <input style="width:160px;padding:6px;border:1px solid #ddd;border-radius:4px" data-field="labels" value="${(it.labels||[]).join(',')}" />
+        <input style="width:140px;padding:6px;border:1px solid #ddd;border-radius:4px" data-field="assignee" placeholder="Assignee 可选" />
+      </div>
+      <pre style="background:#fafafa;padding:8px;border-radius:4px;white-space:pre-wrap">${escapeHtml(it.body||'')}</pre>
+    </div>
+  `).join('');
+  area.innerHTML = `
+    <div style="margin-bottom:8px">共 ${items.length} 条候选</div>
+    ${rows}
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-success" onclick="startCreateFromPreview()">开始批量创建</button>
+      <button class="btn btn-outline" onclick="area.innerHTML=''">关闭</button>
+    </div>
+    <div id="create-progress" style="margin-top:12px"></div>
+  `;
+}
+
+function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+async function startCreateFromPreview() {
+  const area = document.getElementById('preview-area');
+  const nodes = Array.from(area.querySelectorAll('[data-id]'));
+  if (!nodes.length) return;
+  const items = nodes.map(node => ({
+    id: node.getAttribute('data-id'),
+    title: node.querySelector('[data-field="title"]').value.trim(),
+    labels: node.querySelector('[data-field="labels"]').value.split(',').map(s=>s.trim()).filter(Boolean),
+    assignee: node.querySelector('[data-field="assignee"]').value.trim() || null,
+    body: node.querySelector('pre').innerText || ''
+  }));
+  const repo = prompt('请输入目标仓库（owner/repo），例如 uwislab/robotics-systems-course');
+  if (!repo) return;
+  try {
+    const r = await fetch(`${API}/api/teacher/issues/create`, {
+      method: 'POST', headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type':'application/json'},
+      body: JSON.stringify({repo, items, on_conflict: 'skip'})
+    });
+    if (!r.ok) { const e = await r.json(); showMsg('issues-msg', e.detail||'创建任务失败', 'error'); return; }
+    const d = await r.json();
+    const taskId = d.task_id;
+    document.getElementById('create-progress').innerHTML = `<div>任务已提交：${taskId}，开始轮询进度…</div>`;
+    pollTaskStatus(taskId);
+  } catch(e){ showMsg('issues-msg', '网络错误：'+e, 'error'); }
+}
+
+async function pollTaskStatus(taskId) {
+  const el = document.getElementById('create-progress');
+  const interval = 1200;
+  const poll = async () => {
+    try {
+      const r = await fetch(`${API}/api/teacher/issues/task/${taskId}`, { headers: {'Authorization': `Bearer ${TOKEN}`} });
+      if (!r.ok) { el.innerHTML = '<div class="alert alert-error">获取任务状态失败</div>'; return; }
+      const d = await r.json();
+      const parts = (d.results||[]).map(it=>{
+        const status = it.status;
+        let s = `${escapeHtml(it.title)} — ${status}`;
+        if (it.status==='created') s += ` #${it.number} <a href="${it.url}" target="_blank">查看</a>`;
+        if (it.status==='skipped' && it.existing) s += ` 已存在 <a href="${it.existing.url}" target="_blank">#${it.existing.number}</a>`;
+        if (it.status==='failed') s += ` 错误：${escapeHtml(it.reason||'')}`;
+        return `<div style="padding:6px 0;border-bottom:1px solid #f3f3f3">${s}</div>`;
+      }).join('');
+      el.innerHTML = `
+        <div>状态：${d.status || 'unknown'} &nbsp; 已创建:${d.created||0} 跳过:${d.skipped||0} 失败:${d.failed||0}</div>
+        <div style="margin-top:8px">${parts}</div>
+      `;
+      if ((d.status||'') !== 'finished') setTimeout(poll, interval);
+    } catch(e) { el.innerHTML = '<div class="alert alert-error">轮询出错：'+e+'</div>'; }
+  };
+  poll();
 }
 </script>
 </body>

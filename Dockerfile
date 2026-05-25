@@ -40,6 +40,8 @@ FROM nginx:alpine
 COPY --from=builder /build/site /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
-# Coolify/Traefik 健康检查：用 wget -O /dev/null（BusyBox 内置，兼容性最佳）
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD wget -q -O /dev/null http://localhost/ || exit 1
+# 注意：不在 Dockerfile 中定义 HEALTHCHECK。
+# 原因：caddy-docker-proxy 遇到有 HEALTHCHECK 的容器会等待 healthy 才路由，
+# 而 nginx:alpine 的 busybox 工具局限性可能导致 healthcheck 持续失败，
+# 最终表现为容器头、 unhealthy， Caddy 不路由 → no available server。
+# docker-compose.yaml 中的 healthcheck 仅用于监控，不影响 Caddy 路由行为。
