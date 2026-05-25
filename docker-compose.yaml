@@ -10,12 +10,13 @@ services:
     depends_on:
       - oaepp_api
     healthcheck:
-      # nginx:alpine busybox wget 不支持 --spider，改用 -O /dev/null
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost/ || exit 1"]
+      # 注意：仅用于监控，不影响 Caddy 路由。
+      # Dockerfile 不定义 HEALTHCHECK，避免 caddy-docker-proxy 等待 healthy 设备致路由。
+      test: ["CMD-SHELL", "pidof nginx || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 15s
     labels:
       # Caddy docker-proxy 路由标签
       caddy: "oaepp.uwis.cn"
