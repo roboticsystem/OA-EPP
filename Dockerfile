@@ -23,6 +23,13 @@ RUN apk add --no-cache libgcc  # svgbob_cli 运行时依赖
 COPY bin/svgbob_cli /usr/local/bin/svgbob_cli
 RUN chmod +x /usr/local/bin/svgbob_cli \
 	&& ln -sf /usr/local/bin/svgbob_cli /usr/local/bin/svgbob
+
+# 安装 Marp CLI（用于将 slides_src/*.md 转换为独立 HTML 幻灯片）
+# 注意：增加约 2-3 分钟构建时间（Node.js + npm + marp-cli 包）
+RUN apk add --no-cache nodejs npm \
+    && npm install -g @marp-team/marp-cli@3 \
+    && marp --version
+
 COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .

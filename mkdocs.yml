@@ -24,6 +24,8 @@ nav:
       - 第10章 软件产品介绍: 第10章_软件产品介绍.md
       - 第11章 开发流程介绍: 第11章_开发流程介绍.md
       - 第12章 项目管理: 第12章_项目管理.md
+      - 幻灯片:
+          - AI 驱动 Reflex 静态构建: slides_ai_reflex.md
   - 附录:
       - 附录A CubeMX编程指南: appendix_a.md
       - 附录B 实验用容器与开发环境: appendix_b.md
@@ -44,6 +46,9 @@ extra_javascript:
   - assets/javascripts/lib/mermaid.min.js
   - assets/javascripts/mermaid-init.js
   - assets/javascripts/utterances.js
+
+hooks:
+  - scripts/build_slides.py
 
 plugins:
   - search:
