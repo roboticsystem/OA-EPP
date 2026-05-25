@@ -107,6 +107,7 @@ style: |
 7. `reflex export` 完整流程
 8. Docker 多阶段构建
 9. Nginx 静态服务与 CI/CD
+10. PR 开发规范 + Git Flow
 
 </div>
 </div>
@@ -513,6 +514,60 @@ Coolify 拉取新镜像，滚动部署
 ```
 
 > 每次 `git push main` → 约 3~5 分钟后自动上线，**零人工干预**。
+
+---
+
+## 规范开发流程：GitHub PR + Coolify Preview
+
+**强制要求**：任何新功能 **禁止** 直接 push main，必须走 PR 流程：
+
+```
+① 创建 feature 分支
+   git checkout -b feature/grade-report
+
+② 本地开发 + 测试（reflex run / pytest）
+   bash start_prototype.sh   # 原型对照验证
+
+③ 推送 feature 分支，开 Pull Request
+   git push origin feature/grade-report
+   → GitHub → New Pull Request → base: main ← compare: feature/grade-report
+
+④ Coolify 自动部署 PR Preview（独立预览环境）
+   → https://pr-42.oaepp.uwis.cn  ← 验证效果
+
+⑤ Preview 无问题 → Squash & Merge 到 main
+   → Coolify 自动部署正式环境
+```
+
+<div class="highlight-box">
+
+⚠️ **为什么不能直接 push main？**  main 分支 = 生产环境，直接 push 会触发立即部署，一旦有错误，用户立刻看到故障页面。
+
+</div>
+
+---
+
+## 最佳实践：Git Flow 开发规范
+
+```
+main         ──●────────────────────────────●── 生产（受保护分支）
+                  \                        /
+develop      ──────●──────────────────────●─── 集成测试
+                    \        \           /
+feature/*            ●──●─●   \         /      功能开发
+                              \       /
+release/*                      ●──●──●         预发布测试
+```
+
+| 分支 | 用途 | 合并目标 |
+|------|------|---------|
+| `main` | 生产，只接受 release/hotfix 合并 | — |
+| `develop` | 集成分支，每日构建 | main（发版时）|
+| `feature/*` | 单个功能开发 | develop |
+| `release/*` | 预发布测试、版本号冻结 | main + develop |
+| `hotfix/*` | 紧急修复生产 bug | main + develop |
+
+> 📌 **本课程简化版**：`feature/*` → PR Review → Merge to `main`，省略 develop/release 层，但 **PR 保护不可省**。
 
 ---
 
