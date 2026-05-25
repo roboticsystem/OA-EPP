@@ -87,8 +87,9 @@ style: |
 **Part 1：基础概念**
 
 1. Reflex 是什么
-2. Reflex 架构剖析
-3. 静态导出 vs 动态运行
+2. 技术选型对比（vs Vaadin / Spring Boot+Vue）
+3. Reflex 架构剖析
+4. 静态导出 vs 动态运行
 
 </div>
 <div>
@@ -151,6 +152,31 @@ def index():
 <div class="highlight-box">
 
 🎯 **本课程使用场景**：OA-EPP 平台（课程管理 + 成绩分析 + GitHub 工作流集成）
+
+</div>
+
+---
+
+## 技术选型对比：Reflex vs Vaadin vs Spring Boot + Vue
+
+| 维度 | **Reflex** | Vaadin | Spring Boot + Vue |
+|------|-----------|--------|-------------------|
+| **开发语言** | 纯 Python | Java（+ HTML/CSS 可选） | Java 后端 + JS/TS 前端 |
+| **学习门槛** | 🟢 低（Python 入门友好） | 🟡 中（需 Java OOP） | 🔴 高（双语言双框架）|
+| **前后端分离** | 一体（Python 写全部 UI） | 一体（Java 描述 UI） | 分离（两套独立项目）|
+| **AI 代码生成** | 🟢 优（Python 训练数据最多） | 🟡 中（Java 冗长）| 🟡 中（需维护两端）|
+| **静态导出** | ✅ `reflex export` | ❌ 依赖 JVM 运行时 | ⚠️ Vue 可静态，后端仍需 JVM |
+| **部署镜像体积** | **~25 MB**（Nginx）| ~500 MB+（JVM + JRE）| ~200 MB（JVM + Node）|
+| **原型→产品衔接** | ✅ 无缝（同一套代码）| ⚠️ 需重构 | ⚠️ 前后端分别重构 |
+| **课程适配度** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ |
+
+<div class="highlight-box">
+
+🏆 **选择 Reflex 的四大理由**：
+① **一人全栈**——学生只需掌握 Python，无需同时学 Java + JS/TS 两套体系；
+② **AI 友好**——Python 代码在 LLM 训练集中占比最高，生成质量更稳定；
+③ **轻量部署**——静态导出后 Nginx 镜像仅 25MB，显著优于 JVM 方案；
+④ **原型无缝升级**——`prototype/*.html` → `reflex export` → `reflex run`，同一套设计，三阶段递进，无需重写。
 
 </div>
 
