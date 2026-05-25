@@ -13,20 +13,21 @@ style: |
     color: #1a1a2e;
   }
   section.title-slide {
-    background: linear-gradient(135deg, #312e81 0%, #4f46e5 60%, #7c3aed 100%);
-    color: white;
+    background: #ffffff;
+    color: #1a1a2e;
     text-align: center;
     justify-content: center;
+    border-top: 8px solid #4f46e5;
   }
   section.title-slide h1 {
     font-size: 2.2em;
     font-weight: 800;
     margin-bottom: 0.3em;
-    text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    color: #312e81;
   }
   section.title-slide p {
     font-size: 1.1em;
-    opacity: 0.85;
+    color: #4f46e5;
   }
   section.section-title {
     background: #f0f0ff;
