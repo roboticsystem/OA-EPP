@@ -65,6 +65,10 @@
     default: { message: "服务器繁忙，请稍后重试", suggestion: "如持续出现此问题，请联系老师" },
   };
 
+  MSG["VALIDATION"] = {
+    upload: { message: "", suggestion: "请检查文件格式和大小后重新选择" },
+  };
+
   MSG["UNKNOWN"] = {
     default: { message: "操作失败，请稍后重试", suggestion: "如持续出现此问题，请刷新页面后重试" },
   };
@@ -75,6 +79,7 @@
   RETRYABLE[TYPES.TIMEOUT] = true;
   RETRYABLE[TYPES.SERVER] = true;
   RETRYABLE[TYPES.UPLOAD] = true;
+  RETRYABLE[TYPES.VALIDATION] = true;
   RETRYABLE[TYPES.UNKNOWN] = true;
 
   // ── 图标 ──────────────────────────────────────────────
