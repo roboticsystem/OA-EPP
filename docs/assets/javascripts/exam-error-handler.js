@@ -124,6 +124,11 @@
         type = TYPES.NETWORK; // 默认网络错误
       }
     }
+    // 2.5 检测普通对象（如 { message: "文件过大..." } 客户端校验错误）
+    else if (error && typeof error === "object" && error.message) {
+      detail = error.message;
+      type = TYPES.VALIDATION;
+    }
     // 3. 字符串消息
     else if (typeof error === "string") {
       detail = error;
@@ -142,8 +147,13 @@
     var message = msgEntry.message;
     var suggestion = msgEntry.suggestion;
 
+    // 客户端校验/UPLOAD/UNKNOWN 类型：优先使用具体 detail 作为消息
+    if (detail && (type === TYPES.VALIDATION || type === TYPES.UPLOAD || type === TYPES.UNKNOWN)) {
+      message = detail;
+      suggestion = msgEntry.suggestion;
+    }
     // CONFLICT 特殊处理：使用服务器返回的 detail
-    if (type === TYPES.CONFLICT && detail) {
+    else if (type === TYPES.CONFLICT && detail) {
       message = detail;
     }
 
