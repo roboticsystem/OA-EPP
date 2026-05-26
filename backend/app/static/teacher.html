@@ -173,6 +173,21 @@
 const API = '';
 let TOKEN = sessionStorage.getItem('teacher_token') || '';
 
+// 如果 ExamErrorHandler 未加载（网络问题/缓存问题），定义退化版本确保页面不崩溃
+if (typeof ExamErrorHandler === 'undefined') {
+  window.ExamErrorHandler = {
+    categorizeError: function(e) { return { type: 'UNKNOWN', message: e.message || '操作失败', suggestion: '', canRetry: true, detail: '' }; },
+    showInPlace: function(el, e, ctx, opts) {
+      var msg = (e && e.message) || (e && e.detail) || '操作失败';
+      el.innerHTML = '<div class="exam-error-inline"><div class="exam-error-content"><div class="exam-error-msg">'+msg+'</div><button class="exam-retry-btn" onclick="location.reload()">刷新页面</button></div></div>';
+    },
+    showToast: function(e, ctx, opts) { if (opts && opts.onRetry) { if (confirm('操作失败，是否重试？')) opts.onRetry(); } },
+    retryingFetch: function() { return fetch.apply(null, arguments); },
+    validateFile: function() { return { valid: true, error: null }; }
+  };
+  console.warn('ExamErrorHandler 未正常加载，使用退化版本。请刷新页面（Ctrl+Shift+R）获取最新模块。');
+}
+
 function showMsg(id, msg, type='success') {
   const el = document.getElementById(id);
   el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
@@ -203,8 +218,8 @@ async function doLogin() {
     sessionStorage.setItem('teacher_token', TOKEN);
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('app').style.display = 'block';
-    loadExams();
-    loadStudentList();
+    await loadExams();
+    await loadStudentList();
   } catch(e) {
     ExamErrorHandler.showInPlace(
       document.getElementById('login-msg'),
