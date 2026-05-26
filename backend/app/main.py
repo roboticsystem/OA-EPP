@@ -65,6 +65,11 @@ app.include_router(exam.router)
 app.include_router(teacher.router)
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+DOCS_ASSETS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "docs", "assets")
+
+# 挂载 docs/assets/ 目录，使 FastAPI 也能提供 MkDocs 的静态资源（错误处理模块等）
+if os.path.isdir(DOCS_ASSETS_DIR):
+    app.mount("/assets", StaticFiles(directory=DOCS_ASSETS_DIR), name="docs_assets")
 
 
 @app.get("/teacher")
