@@ -1,0 +1,141 @@
+/* ========================================================
+   统一错误处理样式 — 错误卡片、Toast、重试按钮
+   与 exam-login.css 视觉语言一致
+   ======================================================== */
+
+/* ── 错误内联卡片 ── */
+.exam-error-inline {
+  background: #fff3e0;
+  border: 1px solid #ffe0b2;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 12px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.exam-error-inline .exam-error-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.exam-error-inline .exam-error-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.exam-error-inline .exam-error-msg {
+  font-size: .92rem;
+  color: #e65100;
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+
+.exam-error-inline .exam-error-suggestion {
+  font-size: .82rem;
+  color: #888;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+/* ── Toast 浮动通知 ── */
+.exam-error-toast {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 10000;
+  max-width: 380px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, .18);
+  padding: 14px 18px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  animation: exam-toast-in .3s ease;
+  opacity: 1;
+  transition: opacity .3s;
+}
+
+@keyframes exam-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.exam-error-toast.exam-toast-error {
+  border-left: 4px solid #ef5350;
+}
+
+.exam-error-toast.exam-toast-warning {
+  border-left: 4px solid #ff9800;
+}
+
+/* ── 重试按钮 ── */
+.exam-retry-btn {
+  display: inline-block;
+  padding: 6px 18px;
+  background: #1565c0;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: .85rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background .2s, box-shadow .2s;
+}
+
+.exam-retry-btn:hover {
+  background: #0d47a1;
+  box-shadow: 0 2px 8px rgba(21, 101, 192, .3);
+}
+
+.exam-retry-btn:disabled {
+  background: #90caf9;
+  cursor: not-allowed;
+}
+
+/* ── Toast 中的重试链接 ── */
+.exam-retry-link {
+  color: #1565c0;
+  cursor: pointer;
+  font-size: .82rem;
+  font-weight: bold;
+  margin-left: 8px;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: color .15s;
+}
+
+.exam-retry-link:hover {
+  color: #0d47a1;
+  text-decoration: underline;
+}
+
+/* ── 上传文件校验提示 ── */
+.exam-upload-validation {
+  font-size: .88rem;
+  color: #e65100;
+  padding: 8px 12px;
+  background: #fff3e0;
+  border: 1px solid #ffe0b2;
+  border-radius: 6px;
+  margin-top: 8px;
+  line-height: 1.4;
+}
+
+/* ── 响应式 ── */
+@media (max-width: 480px) {
+  .exam-error-toast {
+    left: 16px;
+    right: 16px;
+    max-width: none;
+  }
+}

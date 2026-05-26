@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>教师管理后台 — 研究生课程《机器人系统》</title>
+<link rel="stylesheet" href="/assets/stylesheets/exam-error-handler.css">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; background: #f5f5f5; color: #333; }
@@ -167,6 +168,7 @@
   </div>
 </div>
 
+<script src="/assets/javascripts/exam-error-handler.js"></script>
 <script>
 const API = '';
 let TOKEN = sessionStorage.getItem('teacher_token') || '';
@@ -180,12 +182,22 @@ function showMsg(id, msg, type='success') {
 async function doLogin() {
   const pwd = document.getElementById('login-pwd').value;
   try {
-    const r = await fetch(`${API}/api/teacher/login`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({password: pwd})
-    });
-    if (!r.ok) { const e = await r.json(); showMsg('login-msg', e.detail || '密码错误', 'error'); return; }
+    const r = await ExamErrorHandler.retryingFetch(
+      `${API}/api/teacher/login`,
+      { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({password: pwd}) },
+      'login',
+      { maxRetries: 1 }
+    );
+    if (!r.ok) {
+      const d = await r.json();
+      ExamErrorHandler.showInPlace(
+        document.getElementById('login-msg'),
+        { status: r.status, responseJSON: d, message: d.detail || '登录失败' },
+        'login',
+        { onRetry: doLogin }
+      );
+      return;
+    }
     const d = await r.json();
     TOKEN = d.token;
     sessionStorage.setItem('teacher_token', TOKEN);
@@ -193,7 +205,14 @@ async function doLogin() {
     document.getElementById('app').style.display = 'block';
     loadExams();
     loadStudentList();
-  } catch(e) { showMsg('login-msg', '网络错误：' + e, 'error'); }
+  } catch(e) {
+    ExamErrorHandler.showInPlace(
+      document.getElementById('login-msg'),
+      e,
+      'login',
+      { onRetry: doLogin }
+    );
+  }
 }
 
 function logout() {
@@ -207,34 +226,75 @@ function handleFile(input) {
 }
 
 async function uploadStudents() {
-  const file = document.getElementById('csv-file').files[0];
+  const fileInput = document.getElementById('csv-file');
+  const file = fileInput.files[0];
   if (!file) { showMsg('upload-msg', '请先选择 CSV 文件', 'error'); return; }
+
+  // 客户端文件校验
+  var validation = ExamErrorHandler.validateFile(file, {
+    maxSize: 5 * 1024 * 1024,
+    allowedExtensions: ['.csv'],
+    allowedTypes: ['text/csv', 'application/vnd.ms-excel', 'application/csv']
+  });
+  if (!validation.valid) {
+    ExamErrorHandler.showInPlace(
+      document.getElementById('upload-msg'),
+      { message: validation.error },
+      'upload',
+      { onRetry: uploadStudents }
+    );
+    return;
+  }
+
   const fd = new FormData();
   fd.append('file', file);
   try {
-    const r = await fetch(`${API}/api/teacher/students`, {
-      method: 'POST',
-      headers: {'Authorization': `Bearer ${TOKEN}`},
-      body: fd
-    });
+    const r = await ExamErrorHandler.retryingFetch(
+      `${API}/api/teacher/students`,
+      { method: 'POST', headers: {'Authorization': `Bearer ${TOKEN}`}, body: fd },
+      'upload',
+      { maxRetries: 1, retryDelay: 2000 }
+    );
     const d = await r.json();
-    if (!r.ok) { showMsg('upload-msg', d.detail || '上传失败', 'error'); return; }
+    if (!r.ok) {
+      ExamErrorHandler.showInPlace(
+        document.getElementById('upload-msg'),
+        { status: r.status, responseJSON: d, message: d.detail || '上传失败' },
+        'upload',
+        { onRetry: uploadStudents }
+      );
+      return;
+    }
     showMsg('upload-msg', `✅ 成功导入 ${d.count} 名学生`, 'success');
     loadExams();
     loadStudentList();
-  } catch(e) { showMsg('upload-msg', '网络错误：' + e, 'error'); }
+  } catch(e) {
+    ExamErrorHandler.showInPlace(
+      document.getElementById('upload-msg'),
+      e,
+      'upload',
+      { onRetry: uploadStudents }
+    );
+  }
 }
 
 let currentExamId = null;
 let examsData = [];
 
 async function loadExams() {
-  const r = await fetch(`${API}/api/teacher/exams`, {
-    headers: {'Authorization': `Bearer ${TOKEN}`}
-  });
-  if (r.status === 401) { logout(); return; }
-  examsData = await r.json();
-  renderExams();
+  try {
+    const r = await ExamErrorHandler.retryingFetch(
+      `${API}/api/teacher/exams`,
+      { headers: {'Authorization': `Bearer ${TOKEN}`} },
+      'load',
+      { maxRetries: 2 }
+    );
+    if (r.status === 401) { logout(); return; }
+    examsData = await r.json();
+    renderExams();
+  } catch(e) {
+    ExamErrorHandler.showToast(e, 'load', { onRetry: loadExams, duration: 8000 });
+  }
 }
 
 function renderExams() {
@@ -290,10 +350,14 @@ async function toggleExam(id, active) {
 }
 
 async function loadScores(examId) {
-  const r = await fetch(`${API}/api/teacher/scores?exam_id=${examId}`, {
-    headers: {'Authorization': `Bearer ${TOKEN}`}
-  });
-  const d = await r.json();
+  try {
+    const r = await ExamErrorHandler.retryingFetch(
+      `${API}/api/teacher/scores?exam_id=${examId}`,
+      { headers: {'Authorization': `Bearer ${TOKEN}`} },
+      'load',
+      { maxRetries: 2 }
+    );
+    const d = await r.json();
   const rows = d.rows || [];
   if (!rows.length) {
     document.getElementById('scores-table').innerHTML = '<p style="color:#888;margin-top:8px">名单为空，请先上传学生名单</p>';
@@ -315,28 +379,56 @@ async function loadScores(examId) {
       <tbody>${tbody}</tbody>
     </table>
   `;
+  } catch(e) {
+    document.getElementById('scores-table').innerHTML = '';
+    ExamErrorHandler.showInPlace(
+      document.getElementById('scores-table'),
+      e, 'load',
+      { onRetry: () => loadScores(examId) }
+    );
+  }
 }
 
 async function downloadExcel(examId, title) {
   const url = `${API}/api/teacher/scores/export?exam_id=${examId}`;
-  const r = await fetch(url, { headers: {'Authorization': `Bearer ${TOKEN}`} });
-  if (!r.ok) { alert('导出失败'); return; }
-  const blob = await r.blob();
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
-  a.download = `成绩单_${title}_${date}.xlsx`;
-  a.click();
+  try {
+    const r = await ExamErrorHandler.retryingFetch(
+      url,
+      { headers: {'Authorization': `Bearer ${TOKEN}`} },
+      'export',
+      { maxRetries: 1 }
+    );
+    if (!r.ok) {
+      ExamErrorHandler.showToast(
+        { status: r.status, message: '导出失败' },
+        'export',
+        { onRetry: () => downloadExcel(examId, title) }
+      );
+      return;
+    }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    a.download = `成绩单_${title}_${date}.xlsx`;
+    a.click();
+  } catch(e) {
+    ExamErrorHandler.showToast(e, 'export', { onRetry: () => downloadExcel(examId, title) });
+  }
 }
 
 // ───── 学生名单管理 ─────
 
 async function loadStudentList() {
-  const r = await fetch(`${API}/api/teacher/students/list`, {
-    headers: {'Authorization': `Bearer ${TOKEN}`}
-  });
-  if (!r.ok) { document.getElementById('student-list').innerHTML = '<p style="color:#c62828">加载失败</p>'; return; }
-  const students = await r.json();
+  try {
+    const r = await ExamErrorHandler.retryingFetch(
+      `${API}/api/teacher/students/list`,
+      { headers: {'Authorization': `Bearer ${TOKEN}`} },
+      'load',
+      { maxRetries: 2 }
+    );
+    if (!r.ok) { document.getElementById('student-list').innerHTML = '<p style="color:#c62828">加载失败</p>'; return; }
+    const students = await r.json();
   if (!students.length) {
     document.getElementById('student-list').innerHTML = '<p style="color:#888;font-size:.9rem">名单为空，请添加学生或上传 CSV</p>';
     return;
@@ -358,6 +450,9 @@ async function loadStudentList() {
       <tbody>${rows}</tbody>
     </table>
   `;
+  } catch(e) {
+    ExamErrorHandler.showToast(e, 'load', { onRetry: loadStudentList, duration: 8000 });
+  }
 }
 
 async function addStudent() {
@@ -366,20 +461,36 @@ async function addStudent() {
   const cls  = document.getElementById('add-class').value.trim();
   if (!name || !sid) { showMsg('student-msg', '姓名和学号不能为空', 'error'); return; }
   try {
-    const r = await fetch(`${API}/api/teacher/students/add`, {
-      method: 'POST',
-      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
-      body: JSON.stringify({name, student_id: sid, class_name: cls || null})
-    });
+    const r = await ExamErrorHandler.retryingFetch(
+      `${API}/api/teacher/students/add`,
+      { method: 'POST', headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+        body: JSON.stringify({name, student_id: sid, class_name: cls || null}) },
+      'add',
+      { maxRetries: 1 }
+    );
     const d = await r.json();
-    if (!r.ok) { showMsg('student-msg', d.detail || '添加失败', 'error'); return; }
+    if (!r.ok) {
+      ExamErrorHandler.showInPlace(
+        document.getElementById('student-msg'),
+        { status: r.status, responseJSON: d, message: d.detail || '添加失败' },
+        'add',
+        { onRetry: addStudent }
+      );
+      return;
+    }
     showMsg('student-msg', `✅ 已添加学生：${name}（${sid}）`);
     document.getElementById('add-name').value = '';
     document.getElementById('add-sid').value = '';
     document.getElementById('add-class').value = '';
     loadStudentList();
     loadExams();
-  } catch(e) { showMsg('student-msg', '网络错误：' + e, 'error'); }
+  } catch(e) {
+    ExamErrorHandler.showInPlace(
+      document.getElementById('student-msg'),
+      e, 'add',
+      { onRetry: addStudent }
+    );
+  }
 }
 
 async function deleteStudent(sid, name) {
@@ -387,15 +498,28 @@ async function deleteStudent(sid, name) {
     '删除学生',
     `确认删除学生 <strong>${name}（${sid}）</strong>？<br>该学生的成绩记录也将一并删除。`,
     async () => {
-      const r = await fetch(`${API}/api/teacher/students/${encodeURIComponent(sid)}`, {
-        method: 'DELETE',
-        headers: {'Authorization': `Bearer ${TOKEN}`}
-      });
-      const d = await r.json();
-      if (!r.ok) { showMsg('student-msg', d.detail || '删除失败', 'error'); return; }
-      showMsg('student-msg', `✅ 已删除学生：${name}`);
-      loadStudentList();
-      loadExams();
+      try {
+        const r = await ExamErrorHandler.retryingFetch(
+          `${API}/api/teacher/students/${encodeURIComponent(sid)}`,
+          { method: 'DELETE', headers: {'Authorization': `Bearer ${TOKEN}`} },
+          'delete',
+          { maxRetries: 1 }
+        );
+        const d = await r.json();
+        if (!r.ok) {
+          ExamErrorHandler.showToast(
+            { status: r.status, responseJSON: d, message: d.detail || '删除失败' },
+            'delete',
+            { onRetry: () => deleteStudent(sid, name) }
+          );
+          return;
+        }
+        showMsg('student-msg', `✅ 已删除学生：${name}`);
+        loadStudentList();
+        loadExams();
+      } catch(e) {
+        ExamErrorHandler.showToast(e, 'delete', { onRetry: () => deleteStudent(sid, name) });
+      }
     }
   );
 }
@@ -405,15 +529,28 @@ function confirmClearStudents() {
     '⚠️ 清空全部学生名单',
     '此操作将删除<strong>所有学生名单</strong>及其成绩记录，无法恢复。<br>确认要继续吗？',
     async () => {
-      const r = await fetch(`${API}/api/teacher/students`, {
-        method: 'DELETE',
-        headers: {'Authorization': `Bearer ${TOKEN}`}
-      });
-      const d = await r.json();
-      if (!r.ok) { showMsg('student-msg', d.detail || '操作失败', 'error'); return; }
-      showMsg('student-msg', '✅ 已清空全部学生名单');
-      loadStudentList();
-      loadExams();
+      try {
+        const r = await ExamErrorHandler.retryingFetch(
+          `${API}/api/teacher/students`,
+          { method: 'DELETE', headers: {'Authorization': `Bearer ${TOKEN}`} },
+          'delete',
+          { maxRetries: 1 }
+        );
+        const d = await r.json();
+        if (!r.ok) {
+          ExamErrorHandler.showToast(
+            { status: r.status, responseJSON: d, message: d.detail || '操作失败' },
+            'delete',
+            { onRetry: confirmClearStudents }
+          );
+          return;
+        }
+        showMsg('student-msg', '✅ 已清空全部学生名单');
+        loadStudentList();
+        loadExams();
+      } catch(e) {
+        ExamErrorHandler.showToast(e, 'delete', { onRetry: confirmClearStudents });
+      }
     }
   );
 }
@@ -423,17 +560,30 @@ function confirmNewSemester() {
     '🔄 新学期重置',
     '此操作将删除<strong>所有学生名单、所有考试记录和全部成绩</strong>，相当于全新开始。<br><br>此操作<strong>无法撤销</strong>，确认继续？',
     async () => {
-      const r = await fetch(`${API}/api/teacher/reset`, {
-        method: 'POST',
-        headers: {'Authorization': `Bearer ${TOKEN}`}
-      });
-      const d = await r.json();
-      if (!r.ok) { showMsg('student-msg', d.detail || '操作失败', 'error'); return; }
-      showMsg('student-msg', '✅ 新学期重置完成，所有数据已清空');
-      currentExamId = null;
-      examsData = [];
-      loadStudentList();
-      loadExams();
+      try {
+        const r = await ExamErrorHandler.retryingFetch(
+          `${API}/api/teacher/reset`,
+          { method: 'POST', headers: {'Authorization': `Bearer ${TOKEN}`} },
+          'delete',
+          { maxRetries: 1 }
+        );
+        const d = await r.json();
+        if (!r.ok) {
+          ExamErrorHandler.showToast(
+            { status: r.status, responseJSON: d, message: d.detail || '操作失败' },
+            'delete',
+            { onRetry: confirmNewSemester }
+          );
+          return;
+        }
+        showMsg('student-msg', '✅ 新学期重置完成，所有数据已清空');
+        currentExamId = null;
+        examsData = [];
+        loadStudentList();
+        loadExams();
+      } catch(e) {
+        ExamErrorHandler.showToast(e, 'delete', { onRetry: confirmNewSemester });
+      }
     }
   );
 }

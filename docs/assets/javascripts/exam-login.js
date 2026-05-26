@@ -84,7 +84,7 @@
       } else {
         unlockQuiz(d.name, token, examId, overlay, banner, quizEls, quizResults);
       }
-    } catch (e) { /* 网络错误，保持遮罩 */ }
+    } catch (e) { /* 网络错误，静默保持遮罩。如需日志可调用 ExamErrorHandler */ }
   }
 
   // ── 构建登录横幅 ──────────────────────────────────────
@@ -173,7 +173,13 @@
         const r = await fetch(`${API}/api/students/search?q=${encodeURIComponent(q)}`);
         const list = await r.json();
         renderCandidates(list);
-      } catch (e) { showModalMsg("网络错误，请检查连接", "error"); }
+      } catch (e) {
+        ExamErrorHandler.showInPlace(
+          qs("#exam-candidate-list", backdrop),
+          e, "search",
+          { onRetry: () => searchStudents(nameInput.value.trim()) }
+        );
+      }
     }
 
     function renderCandidates(list) {
@@ -233,10 +239,12 @@
       const d = await r.json();
 
       if (!r.ok) {
-        const msgEl = backdrop.querySelector("#exam-modal-msg");
-        msgEl.className = "exam-modal-msg error";
-        msgEl.textContent = d.detail || "验证失败";
-        msgEl.style.display = "block";
+        ExamErrorHandler.showInPlace(
+          backdrop.querySelector("#exam-modal-msg"),
+          { status: r.status, responseJSON: d, message: d.detail || "验证失败" },
+          "verify",
+          { onRetry: () => doVerify(studentId, studentName, examId, backdrop, overlay, banner, quizEls, quizResults) }
+        );
         btn.disabled = false;
         btn.textContent = "确认，开始做题";
         return;
@@ -253,10 +261,12 @@
         unlockQuiz(d.name, d.token, examId, overlay, banner, quizEls, quizResults);
       }
     } catch (e) {
-      const msgEl = backdrop.querySelector("#exam-modal-msg");
-      msgEl.className = "exam-modal-msg error";
-      msgEl.textContent = "网络错误：" + e.message;
-      msgEl.style.display = "block";
+      ExamErrorHandler.showInPlace(
+        backdrop.querySelector("#exam-modal-msg"),
+        e,
+        "verify",
+        { onRetry: () => doVerify(studentId, studentName, examId, backdrop, overlay, banner, quizEls, quizResults) }
+      );
       btn.disabled = false;
       btn.textContent = "确认，开始做题";
     }
@@ -343,14 +353,19 @@
   // ── 提交成绩到服务器 ─────────────────────────────────
   async function doSubmit(token, examId, name, score, total, statusBar, quizResults) {
     try {
-      const r = await fetch(`${API}/api/exam/submit`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
+      const r = await ExamErrorHandler.retryingFetch(
+        `${API}/api/exam/submit`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({ score, total }),
         },
-        body: JSON.stringify({ score, total }),
-      });
+        "submit",
+        { maxRetries: 2, retryDelay: 1000 }
+      );
 
       if (r.ok) {
         const now = new Date().toLocaleString("zh-CN");
@@ -368,21 +383,26 @@
         // 清除 sessionStorage（已提交无需再保存 token）
         sessionStorage.removeItem(`exam_token_${examId}`);
       } else {
+        // 非 200 响应在 retryingFetch 中会转为 Error 抛出，这里只是防御
         const d = await r.json();
         if (r.status === 409) {
-          // 已提交（并发情况）
           statusBar.innerHTML = `✅ ${d.detail}`;
         } else {
-          statusBar.className = "exam-status-bar";
-          statusBar.style.background = "#fff3e0";
-          statusBar.style.borderColor = "#ffe082";
-          statusBar.style.color = "#e65100";
-          statusBar.textContent = "⚠️ 提交失败：" + (d.detail || "请刷新页面重试");
+          throw { status: r.status, responseJSON: d, message: d.detail || "提交失败" };
         }
       }
     } catch (e) {
-      statusBar.style.background = "#ffebee";
-      statusBar.textContent = "⚠️ 网络错误，成绩提交失败，请联系老师：" + e.message;
+      if (e.status === 409) {
+        // 已提交（并发情况），不显示重试
+        statusBar.innerHTML = "✅ 您已经提交过本次考试的成绩";
+        return;
+      }
+      ExamErrorHandler.showInPlace(
+        statusBar,
+        e,
+        "submit",
+        { onRetry: () => doSubmit(token, examId, name, score, total, statusBar, quizResults) }
+      );
     }
   }
 

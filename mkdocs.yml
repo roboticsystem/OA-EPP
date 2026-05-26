@@ -38,9 +38,11 @@ theme:
     - navigation.expand
 
 extra_css:
+  - assets/stylesheets/exam-error-handler.css
   - assets/stylesheets/exam-login.css
 
 extra_javascript:
+  - assets/javascripts/exam-error-handler.js
   - assets/javascripts/exam-login.js
   - assets/javascripts/footer-links.js
   - assets/javascripts/lib/mermaid.min.js

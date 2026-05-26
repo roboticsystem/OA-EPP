@@ -46,6 +46,11 @@ def teacher_login(req: LoginRequest):
     return {"token": token}
 
 
+# 允许的 CSV MIME 类型
+_ALLOWED_CSV_TYPES = {"text/csv", "application/vnd.ms-excel", "application/csv", "text/plain"}
+_MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5MB
+
+
 @router.post("/api/teacher/students")
 async def upload_students(
     file: UploadFile = File(...),
@@ -54,7 +59,25 @@ async def upload_students(
     """上传学生名单 CSV（UTF-8 或 GBK 均支持）"""
     _require_teacher(authorization)
 
+    # 校验文件扩展名
+    if not file.filename or not file.filename.lower().endswith(".csv"):
+        raise HTTPException(
+            status_code=422,
+            detail="文件格式不支持，请上传 CSV 格式的文件"
+        )
+
     raw = await file.read()
+
+    # 校验文件大小
+    if len(raw) > _MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"文件过大（最大 5MB），当前文件 {len(raw) / 1024 / 1024:.1f}MB，请拆分后重试"
+        )
+
+    # 校验文件不为空
+    if len(raw) == 0:
+        raise HTTPException(status_code=422, detail="文件为空，请重新选择文件")
     encoding = chardet.detect(raw)["encoding"] or "utf-8"
     text = raw.decode(encoding, errors="replace")
 
