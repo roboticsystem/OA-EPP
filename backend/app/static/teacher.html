@@ -184,6 +184,15 @@
             <option value="bound">已绑定</option>
           </select>
         </div>
+        <!-- GitHub 快捷链接 -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:8px 12px;background:#f8f9fa;border-radius:6px">
+          <span style="font-size:.85rem;color:#555;font-weight:bold;line-height:28px">🔗 快捷链接：</span>
+          <a href="https://github.com/roboticsystem/OA-EPP" target="_blank" style="font-size:.85rem;color:#1565c0;text-decoration:none;padding:4px 10px;border:1px solid #bbdefb;border-radius:4px;background:#fff">仓库主页</a>
+          <a href="https://github.com/roboticsystem/OA-EPP/pulls" target="_blank" style="font-size:.85rem;color:#1565c0;text-decoration:none;padding:4px 10px;border:1px solid #bbdefb;border-radius:4px;background:#fff">Pull Requests</a>
+          <a href="https://github.com/roboticsystem/OA-EPP/issues" target="_blank" style="font-size:.85rem;color:#1565c0;text-decoration:none;padding:4px 10px;border:1px solid #bbdefb;border-radius:4px;background:#fff">Issues</a>
+          <a href="https://github.com/roboticsystem/OA-EPP/actions" target="_blank" style="font-size:.85rem;color:#1565c0;text-decoration:none;padding:4px 10px;border:1px solid #bbdefb;border-radius:4px;background:#fff">Actions</a>
+          <a href="https://github.com/roboticsystem/OA-EPP/branches" target="_blank" style="font-size:.85rem;color:#1565c0;text-decoration:none;padding:4px 10px;border:1px solid #bbdefb;border-radius:4px;background:#fff">分支管理</a>
+        </div>
         <!-- 表格 -->
         <div id="binding-table">加载中…</div>
       </div>
@@ -501,6 +510,8 @@ function showConfirmDialog(title, message, onConfirm) {
 
 let allBindings = [];
 let selectedBindingIds = new Set();
+let bindingPage = 1;
+const bindingPageSize = 8;
 
 async function loadBindingDashboard() {
   try {
@@ -548,9 +559,14 @@ function renderBindingTable() {
     return;
   }
 
-  const allSelected = rows.every(r => selectedBindingIds.has(r.student_id));
+  const totalPages = Math.ceil(rows.length / bindingPageSize);
+  if (bindingPage > totalPages) bindingPage = 1;
+  const start = (bindingPage - 1) * bindingPageSize;
+  const pageRows = rows.slice(start, start + bindingPageSize);
 
-  const tbody = rows.map(r => {
+  const allSelected = pageRows.every(r => selectedBindingIds.has(r.student_id));
+
+  const tbody = pageRows.map(r => {
     const isUnbound = r.binding_status === 'unbound';
     const isPending = r.binding_status === 'pending';
     let rowClass = '';
@@ -588,6 +604,27 @@ function renderBindingTable() {
 
   const allChecked = allSelected ? 'checked' : '';
 
+  // Build pagination
+  let paginationHtml = '';
+  if (totalPages > 1) {
+    const pages = [];
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= bindingPage - 2 && i <= bindingPage + 2)) {
+        pages.push(i);
+      } else if (pages[pages.length - 1] !== '...') {
+        pages.push('...');
+      }
+    }
+    paginationHtml = `<div style="display:flex;align-items:center;gap:4px;justify-content:center;margin-top:8px">
+      <button class="btn btn-outline btn-sm" onclick="goBindingPage(${bindingPage - 1})" ${bindingPage === 1 ? 'disabled style="opacity:.4"' : ''}>‹</button>
+      ${pages.map(p => p === '...'
+        ? '<span style="padding:0 4px;color:#888">…</span>'
+        : `<button class="btn btn-sm ${p === bindingPage ? 'btn-primary' : 'btn-outline'}" onclick="goBindingPage(${p})">${p}</button>`
+      ).join('')}
+      <button class="btn btn-outline btn-sm" onclick="goBindingPage(${bindingPage + 1})" ${bindingPage === totalPages ? 'disabled style="opacity:.4"' : ''}>›</button>
+    </div>`;
+  }
+
   document.getElementById('binding-table').innerHTML = `
     <table>
       <thead><tr>
@@ -596,12 +633,31 @@ function renderBindingTable() {
       </tr></thead>
       <tbody>${tbody}</tbody>
     </table>
-    <p style="font-size:.85rem;color:#888;margin-top:8px">共 ${rows.length} 条记录</p>
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:.85rem;color:#888;margin-top:8px">
+      <span>共 ${rows.length} 条，第 ${start + 1}–${Math.min(start + bindingPageSize, rows.length)} 条</span>
+      ${paginationHtml}
+    </div>
   `;
 }
 
 function filterBindingList() {
   selectedBindingIds.clear();
+  bindingPage = 1;
+  renderBindingTable();
+}
+
+function goBindingPage(p) {
+  const totalPages = Math.ceil(
+    (() => { const s = document.getElementById('binding-status-filter').value;
+      const q = document.getElementById('binding-search').value.toLowerCase();
+      let r = allBindings;
+      if (s !== 'all') r = r.filter(x => x.binding_status === s);
+      if (q) r = r.filter(x => x.name.toLowerCase().includes(q) || x.student_id.toLowerCase().includes(q) || x.github_username.toLowerCase().includes(q));
+      return r.length;
+    })() / bindingPageSize
+  );
+  if (p < 1 || p > totalPages) return;
+  bindingPage = p;
   renderBindingTable();
 }
 
@@ -621,7 +677,10 @@ function selectAllBindings(checked) {
     r.student_id.toLowerCase().includes(searchText) ||
     r.github_username.toLowerCase().includes(searchText)
   );
-  rows.forEach(r => {
+  // Only toggle visible page
+  const start = (bindingPage - 1) * bindingPageSize;
+  const pageRows = rows.slice(start, start + bindingPageSize);
+  pageRows.forEach(r => {
     if (checked) selectedBindingIds.add(r.student_id);
     else selectedBindingIds.delete(r.student_id);
   });
