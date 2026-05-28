@@ -6,7 +6,7 @@ import os
 
 from app.database import init_db
 from app.sync_exams import sync_exams
-from app.routers import students, auth, exam, teacher
+from app.routers import students, auth, exam, teacher, notifications
 
 app = FastAPI(title="研究生课程《机器人系统》考试系统", docs_url="/api/docs")
 
@@ -21,6 +21,7 @@ app.include_router(students.router)
 app.include_router(auth.router)
 app.include_router(exam.router)
 app.include_router(teacher.router)
+app.include_router(notifications.router)
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
