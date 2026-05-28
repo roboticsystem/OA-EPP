@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "default_template": "general-code-review",
+  "templates": [
+    {
+      "id": "general-code-review",
+      "name": "通用代码审查",
+      "description": "覆盖可读性、正确性、可维护性和测试完整性的常规 PR 审查模板。",
+      "file": "general-code-review.prompt.md",
+      "built_in": true,
+      "position": 0,
+      "updated_at": "2026-05-28T14:58:53"
+    },
+    {
+      "id": "engineering-practice",
+      "name": "工程实践规范检查",
+      "description": "面向课程工程实践，检查提交规范、测试、文档、依赖与协作流程。",
+      "file": "engineering-practice.prompt.md",
+      "built_in": true,
+      "position": 1,
+      "updated_at": "2026-05-28T14:58:53"
+    },
+    {
+      "id": "security-comprehensive",
+      "name": "安全全面审查",
+      "description": "全面检查鉴权、输入校验、密钥、注入、供应链和日志泄露风险。",
+      "file": "security-comprehensive.prompt.md",
+      "built_in": true,
+      "position": 2,
+      "updated_at": "2026-05-28T14:58:53"
+    }
+  ]
+}
