@@ -22,7 +22,338 @@
   .login-box{background:#fff;padding:32px;border-radius:12px;width:320px;box-shadow:0 4px 20px rgba(0,0,0,.12)}
   #app{display:none}
   .login-alert{background:#ffebee;color:#c62828;border:1px solid #ef9a9a;padding:10px 12px;border-radius:6px;font-size:.85rem;margin-top:10px}
+  .lbl{font-size:.8rem;color:#666;margin:8px 0 4px;display:block}
+  .hint{font-size:.75rem;color:#888;margin:6px 0}
+  .btn-sm{padding:4px 10px;font-size:.8rem}
+  .time-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .duration-btns{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+  .duration-btns .btn-sm{background:#e3f2fd;border:1px solid #90caf9;color:#1565c0}
+  .q-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .q-head .q-type{width:auto;flex:1;min-width:100px;margin:0}
+  .q-head .btn-del-q{margin-left:auto}
+  .opt-row,.blank-row{display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap}
+  .opt-row .opt-text,.blank-row .blank-ans{flex:1;min-width:120px;margin:0;width:auto}
+  /* 固定选项字母列宽，避免字母与输入框重叠 */
+  .opt-row .opt-ans{flex:0 0 56px;min-width:56px;text-align:left}
+  .opt-row .opt-ans input{margin-right:6px}
+  .opt-row .opt-text{flex:1;min-width:120px}
+  .opt-ans{white-space:nowrap;font-weight:600;min-width:36px}
+  .blank-row .blank-score{width:72px;margin:0}
+  .btn-del-opt,.btn-del-blank{background:#ffebee;color:#c62828;border:none;width:28px;height:28px;border-radius:4px;cursor:pointer;font-size:1.1rem}
+  .blank-total{margin-top:8px;font-size:.9rem}
 </style>
+<!-- Inline classroom-exam-admin-questions.js to avoid static file 404 issues -->
+<script>
+/* inlined from classroom-exam-admin-questions.js */
+try {
+  console.log("classroom-exam-admin-questions.js: init");
+  window.ClassroomQuestionEditor = (function () {
+    "use strict";
+
+  const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+  function esc(s) {
+    return String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/\"/g, "&quot;");
+  }
+
+  function nextLetter(n) {
+    return LETTERS[n] || "?";
+  }
+
+  function renumberBlocks(container) {
+    container.querySelectorAll(".q-block").forEach(function (block, idx) {
+      block.querySelector(".q-num").textContent = "题目 " + (idx + 1);
+    });
+  }
+
+  function bindTypeSwitch(block) {
+    var sel = block.querySelector(".q-type");
+    sel.addEventListener("change", function () {
+      renderBody(block);
+    });
+  }
+
+  function renderBody(block) {
+    var body = block.querySelector(".q-body");
+    var t = block.querySelector(".q-type").value;
+    if (t === "single" || t === "multi") {
+      body.innerHTML =
+        '<div class="opt-list"></div>' +
+        '<button type="button" class="btn btn-o btn-sm btn-add-opt">+ 新建选项</button>' +
+        '<p class="hint">' +
+        (t === "single" ? "点击选项左侧按钮标记唯一正确答案" : "勾选多个正确答案") +
+        "</p>" +
+        '<label class="lbl">本题分值</label><input type="number" class="q-score" value="2" min="0.5" step="0.5">';
+      bindOptionList(block, t);
+    } else if (t === "blank") {
+      body.innerHTML =
+        '<div class="blank-list"></div>' +
+        '<button type="button" class="btn btn-o btn-sm btn-add-blank">+ 新建填空</button>' +
+        '<p class="hint">每空单独设置参考答案与分值，本题总分为各空之和</p>' +
+        '<div class="blank-total">本题总分：<strong class="blank-sum">0</strong> 分</div>';
+      addBlankRow(block);
+      block.querySelector(".btn-add-blank").addEventListener("click", function () {
+        addBlankRow(block);
+      });
+    } else {
+      body.innerHTML =
+        '<label class="lbl">本题分值</label><input type="number" class="q-score" value="5" min="0.5" step="0.5">' +
+        '<p class="hint">简答题需教师人工批改，学生提交后不会即时显示该题分数</p>';
+    }
+  }
+
+  function bindOptionList(block, qtype) {
+    var list = block.querySelector(".opt-list");
+    var btn = block.querySelector(".btn-add-opt");
+    btn.addEventListener("click", function () {
+      var rows = list.querySelectorAll(".opt-row");
+      if (rows.length >= 26) {
+        alert("最多 26 个选项");
+        return;
+      }
+      addOptionRow(block, qtype, "", false);
+    });
+    if (!list.children.length) {
+      addOptionRow(block, qtype, "", false);
+      addOptionRow(block, qtype, "", false);
+    }
+  }
+
+  function addOptionRow(block, qtype, text, isAnswer) {
+    var list = block.querySelector(".opt-list");
+    var idx = list.querySelectorAll(".opt-row").length;
+    if (idx >= 26) return;
+    var letter = nextLetter(idx);
+    var row = document.createElement("div");
+    row.className = "opt-row";
+    var inputType = qtype === "single" ? "radio" : "checkbox";
+    var name = "correct-" + block.dataset.qid;
+    row.innerHTML =
+      '<label class="opt-ans">' +
+      '<input type="' + inputType + '" name="' + name + '" value="' + letter + '"' +
+      (isAnswer ? " checked" : "") + "> " + letter +
+      "</label>" +
+      '<input type="text" class="opt-text" placeholder="选项 ' + letter + ' 内容" value="' + esc(text) + '">' +
+      '<button type="button" class="btn-del-opt" title="删除选项">×</button>';
+    list.appendChild(row);
+    row.querySelector(".btn-del-opt").addEventListener("click", function () {
+      if (list.querySelectorAll(".opt-row").length <= 1) {
+        alert("至少保留一个选项");
+        return;
+      }
+      row.remove();
+      relabelOptions(list);
+    });
+  }
+
+  function relabelOptions(list) {
+    list.querySelectorAll(".opt-row").forEach(function (row, i) {
+      var letter = nextLetter(i);
+      row.querySelector(".opt-ans").childNodes[1].textContent = " " + letter;
+      row.querySelector(".opt-ans input").value = letter;
+      row.querySelector(".opt-text").placeholder = "选项 " + letter + " 内容";
+    });
+  }
+
+  function addBlankRow(block) {
+    var list = block.querySelector(".blank-list");
+    var n = list.querySelectorAll(".blank-row").length + 1;
+    var row = document.createElement("div");
+    row.className = "blank-row";
+    row.innerHTML =
+      '<span class="blank-label">空 ' + n + '</span>' +
+      '<input type="text" class="blank-ans" placeholder="参考答案（多个用 | 分隔）">' +
+      '<input type="number" class="blank-score" value="1" min="0.5" step="0.5" title="分值">' +
+      '<span class="unit">分</span>' +
+      '<button type="button" class="btn-del-blank">×</button>';
+    list.appendChild(row);
+    row.querySelector(".btn-del-blank").addEventListener("click", function () {
+      if (list.querySelectorAll(".blank-row").length <= 1) {
+        alert("至少保留一个填空");
+        return;
+      }
+      row.remove();
+      relabelBlanks(list);
+      updateBlankSum(block);
+    });
+    row.querySelector(".blank-score").addEventListener("input", function () {
+      updateBlankSum(block);
+    });
+    updateBlankSum(block);
+  }
+
+  function relabelBlanks(list) {
+    list.querySelectorAll(".blank-row").forEach(function (row, i) {
+      row.querySelector(".blank-label").textContent = "空 " + (i + 1);
+    });
+  }
+
+  function updateBlankSum(block) {
+    var sum = 0;
+    block.querySelectorAll(".blank-score").forEach(function (inp) {
+      sum += parseFloat(inp.value) || 0;
+    });
+    var el = block.querySelector(".blank-sum");
+    if (el) el.textContent = sum.toFixed(1).replace(/\.0$/, "");
+  }
+
+  function createBlock(container) {
+    var qid = "q" + Date.now() + Math.random().toString(36).slice(2, 6);
+    var div = document.createElement("div");
+    div.className = "q-block";
+    div.dataset.qid = qid;
+    div.innerHTML =
+      '<div class="q-head">' +
+      '<strong class="q-num">题目</strong>' +
+      '<select class="q-type">' +
+      '<option value="single">单选题</option>' +
+      '<option value="multi">多选题</option>' +
+      '<option value="blank">填空题</option>' +
+      '<option value="short">简答题</option>' +
+      "</select>" +
+      '<button type="button" class="btn btn-d btn-sm btn-del-q">删除题目</button>' +
+      "</div>" +
+      '<textarea class="q-content" rows="2" placeholder="题干"></textarea>' +
+      '<div class="q-body"></div>';
+    container.appendChild(div);
+    div.querySelector(".btn-del-q").addEventListener("click", function () {
+      if (!confirm("确定删除本题？")) return;
+      div.remove();
+      renumberBlocks(container);
+    });
+    bindTypeSwitch(div);
+    renderBody(div);
+    renumberBlocks(container);
+    return div;
+  }
+
+  function collectFromBlock(block) {
+    var qtype = block.querySelector(".q-type").value;
+    var content = block.querySelector(".q-content").value.trim();
+    if (!content) throw new Error("请填写题干");
+
+    if (qtype === "single" || qtype === "multi") {
+      var rows = block.querySelectorAll(".opt-row");
+      var options = [];
+      var correct = [];
+      rows.forEach(function (row, i) {
+        var letter = nextLetter(i);
+        var text = row.querySelector(".opt-text").value.trim();
+        if (!text) throw new Error("请填写选项 " + letter + " 的内容");
+        options.push(text);
+        if (row.querySelector(".opt-ans input").checked) correct.push(letter);
+      });
+      if (!correct.length) throw new Error("请设置正确答案");
+      if (qtype === "single" && correct.length > 1) throw new Error("单选题只能有一个正确答案");
+      var score = parseFloat(block.querySelector(".q-score").value) || 0;
+      if (score <= 0) throw new Error("请设置本题分值");
+      return {
+        qtype: qtype,
+        content: content,
+        options: options,
+        answer_key: { correct: qtype === "single" ? correct[0] : correct },
+        score: score,
+      };
+    }
+
+    if (qtype === "blank") {
+      var blanks = [];
+      block.querySelectorAll(".blank-row").forEach(function (row, i) {
+        var raw = row.querySelector(".blank-ans").value.trim();
+        if (!raw) throw new Error("请填写第 " + (i + 1) + " 空的参考答案");
+        var acceptable = raw.split("|").map(function (s) { return s.trim(); }).filter(Boolean);
+        var bscore = parseFloat(row.querySelector(".blank-score").value) || 0;
+        if (bscore <= 0) throw new Error("请设置第 " + (i + 1) + " 空的分值");
+        blanks.push({ acceptable: acceptable, score: bscore });
+      });
+      var total = blanks.reduce(function (s, b) { return s + b.score; }, 0);
+      return {
+        qtype: "blank",
+        content: content,
+        options: null,
+        answer_key: { blanks: blanks },
+        score: total,
+      };
+    }
+
+    var shortScore = parseFloat(block.querySelector(".q-score").value) || 0;
+    if (shortScore <= 0) throw new Error("请设置简答题分值");
+    return {
+      qtype: "short",
+      content: content,
+      options: null,
+      answer_key: {},
+      score: shortScore,
+    };
+  }
+
+  function collectAll(container) {
+    var blocks = container.querySelectorAll(".q-block");
+    if (!blocks.length) throw new Error("请至少添加一道题目");
+    var out = [];
+    blocks.forEach(function (b) {
+      out.push(collectFromBlock(b));
+    });
+    return out;
+  }
+
+  function initDatetimeDefaults() {
+    var start = document.getElementById("exam-start");
+    var end = document.getElementById("exam-end");
+    if (!start || !end) return;
+    var now = new Date();
+    now.setMinutes(now.getMinutes() - now.getMinutes() % 5);
+    var pad = function (n) { return String(n).padStart(2, "0"); };
+    var toLocal = function (d) {
+      return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) +
+        "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
+    };
+    if (!start.value) start.value = toLocal(now);
+    if (!end.value) {
+      var later = new Date(now.getTime() + 30 * 60000);
+      end.value = toLocal(later);
+    }
+  }
+
+  function bindDurationShortcuts() {
+    document.querySelectorAll("[data-duration]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var start = document.getElementById("exam-start");
+        var end = document.getElementById("exam-end");
+        if (!start.value) initDatetimeDefaults();
+        var base = new Date(start.value);
+        if (isNaN(base)) base = new Date();
+        var mins = parseInt(btn.dataset.duration, 10);
+        var later = new Date(base.getTime() + mins * 60000);
+        var pad = function (n) { return String(n).padStart(2, "0"); };
+        end.value = later.getFullYear() + "-" + pad(later.getMonth() + 1) + "-" + pad(later.getDate()) +
+          "T" + pad(later.getHours()) + ":" + pad(later.getMinutes());
+      });
+    });
+  }
+
+  function formatDatetimeForApi(localVal) {
+    if (!localVal) return "";
+    return localVal.replace("T", " ") + ":00";
+  }
+
+  return {
+    createBlock: createBlock,
+    collectAll: collectAll,
+    initDatetimeDefaults: initDatetimeDefaults,
+    bindDurationShortcuts: bindDurationShortcuts,
+    formatDatetimeForApi: formatDatetimeForApi,
+  };
+  })();
+} catch (err) {
+  console.error("classroom-exam-admin-questions.js: load failed", err);
+  window.ClassroomQuestionEditor = null;
+}
+
+</script>
 </head>
 <body>
 <div id="login-view" class="login-wrap">
@@ -51,13 +382,21 @@
       <input id="exam-id" placeholder="exam-week11">
       <label>标题</label>
       <input id="exam-title" placeholder="第11周随堂测验">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div><label>开始时间</label><input id="exam-start" placeholder="2026-05-28 09:00:00"></div>
-        <div><label>结束时间</label><input id="exam-end" placeholder="2026-05-28 09:30:00"></div>
+      <div class="time-row">
+        <div><label class="lbl">开始时间</label><input type="datetime-local" id="exam-start"></div>
+        <div><label class="lbl">结束时间</label><input type="datetime-local" id="exam-end"></div>
+      </div>
+      <div class="duration-btns">
+        <span style="font-size:.8rem;color:#666;align-self:center">快捷时长：</span>
+        <button type="button" class="btn btn-sm" data-duration="15">15 分钟</button>
+        <button type="button" class="btn btn-sm" data-duration="30">30 分钟</button>
+        <button type="button" class="btn btn-sm" data-duration="45">45 分钟</button>
+        <button type="button" class="btn btn-sm" data-duration="60">60 分钟</button>
+        <button type="button" class="btn btn-sm" data-duration="90">90 分钟</button>
       </div>
       <div id="questions"></div>
-      <button class="btn btn-o" id="btn-add-q">+ 添加题目</button>
-      <button class="btn btn-p" id="btn-create" style="margin-top:12px">发布考试</button>
+      <button type="button" class="btn btn-o" id="btn-add-q">+ 添加题目</button>
+      <button type="button" class="btn btn-p" id="btn-create" style="margin-top:12px">发布考试</button>
       <p id="create-msg" style="margin-top:8px;font-size:.85rem"></p>
     </div>
     <div class="card">
@@ -67,7 +406,7 @@
     <div class="card hidden" id="grade-panel">
       <h3 id="grade-title">批改答卷</h3>
       <div id="grade-body"></div>
-      <button class="btn btn-p" id="btn-save-grade">保存批改</button>
+      <button type="button" class="btn btn-p" id="btn-save-grade">保存批改</button>
     </div>
   </div>
 </div>
@@ -126,8 +465,10 @@
     document.getElementById("app").style.display = "block";
     showAppErr("");
     if (!document.getElementById("questions").children.length) {
-      addQuestion();
+      ClassroomQuestionEditor.createBlock(document.getElementById("questions"));
     }
+    ClassroomQuestionEditor.initDatetimeDefaults();
+    ClassroomQuestionEditor.bindDurationShortcuts();
   }
 
   function showLogin() {
@@ -203,50 +544,50 @@
   }
   tryRestoreSession();
 
-function addQuestion(){
-  const i = document.getElementById("questions").children.length + 1;
-  const div = document.createElement("div");
-  div.className = "q-block";
-  div.innerHTML = `
-    <strong>题目 ${i}</strong>
-    <select class="q-type"><option value="single">单选</option><option value="multi">多选</option>
-      <option value="blank">填空</option><option value="short">简答</option></select>
-    <textarea class="q-content" rows="2" placeholder="题干"></textarea>
-    <input class="q-options" placeholder="选项（每行一个，单选/多选必填）">
-    <input class="q-key" placeholder='答案键 JSON，如 {"correct":"A"} 或 {"correct":["A","C"]} 或 {"acceptable":["答案"]}'>
-    <input class="q-score" type="number" value="2" min="0.5" step="0.5" placeholder="分值">
-  `;
-  document.getElementById("questions").appendChild(div);
+var __btnAddQ = document.getElementById("btn-add-q");
+if (__btnAddQ) {
+  __btnAddQ.addEventListener("click", function () {
+    try {
+      if (!window.ClassroomQuestionEditor) throw new Error("ClassroomQuestionEditor 未加载");
+      ClassroomQuestionEditor.createBlock(document.getElementById("questions"));
+    } catch (err) {
+      console.error(err);
+      try { alert("添加题目失败: " + (err && err.message)); } catch (e) { /* ignore */ }
+    }
+  });
+} else {
+  console.warn('btn-add-q 元素不存在');
 }
 
-document.getElementById("btn-add-q").addEventListener("click", addQuestion);
-
 document.getElementById("btn-create").addEventListener("click", async function () {
-  const questions = [...document.querySelectorAll(".q-block")].map(b => {
-    const qtype = b.querySelector(".q-type").value;
-    const opts = b.querySelector(".q-options").value.trim().split("\n").filter(Boolean);
-    return {
-      qtype, content: b.querySelector(".q-content").value.trim(),
-      options: ["single","multi"].includes(qtype) ? opts : null,
-      answer_key: JSON.parse(b.querySelector(".q-key").value.trim() || "{}"),
-      score: parseFloat(b.querySelector(".q-score").value) || 2,
-    };
-  });
-  const body = {
-    id: document.getElementById("exam-id").value.trim() || undefined,
-    title: document.getElementById("exam-title").value.trim(),
-    start_at: document.getElementById("exam-start").value.trim(),
-    end_at: document.getElementById("exam-end").value.trim(),
-    questions,
-  };
+  var msgEl = document.getElementById("create-msg");
   try {
-    const d = await api("/api/teacher/classroom-exams", { method:"POST", headers:hdr(), body:JSON.stringify(body) });
-    document.getElementById("create-msg").textContent = "发布成功："+d.id;
-    document.getElementById("create-msg").style.color = "#2e7d32";
+    var questions = ClassroomQuestionEditor.collectAll(document.getElementById("questions"));
+    var title = document.getElementById("exam-title").value.trim();
+    if (!title) throw new Error("请填写考试标题");
+    var startAt = ClassroomQuestionEditor.formatDatetimeForApi(
+      document.getElementById("exam-start").value
+    );
+    var endAt = ClassroomQuestionEditor.formatDatetimeForApi(
+      document.getElementById("exam-end").value
+    );
+    if (!startAt || !endAt) throw new Error("请设置开始与结束时间");
+    var body = {
+      id: document.getElementById("exam-id").value.trim() || undefined,
+      title: title,
+      start_at: startAt,
+      end_at: endAt,
+      questions: questions,
+    };
+    var d = await api("/api/teacher/classroom-exams", {
+      method: "POST", headers: hdr(), body: JSON.stringify(body),
+    });
+    msgEl.textContent = "发布成功：" + d.id;
+    msgEl.style.color = "#2e7d32";
     loadExams();
-  } catch(e) {
-    document.getElementById("create-msg").textContent = e.message;
-    document.getElementById("create-msg").style.color = "#c62828";
+  } catch (e) {
+    msgEl.textContent = e.message || String(e);
+    msgEl.style.color = "#c62828";
   }
 });
 
@@ -285,16 +626,33 @@ async function loadAttempts(examId){
   box.querySelectorAll("[data-grade]").forEach(b => b.onclick = () => openGrade(b.dataset.exam, b.dataset.grade));
 }
 
+function formatAnswer(q) {
+  var a = q.student_answer;
+  if (a == null || a === "") return "（未作答）";
+  if (q.qtype === "multi" && Array.isArray(a)) return a.join("、");
+  if (q.qtype === "blank" && Array.isArray(a)) return a.map(function (v, i) { return "空" + (i + 1) + "：" + (v || "—"); }).join("； ");
+  if (q.qtype === "blank" && typeof a === "object") {
+    return Object.keys(a).sort().map(function (k) { return "空" + (parseInt(k, 10) + 1) + "：" + a[k]; }).join("； ");
+  }
+  return String(a);
+}
+
 async function openGrade(examId, attemptId){
-  const d = await api(`/api/teacher/classroom-exams/${examId}/attempts/${attemptId}`, { headers:hdr() });
+  const d = await api("/api/teacher/classroom-exams/" + examId + "/attempts/" + attemptId, { headers:hdr() });
   gradeCtx = { examId, attemptId };
   document.getElementById("grade-panel").classList.remove("hidden");
-  document.getElementById("grade-title").textContent = `批改 — ${d.attempt.student_id}`;
-  document.getElementById("grade-body").innerHTML = d.questions.filter(q=>q.qtype==="short").map(q=>`
-    <div class="q-block"><p><strong>${q.content}</strong>（满分${q.max_score}）</p>
-    <p style="background:#f5f5f5;padding:8px;border-radius:6px;margin:8px 0">${q.student_answer||"（未作答）"}</p>
-    <label>得分</label><input type="number" class="grade-score" data-qid="${q.question_id}" max="${q.max_score}" min="0" step="0.5" value="0">
-    </div>`).join("") || "<p>无简答题</p>";
+  document.getElementById("grade-title").textContent = "批改答卷 — " + d.attempt.student_id;
+  var html = d.questions.map(function (q, i) {
+    var head = "<div class='q-block'><p><strong>" + (i + 1) + ". [" + q.qtype + "]</strong> " + q.content + "（满分 " + q.max_score + "）</p>";
+    head += "<p style='background:#f5f5f5;padding:8px;border-radius:6px;margin:8px 0'>" + formatAnswer(q) + "</p>";
+    if (q.qtype === "short") {
+      head += "<label class='lbl'>简答题得分</label><input type='number' class='grade-score' data-qid='" + q.question_id + "' max='" + q.max_score + "' min='0' step='0.5' value='0'>";
+    } else {
+      head += "<p class='hint'>客观题已自动评分</p>";
+    }
+    return head + "</div>";
+  }).join("");
+  document.getElementById("grade-body").innerHTML = html || "<p>无题目</p>";
 }
 
 document.getElementById("btn-save-grade").addEventListener("click", async function () {

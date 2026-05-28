@@ -99,4 +99,10 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_classroom_attempt_exam
             ON classroom_exam_attempts(exam_id);
         """)
+        try:
+            conn.execute(
+                "ALTER TABLE classroom_exam_attempts ADD COLUMN question_scores_json TEXT"
+            )
+        except sqlite3.OperationalError:
+            pass
         # 考试记录由 sync_exams() 根据 .md 文件动态维护，此处不再硬编码预置

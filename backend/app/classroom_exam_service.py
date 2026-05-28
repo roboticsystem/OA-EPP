@@ -1,7 +1,7 @@
 """课堂考试业务逻辑：时间窗口、自动交卷、草稿与提交。"""
 import json
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Optional  # noqa: F401 used in _load_question_scores
 
 from app.classroom_scoring import compute_attempt_scores
 from app.database import db
@@ -12,7 +12,9 @@ def now_local() -> datetime:
 
 
 def parse_dt(s: str) -> datetime:
-    s = s.strip().replace("T", " ")
+    s = s.strip()
+    if "T" in s:
+        s = s.replace("T", " ")
     if len(s) >= 19:
         return datetime.strptime(s[:19], "%Y-%m-%d %H:%M:%S")
     if len(s) >= 16:
@@ -55,15 +57,24 @@ def get_questions(conn, exam_id: str) -> list[dict]:
 
 
 def question_for_student(q: dict) -> dict:
+    from app.classroom_scoring import question_max_score
+
     opts = json.loads(q["options_json"]) if q.get("options_json") else None
-    return {
+    key = json.loads(q["answer_key_json"]) if q.get("answer_key_json") else {}
+    item = {
         "id": q["id"],
         "qtype": q["qtype"],
         "content": q["content"],
         "options": opts,
-        "score": q["score"],
+        "score": question_max_score(q),
         "sort_no": q["sort_no"],
     }
+    if q["qtype"] == "blank" and key.get("blanks"):
+        item["blanks"] = [
+            {"index": i, "score": float(b.get("score") or 0)}
+            for i, b in enumerate(key["blanks"])
+        ]
+    return item
 
 
 def get_attempt(conn, exam_id: str, student_id: str) -> Optional[dict]:
@@ -126,19 +137,29 @@ def submit_attempt(conn, attempt_id: int, auto: bool = False) -> dict:
 
     questions = get_questions(conn, attempt["exam_id"])
     answers_map = load_answers(attempt)
-    max_score = sum(float(q["score"]) for q in questions)
-    objective, max_obj, pending, _details = compute_attempt_scores(questions, answers_map)
+    from app.classroom_scoring import question_max_score
+
+    max_score = sum(question_max_score(q) for q in questions)
+    # compute_attempt_scores historically returned 4 or 5 values; handle both shapes
+    _res = compute_attempt_scores(questions, answers_map)
+    if isinstance(_res, tuple) and len(_res) == 5:
+        objective, max_obj, pending, q_scores, _details = _res
+    else:
+        # backward compatibility: accept 4-tuple
+        objective, max_obj, pending, q_scores = _res
+        _details = []
 
     status = "graded" if pending == 0 else "submitted"
     total = objective if pending == 0 else None
+    scores_json = json.dumps(q_scores, ensure_ascii=False)
 
     conn.execute(
         """UPDATE classroom_exam_attempts SET
             status=?, objective_score=?, subjective_pending=?,
-            total_score=?, max_score=?, submitted_at=datetime('now','localtime'),
-            auto_submitted=?
+            total_score=?, max_score=?, question_scores_json=?,
+            submitted_at=datetime('now','localtime'), auto_submitted=?
            WHERE id=?""",
-        (status, objective, pending, total, max_score, 1 if auto else 0, attempt_id),
+        (status, objective, pending, total, max_score, scores_json, 1 if auto else 0, attempt_id),
     )
 
     return {
@@ -177,51 +198,69 @@ def ensure_attempt(conn, exam_id: str, student_id: str) -> dict:
     return get_attempt(conn, exam_id, student_id)
 
 
+def _load_question_scores(attempt: dict) -> dict[str, Optional[float]]:
+    if not attempt.get("question_scores_json"):
+        return {}
+    raw = json.loads(attempt["question_scores_json"])
+    return {str(k): (None if v is None else float(v)) for k, v in raw.items()}
+
+
 def result_for_student(conn, attempt: dict, exam: dict) -> dict:
+    from app.classroom_scoring import question_max_score
+
     questions = get_questions(conn, attempt["exam_id"])
     answers_map = load_answers(attempt)
+    stored_scores = _load_question_scores(attempt)
+    submitted = attempt["status"] in ("submitted", "graded")
+    all_graded = attempt["status"] == "graded"
+
     per_q = []
     for q in questions:
         qid = q["id"]
+        qid_s = str(qid)
         ans = answers_map.get(qid)
+        max_q = question_max_score(q)
         item = {
             "question_id": qid,
             "qtype": q["qtype"],
             "content": q["content"],
             "your_answer": ans,
-            "max_score": q["score"],
+            "max_score": max_q,
+            "options": json.loads(q["options_json"]) if q.get("options_json") else None,
         }
-        if attempt["status"] in ("submitted", "graded") and q["qtype"] != "short":
-            from app.classroom_scoring import score_question
-            key = json.loads(q["answer_key_json"])
-            ratio, needs = score_question(q["qtype"], ans, key)
-            if not needs and ratio is not None:
-                item["score"] = round(float(q["score"]) * ratio, 2)
-                item["graded"] = True
-            else:
-                item["score"] = None
-                item["graded"] = False
-        elif attempt["status"] == "graded" or (
-            attempt["status"] == "submitted" and q["qtype"] == "short"
-        ):
-            item["score"] = None
-            item["graded"] = q["qtype"] != "short"
-            if q["qtype"] == "short":
-                item["graded"] = attempt.get("subjective_pending", 1) == 0
-        else:
+        key = json.loads(q["answer_key_json"]) if q.get("answer_key_json") else {}
+        if q["qtype"] == "blank" and key.get("blanks"):
+            item["blanks"] = [{"index": i, "score": b.get("score")} for i, b in enumerate(key["blanks"])]
+
+        if not submitted:
             item["score"] = None
             item["graded"] = False
+        elif q["qtype"] == "short":
+            sc = stored_scores.get(qid_s)
+            item["score"] = sc
+            item["graded"] = sc is not None
+        else:
+            sc = stored_scores.get(qid_s)
+            if sc is None and qid_s in stored_scores:
+                item["score"] = None
+                item["graded"] = False
+            else:
+                item["score"] = sc
+                item["graded"] = True
         per_q.append(item)
 
+    show_total = all_graded
     return {
         "exam_id": exam["id"],
         "title": exam["title"],
         "status": attempt["status"],
         "objective_score": attempt.get("objective_score"),
-        "total_score": attempt.get("total_score"),
+        "total_score": attempt.get("total_score") if show_total else None,
         "max_score": attempt.get("max_score"),
         "subjective_pending": attempt.get("subjective_pending", 0),
         "submitted_at": attempt.get("submitted_at"),
         "auto_submitted": bool(attempt.get("auto_submitted")),
+        "can_preview": submitted,
+        "show_total": show_total,
         "questions": per_q,
     }

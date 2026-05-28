@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 import os
 
 from app.database import init_db
@@ -68,6 +69,9 @@ def classroom_exam_page_api_alias():
 @app.get("/api/classroom-exam/admin/")
 def classroom_exam_admin_page_api_alias():
     return _static_file(_CLASSROOM_EXAM_ADMIN_HTML)
+
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.on_event("startup")

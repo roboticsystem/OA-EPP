@@ -58,8 +58,39 @@ class QuestionIn(BaseModel):
     qtype: str = Field(..., pattern="^(single|multi|blank|short)$")
     content: str
     options: Optional[list[str]] = None
-    answer_key: dict
-    score: float = Field(..., gt=0)
+    answer_key: dict = Field(default_factory=dict)
+    score: float = Field(default=0, ge=0)
+
+
+def _normalize_question(q: QuestionIn) -> QuestionIn:
+    """根据题型规范化分值与答案键。"""
+    if q.qtype == "blank":
+        blanks = q.answer_key.get("blanks") or []
+        if blanks:
+            total = sum(float(b.get("score") or 0) for b in blanks)
+            q.score = total
+        elif q.score <= 0:
+            raise HTTPException(status_code=422, detail="填空题需设置填空分值")
+    elif q.qtype == "short":
+        if q.score <= 0:
+            raise HTTPException(status_code=422, detail="简答题需设置分值")
+        q.answer_key = {}
+    elif q.qtype == "single":
+        if not q.options:
+            raise HTTPException(status_code=422, detail="单选题需至少一个选项")
+        if not q.answer_key.get("correct"):
+            raise HTTPException(status_code=422, detail="单选题需指定正确答案")
+        if q.score <= 0:
+            raise HTTPException(status_code=422, detail="单选题需设置分值")
+    elif q.qtype == "multi":
+        if not q.options:
+            raise HTTPException(status_code=422, detail="多选题需至少一个选项")
+        correct = q.answer_key.get("correct") or []
+        if not correct:
+            raise HTTPException(status_code=422, detail="多选题需指定至少一个正确答案")
+        if q.score <= 0:
+            raise HTTPException(status_code=422, detail="多选题需设置分值")
+    return q
 
 
 class ClassroomExamCreate(BaseModel):
@@ -282,6 +313,12 @@ def submit_api(authorization: Optional[str] = Header(None)):
             if code == "already_submitted":
                 raise HTTPException(status_code=409, detail="已提交")
             raise HTTPException(status_code=400, detail=code)
+        except Exception as e:
+            # Log traceback for debugging and return 500 with message
+            import traceback
+            tb = traceback.format_exc()
+            print("[ERROR] submit_api exception:\n", tb)
+            raise HTTPException(status_code=500, detail=str(e))
         attempt = get_attempt_by_id(conn, attempt["id"])
         return {**result, **result_for_student(conn, attempt, exam)}
 
@@ -368,6 +405,7 @@ def teacher_create_exam(req: ClassroomExamCreate, authorization: Optional[str] =
             (exam_id, req.title.strip(), req.start_at.strip(), req.end_at.strip()),
         )
         for i, q in enumerate(req.questions, 1):
+            q = _normalize_question(q)
             opts = json.dumps(q.options, ensure_ascii=False) if q.options else None
             key = json.dumps(q.answer_key, ensure_ascii=False)
             conn.execute(
@@ -506,11 +544,19 @@ def teacher_grade_attempt(
             if sid not in grade_map:
                 raise HTTPException(status_code=422, detail="请为所有简答题打分")
 
+        from app.classroom_exam_service import _load_question_scores
+
+        q_scores = _load_question_scores(attempt)
+        for qid, sc in grade_map.items():
+            q_scores[str(qid)] = sc
+
         total = round(objective + subjective, 2)
+        scores_json = json.dumps({k: v for k, v in q_scores.items()}, ensure_ascii=False)
         conn.execute(
             """UPDATE classroom_exam_attempts
-               SET status='graded', total_score=?, subjective_pending=0
+               SET status='graded', total_score=?, subjective_pending=0,
+                   question_scores_json=?
                WHERE id=?""",
-            (total, attempt_id),
+            (total, scores_json, attempt_id),
         )
     return {"ok": True, "total_score": total}

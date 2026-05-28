@@ -53,6 +53,12 @@
   table { width:100%; font-size:.85rem; border-collapse:collapse; }
   th,td { padding:8px 6px; text-align:left; border-bottom:1px solid #f0f0f0; }
   .offline-banner { background:#fff3e0; color:#e65100; padding:8px 12px; font-size:.8rem; text-align:center; }
+  .blank-row-stu { margin-bottom:10px; }
+  .blank-row-stu label { font-size:.8rem; color:#666; display:block; margin-bottom:4px; }
+  .review-item { border-bottom:1px solid #eee; padding:14px 0; }
+  .review-item:last-child { border-bottom:none; }
+  .review-score { font-weight:700; color:var(--primary); }
+  .review-pending { color:#f57c00; }
 </style>
 </head>
 <body>
@@ -293,7 +299,14 @@
   function isAnswered(q) {
     const a = state.answers[q.id];
     if (q.qtype === "multi") return Array.isArray(a) && a.length > 0;
-    if (q.qtype === "short" || q.qtype === "blank") return a != null && String(a).trim() !== "";
+    if (q.qtype === "blank") {
+      if (q.blanks && q.blanks.length) {
+        const arr = Array.isArray(a) ? a : [];
+        return q.blanks.every(function (_, i) { return String(arr[i] || "").trim() !== ""; });
+      }
+      return a != null && String(a).trim() !== "";
+    }
+    if (q.qtype === "short") return a != null && String(a).trim() !== "";
     return a != null && a !== "";
   }
 
@@ -337,7 +350,16 @@
           <span>${letter}. ${esc(opt)}</span></label>`;
       }).join("");
     } else if (q.qtype === "blank") {
-      body = `<input class="blank-input" id="ans-input" placeholder="请输入答案" value="${esc(state.answers[q.id]||"")}">`;
+      const arr = state.answers[q.id];
+      if (q.blanks && q.blanks.length) {
+        body = q.blanks.map(function (b, i) {
+          const val = Array.isArray(arr) ? (arr[i] || "") : (i === 0 ? (arr || "") : "");
+          return `<div class="blank-row-stu"><label>填空 ${i + 1}（${b.score} 分）</label>` +
+            `<input class="blank-input blank-field" data-bi="${i}" placeholder="请输入第 ${i + 1} 空答案" value="${esc(val)}"></div>`;
+        }).join("");
+      } else {
+        body = `<input class="blank-input" id="ans-input" placeholder="请输入答案" value="${esc(arr || "")}">`;
+      }
     } else if (q.qtype === "short") {
       body = `<textarea class="short-input" id="ans-input" placeholder="请输入简答">${esc(state.answers[q.id]||"")}</textarea>`;
     }
@@ -372,12 +394,55 @@
           onAnswerChange();
         });
       });
+    } else if (q.qtype === "blank" && q.blanks && q.blanks.length) {
+      const syncBlanks = function () {
+        const vals = [];
+        $("question-panel").querySelectorAll(".blank-field").forEach(function (inp) {
+          vals[parseInt(inp.dataset.bi, 10)] = inp.value;
+        });
+        state.answers[q.id] = vals;
+        onAnswerChange();
+      };
+      $("question-panel").querySelectorAll(".blank-field").forEach(function (inp) {
+        inp.addEventListener("input", syncBlanks);
+      });
     } else {
       const inp = $("ans-input");
       if (inp) {
         inp.addEventListener("input", () => { state.answers[q.id] = inp.value; debounceSave(); });
       }
     }
+  }
+
+  function formatStudentAnswer(q, ans) {
+    if (ans == null || ans === "") return "（未作答）";
+    if (q.qtype === "multi" && Array.isArray(ans)) return ans.join("、");
+    if (q.qtype === "blank" && Array.isArray(ans)) {
+      return ans.map(function (v, i) { return "空" + (i + 1) + "：" + (v || "—"); }).join("； ");
+    }
+    return String(ans);
+  }
+
+  function renderReviewPaper(d) {
+    if (!d.questions || !d.questions.length) return "";
+    return d.questions.map(function (q, i) {
+      let scoreHtml;
+      if (q.qtype === "short") {
+        scoreHtml = q.graded
+          ? `<span class="review-score">${q.score} / ${q.max_score} 分</span>`
+          : `<span class="review-pending">待教师批改</span>`;
+      } else if (q.graded && q.score != null) {
+        scoreHtml = `<span class="review-score">${q.score} / ${q.max_score} 分</span>`;
+      } else {
+        scoreHtml = `<span class="review-pending">—</span>`;
+      }
+      return `<div class="review-item">
+        <div class="q-type">第 ${i + 1} 题 · ${QTYPE_LABEL[q.qtype]}</div>
+        <div class="q-content">${esc(q.content)}</div>
+        <p style="font-size:.9rem;margin:8px 0"><strong>你的作答：</strong>${esc(formatStudentAnswer(q, q.your_answer))}</p>
+        <p style="font-size:.9rem">${scoreHtml}</p>
+      </div>`;
+    }).join("");
   }
 
   let debounceTimer;
@@ -464,18 +529,27 @@
     $("view-exam").classList.add("hidden");
     $("view-result").classList.remove("hidden");
     const pending = d.subjective_pending > 0;
-    const score = d.total_score != null ? d.total_score : d.objective_score;
+    const showTotal = d.show_total && d.total_score != null;
+    const objScore = d.objective_score != null ? d.objective_score : "—";
     $("view-result").innerHTML = `
-      <div class="card card-pad" style="text-align:center">
-        <h2 style="margin-bottom:8px">${esc(d.title || state.exam?.title || "考试")}</h2>
-        ${d.auto_submitted ? `<p style="color:#e65100;font-size:.85rem">已到达截止时间，系统自动提交</p>` : ""}
-        <div class="score-big">${score != null ? score : "—"}</div>
-        <p style="color:#666">满分 ${d.max_score} 分</p>
-        ${pending ? `<p style="margin-top:12px;color:#f57c00">主观题待教师批改，客观题已计 ${d.objective_score} 分</p>` :
-          `<p style="margin-top:8px;color:#2e7d32">批改完成</p>`}
-        <button class="btn btn-primary" style="margin-top:16px" id="btn-back">返回列表</button>
-      </div>`;
-    $("btn-back").addEventListener("click", () => { state.token=null; renderList(); });
+      <div class="card card-pad">
+        <h2 style="margin-bottom:8px;text-align:center">${esc(d.title || state.exam?.title || "考试")}</h2>
+        ${d.auto_submitted ? `<p style="color:#e65100;font-size:.85rem;text-align:center">已到达截止时间，系统自动提交</p>` : ""}
+        <div style="text-align:center;margin:12px 0">
+          ${showTotal
+            ? `<div class="score-big">${d.total_score}</div><p style="color:#666">总分 / 满分 ${d.max_score}</p>`
+            : `<p style="font-size:1rem;color:#666">客观题得分 <strong style="color:var(--primary);font-size:1.3rem">${objScore}</strong> / ${d.max_score}</p>`
+          }
+          ${pending ? `<p style="margin-top:8px;color:#f57c00;font-size:.9rem">简答题待教师批改后显示该题分数与总分</p>` :
+            `<p style="margin-top:8px;color:#2e7d32;font-size:.9rem">全部题目已批改完成</p>`}
+        </div>
+      </div>
+      <div class="card card-pad">
+        <h3 style="font-size:1rem;margin-bottom:8px">答卷预览</h3>
+        ${renderReviewPaper(d)}
+      </div>
+      <button class="btn btn-primary" id="btn-back">返回列表</button>`;
+    $("btn-back").addEventListener("click", () => { state.token=null; sessionStorage.removeItem(`ce_token_${d.exam_id || state.exam?.id}`); renderList(); });
   }
 
   function esc(s) {
