@@ -316,16 +316,16 @@
           </div>
         </div>
 
-        <!-- ⑤ AI 代码审查提示词（F-D-007）待完成 -->
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div class="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 bg-gray-50">
-            <span class="w-7 h-7 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-sm font-bold flex-shrink-0">5</span>
+        <!-- ⑤ AI 代码审查提示词（F-D-007） -->
+        <div class="bg-white rounded-xl border-2 border-indigo-400 shadow-sm overflow-hidden">
+          <div class="flex items-center gap-3 px-5 py-3.5 border-b border-indigo-100 bg-indigo-50">
+            <span class="w-7 h-7 rounded-full bg-indigo-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0 ring-4 ring-indigo-100">5</span>
             <div class="flex-1">
-              <h3 class="text-sm font-semibold text-gray-600">步骤 ⑤ · AI 代码审查提示词配置（pr-agent）</h3>
-              <p class="text-xs text-gray-400">完成步骤 ④ 后激活</p>
+              <h3 class="text-sm font-semibold text-gray-700">步骤 ⑤ · AI 代码审查提示词配置（pr-agent）</h3>
+              <p class="text-xs text-indigo-600">PR 自动触发审查 · 模板位于 .github/review-prompts/ 并纳入 Git</p>
             </div>
             <div class="flex gap-2">
-              <button class="text-xs border border-gray-200 text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-50">验证配置</button>
+              <button class="text-xs border border-indigo-200 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-white">Dry-Run 验证</button>
               <button class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700">保存并应用</button>
             </div>
           </div>
@@ -334,11 +334,18 @@
             <div class="mb-3">
               <label class="block text-xs text-gray-500 mb-1.5">选择提示词模板</label>
               <div class="flex flex-wrap gap-2">
-                <button class="text-xs bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full font-medium">代码质量审查（当前）</button>
-                <button class="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full hover:bg-gray-200">PR 描述总结</button>
+                <button class="text-xs bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full font-medium">通用代码审查 · 默认</button>
+                <button class="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full hover:bg-gray-200">工程实践规范检查</button>
                 <button class="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full hover:bg-gray-200">安全全面审查</button>
-                <button class="text-xs border border-dashed border-gray-300 text-gray-400 px-3 py-1.5 rounded-full hover:bg-gray-50">+ 自定义</button>
+                <button class="text-xs bg-amber-50 text-amber-700 px-3 py-1.5 rounded-full hover:bg-amber-100">课程项目专项审查 · 自定义</button>
+                <button class="text-xs border border-dashed border-gray-300 text-gray-500 px-3 py-1.5 rounded-full hover:bg-gray-50">+ 新建自定义模板</button>
               </div>
+            </div>
+            <div class="grid grid-cols-4 gap-2 mb-3">
+              <button class="text-xs border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">复制为自定义</button>
+              <button class="text-xs border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">重命名</button>
+              <button class="text-xs border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">设为默认</button>
+              <button class="text-xs border border-red-100 text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50">删除自定义</button>
             </div>
             <!-- 可用变量 -->
             <div class="flex flex-wrap gap-1.5 mb-2">
@@ -349,7 +356,9 @@
               <code class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">{author}</code>
             </div>
             <!-- 编辑器 -->
-            <textarea rows="7" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-xs font-mono text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none">你是一位严格的代码审查专家，遵循以下规范审查 PR：
+            <textarea rows="8" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-xs font-mono text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"># 通用代码审查
+
+你是一位严格的代码审查专家，遵循以下规范审查 PR：
 
 1. 代码规范：遵循 Ruff 格式化规范，变量命名使用 snake_case
 2. 安全检查：检查 SQL 注入、硬编码 Secrets、未授权访问风险
@@ -360,7 +369,7 @@
 PR 标题：{pr_title}
 PR 描述：{pr_description}</textarea>
             <div class="flex items-center justify-between mt-3">
-              <p class="text-xs text-gray-400">保存至 <code class="bg-gray-100 px-1 rounded font-mono">.github/review-prompts/code-review.prompt.md</code>（纳入 Git）</p>
+              <p class="text-xs text-gray-400">保存至 <code class="bg-gray-100 px-1 rounded font-mono">.github/review-prompts/general-code-review.prompt.md</code>（纳入 Git）</p>
               <button class="text-xs border border-gray-200 text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-50 flex items-center gap-1">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                 清除验证痕迹
@@ -370,10 +379,27 @@ PR 描述：{pr_description}</textarea>
             <div class="mt-3 border border-gray-200 rounded-lg p-3 bg-gray-50">
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs font-medium text-gray-600">验证结果预览（Dry-Run）</span>
-                <span class="text-xs text-gray-400">尚未执行验证</span>
+                <span class="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">AI 调用成功 · 未提交 GitHub</span>
               </div>
-              <div class="bg-gray-900 rounded p-3 font-mono text-xs text-gray-500 h-14 flex items-center justify-center">
-                点击「验证配置」后在此显示 AI 审查输出预览
+              <div class="grid grid-cols-3 gap-2 mb-2">
+                <div class="bg-white border border-gray-100 rounded-lg p-2">
+                  <div class="text-xs text-gray-400">AI 调用状态</div>
+                  <div class="text-xs text-green-600 font-medium mt-0.5">success</div>
+                </div>
+                <div class="bg-white border border-gray-100 rounded-lg p-2">
+                  <div class="text-xs text-gray-400">提示词版本</div>
+                  <div class="text-xs text-gray-700 font-mono mt-0.5">general-code-review@3567d641c3c6</div>
+                </div>
+                <div class="bg-white border border-gray-100 rounded-lg p-2">
+                  <div class="text-xs text-gray-400">临时 Draft Comments</div>
+                  <div class="text-xs text-gray-700 mt-0.5">0 条，可一键清除</div>
+                </div>
+              </div>
+              <div class="bg-gray-900 rounded p-3 font-mono text-xs text-gray-200 h-24 overflow-y-auto">
+                <p class="text-green-400">[Dry-Run] github_submission=not_submitted</p>
+                <p>片段 1：建议补充教师端接口鉴权失败路径测试。</p>
+                <p>片段 2：PR 描述需要说明部署配置是否受影响。</p>
+                <p>片段 3：未发现硬编码 Secrets，仍需人工确认 Actions Secret 权限。</p>
               </div>
             </div>
           </div>
