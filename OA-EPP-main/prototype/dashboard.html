@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OA-EPP · 仪表盘</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex">
+
+  <!-- Sidebar -->
+  <aside class="w-56 bg-white border-r border-gray-200 flex flex-col min-h-screen fixed left-0 top-0">
+    <!-- Brand -->
+    <div class="px-5 py-5 border-b border-gray-100">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+          </svg>
+        </div>
+        <span class="font-bold text-gray-800 text-sm">OA-EPP</span>
+      </div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 px-3 py-4 space-y-1">
+      <a href="dashboard.html"
+        class="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 font-medium text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+        仪表盘
+      </a>
+      <a href="courses.html"
+        class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+        课程列表
+      </a>
+      <a href="assignments.html"
+        class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+        作业提交
+      </a>
+      <a href="grades.html"
+        class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+        成绩与反馈
+      </a>
+      <a href="attendance.html"
+        class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+        </svg>
+        课堂签到
+      </a>
+      <a href="exam.html"
+        class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+        </svg>
+        在线考试
+      </a>
+      <a href="profile.html"
+        class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+        个人资料
+      </a>
+    </nav>
+
+    <!-- User Info -->
+    <div class="px-4 py-4 border-t border-gray-100">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
+          张
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-800 truncate">张三</p>
+          <p class="text-xs text-gray-400 truncate">2021001001</p>
+        </div>
+      </div>
+      <a href="login.html"
+        class="mt-3 block text-center text-xs text-gray-400 hover:text-red-500 transition">退出登录</a>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="ml-56 flex-1 p-8">
+    <!-- Header -->
+    <div class="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 class="text-xl font-bold text-gray-800">仪表盘</h1>
+        <p class="text-sm text-gray-400 mt-0.5"><span id="userName">张三</span> · <span id="courseTitle">工程实践4</span> · 2025春</p>
+      </div>
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+        <label for="courseFilter" class="text-sm text-gray-500">按课程筛选</label>
+        <select id="courseFilter" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm">
+          <option value="工程实践1">工程实践1</option>
+          <option value="工程实践2">工程实践2</option>
+          <option value="工程实践3">工程实践3</option>
+          <option value="工程实践4" selected>工程实践4</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Score Cards -->
+    <div class="grid grid-cols-1 gap-5 mb-8 xl:grid-cols-5">
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">综合总分</p>
+        <p id="totalScore" class="text-3xl font-bold text-blue-600 mt-1">87.5</p>
+        <p class="text-xs text-gray-400 mt-1">满分 100 分</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">出勤得分</p>
+        <p id="attendanceScore" class="text-3xl font-bold text-green-600 mt-1">18</p>
+        <p id="attendanceMeta" class="text-xs text-gray-400 mt-1">满分 20 分 · 出勤率 90%</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">考试得分</p>
+        <p id="examScore" class="text-3xl font-bold text-purple-600 mt-1">24</p>
+        <p id="examMeta" class="text-xs text-gray-400 mt-1">满分 30 分</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">代码 + PR</p>
+        <p id="codePrScore" class="text-3xl font-bold text-orange-500 mt-1">45.5</p>
+        <p id="codePrMeta" class="text-xs text-gray-400 mt-1">满分 50 分</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-center justify-between">
+          <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">任务完成率</p>
+          <p id="completionRate" class="text-xs font-semibold text-gray-600">82%</p>
+        </div>
+        <div class="mt-4 bg-gray-100 rounded-full h-3 overflow-hidden">
+          <div id="completionBar" class="h-3 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400" style="width:82%"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-xs text-gray-500 mt-3">
+          <div>已提交 <span id="submittedTasks" class="font-semibold text-gray-700">9</span></div>
+          <div>未提交 <span id="pendingTasksCount" class="font-semibold text-gray-700">2</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid grid-cols-1 gap-5 mb-8 xl:grid-cols-3">
+      <!-- Radar Chart -->
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <h3 class="text-sm font-semibold text-gray-700 mb-4">四维雷达图</h3>
+        <div class="flex items-center justify-center h-40 bg-blue-50 rounded-lg">
+          <svg viewBox="0 0 160 140" class="w-40 h-36">
+            <polygon points="80,15 133,52 113,118 47,118 27,52" fill="none" stroke="#e5e7eb" stroke-width="1.5"/>
+            <polygon points="80,35 120,58 105,102 55,102 40,58" fill="none" stroke="#e5e7eb" stroke-width="1"/>
+            <polygon points="80,55 110,64 98,86 62,86 50,64" fill="none" stroke="#e5e7eb" stroke-width="1"/>
+            <polygon id="radarData" points="80,22 128,56 111,112 49,112 32,54" fill="#3b82f6" fill-opacity="0.25" stroke="#3b82f6" stroke-width="2"/>
+            <text x="74" y="12" font-size="9" fill="#6b7280">出勤</text>
+            <text x="132" y="55" font-size="9" fill="#6b7280">考试</text>
+            <text x="112" y="132" font-size="9" fill="#6b7280">代码</text>
+            <text x="20" y="132" font-size="9" fill="#6b7280">PR</text>
+          </svg>
+        </div>
+        <div class="grid grid-cols-2 gap-2 mt-3 text-xs text-gray-500">
+          <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"></span><span id="radarAttendance">出勤 18/20</span></div>
+          <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-purple-400 inline-block"></span><span id="radarExam">考试 24/30</span></div>
+          <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block"></span><span id="radarCode">代码 32/40</span></div>
+          <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block"></span><span id="radarPr">PR 13.5/10</span></div>
+        </div>
+      </div>
+
+      <!-- Bar Chart -->
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <h3 class="text-sm font-semibold text-gray-700 mb-4">历次考试得分</h3>
+        <div class="flex items-end gap-3 h-40 px-2" id="examBars">
+          <div class="flex flex-col items-center gap-1 flex-1">
+            <span id="barScore0" class="text-xs text-gray-500">22</span>
+            <div id="bar0" class="w-full bg-blue-500 rounded-t" style="height:73%"></div>
+            <span id="barLabel0" class="text-xs text-gray-400">期中1</span>
+          </div>
+          <div class="flex flex-col items-center gap-1 flex-1">
+            <span id="barScore1" class="text-xs text-gray-500">28</span>
+            <div id="bar1" class="w-full bg-blue-500 rounded-t" style="height:93%"></div>
+            <span id="barLabel1" class="text-xs text-gray-400">期中2</span>
+          </div>
+          <div class="flex flex-col items-center gap-1 flex-1">
+            <span id="barScore2" class="text-xs text-gray-500">24</span>
+            <div id="bar2" class="w-full bg-blue-400 rounded-t" style="height:80%"></div>
+            <span id="barLabel2" class="text-xs text-gray-400">期末</span>
+          </div>
+          <div class="flex flex-col items-center gap-1 flex-1">
+            <span id="barScore3" class="text-xs text-gray-500">18</span>
+            <div id="bar3" class="w-full bg-gray-200 rounded-t" style="height:60%"></div>
+            <span id="barLabel3" class="text-xs text-gray-400">补考</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Line Chart -->
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <h3 class="text-sm font-semibold text-gray-700 mb-4">总分变化曲线</h3>
+        <div class="h-40 flex items-center justify-center bg-blue-50 rounded-lg relative overflow-hidden">
+          <svg viewBox="0 0 200 120" class="w-full h-full">
+            <polyline id="totalLine" points="10,100 40,85 70,78 100,65 130,52 160,45 190,38"
+              fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <polygon id="totalFill" points="10,100 40,85 70,78 100,65 130,52 160,45 190,38 190,100"
+              fill="url(#grad)" fill-opacity="0.12"/>
+            <defs>
+              <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#3b82f6"/>
+                <stop offset="100%" stop-color="white"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <p class="text-xs text-gray-400 mt-2 text-right">最近更新：<span id="lastUpdated">2025-05-24</span></p>
+      </div>
+    </div>
+
+    <!-- Pending Tasks & Notifications -->
+    <div class="grid grid-cols-2 gap-5">
+      <!-- Pending Tasks -->
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-700">即将到期任务</h3>
+          <a href="assignments.html" class="text-xs text-blue-500 hover:underline">查看全部</a>
+        </div>
+        <div class="space-y-3" id="upcomingTasks">
+          <div class="flex items-center gap-3 p-3 bg-red-50 border border-red-100 rounded-lg">
+            <span class="flex-shrink-0 w-2 h-2 rounded-full bg-red-500"></span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm text-gray-800 font-medium truncate">第7章 软件需求规格说明书</p>
+              <p class="text-xs text-red-500">截止：2025-05-27 23:59 · 剩余 2 天</p>
+            </div>
+            <a href="assignments.html" class="text-xs text-blue-500 hover:underline flex-shrink-0">提交</a>
+          </div>
+          <div class="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-100 rounded-lg">
+            <span class="flex-shrink-0 w-2 h-2 rounded-full bg-yellow-500"></span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm text-gray-800 font-medium truncate">第8章 系统设计文档</p>
+              <p class="text-xs text-yellow-600">截止：2025-06-03 23:59 · 剩余 9 天</p>
+            </div>
+            <a href="assignments.html" class="text-xs text-blue-500 hover:underline flex-shrink-0">提交</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notifications -->
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-700">课程公告</h3>
+          <span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">2 未读</span>
+        </div>
+        <div class="space-y-3">
+          <div class="flex gap-3">
+            <span class="w-2 h-2 rounded-full bg-red-500 mt-1.5 flex-shrink-0"></span>
+            <div>
+              <p class="text-sm text-gray-800">第7章截止时间延至5月27日</p>
+              <p class="text-xs text-gray-400 mt-0.5">2025-05-23 · 教师：李四</p>
+            </div>
+          </div>
+          <div class="flex gap-3">
+            <span class="w-2 h-2 rounded-full bg-red-500 mt-1.5 flex-shrink-0"></span>
+            <div>
+              <p class="text-sm text-gray-800">期末汇报安排（6月15日）已发布</p>
+              <p class="text-xs text-gray-400 mt-0.5">2025-05-21 · 教师：李四</p>
+            </div>
+          </div>
+          <div class="flex gap-3">
+            <span class="w-2 h-2 rounded-full bg-gray-300 mt-1.5 flex-shrink-0"></span>
+            <div>
+              <p class="text-sm text-gray-500">第6章批改成绩已发布，请查看反馈</p>
+              <p class="text-xs text-gray-400 mt-0.5">2025-05-18 · 系统通知</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script>
+    const dashboardData = {
+      "工程实践1": {
+        totalScore: 78.4,
+        attendance: 17,
+        attendanceMax: 20,
+        attendanceRate: 85,
+        exam: 22,
+        examMax: 30,
+        code: 28,
+        codeMax: 40,
+        pr: 11.4,
+        prMax: 10,
+        examTrend: [18, 22, 20, 24],
+        examLabels: ["期中1", "期中2", "期末", "补考"],
+        totalTrend: [64, 68, 72, 78, 80],
+        lastUpdated: "2025-05-18",
+        completionRate: 72,
+        submitted: 8,
+        pending: 3,
+        upcoming: [
+          { title: "第3章 文档规范", due: "2025-06-01", badge: "剩余 4 天", color: "yellow" },
+          { title: "第4章 GitHub PR 复审", due: "2025-05-29", badge: "剩余 2 天", color: "red" }
+        ]
+      },
+      "工程实践2": {
+        totalScore: 83.2,
+        attendance: 18,
+        attendanceMax: 20,
+        attendanceRate: 90,
+        exam: 24,
+        examMax: 30,
+        code: 31,
+        codeMax: 40,
+        pr: 10.2,
+        prMax: 10,
+        examTrend: [20, 24, 22, 28],
+        examLabels: ["期中1", "期中2", "期末", "补考"],
+        totalTrend: [70, 74, 78, 82, 83],
+        lastUpdated: "2025-05-20",
+        completionRate: 78,
+        submitted: 10,
+        pending: 2,
+        upcoming: [
+          { title: "第5章 系统测试", due: "2025-06-05", badge: "剩余 8 天", color: "yellow" }
+        ]
+      },
+      "工程实践3": {
+        totalScore: 90.1,
+        attendance: 19,
+        attendanceMax: 20,
+        attendanceRate: 95,
+        exam: 27,
+        examMax: 30,
+        code: 35,
+        codeMax: 40,
+        pr: 9.1,
+        prMax: 10,
+        examTrend: [22, 26, 29, 30],
+        examLabels: ["期中1", "期中2", "期末", "补考"],
+        totalTrend: [76, 80, 85, 88, 90],
+        lastUpdated: "2025-05-22",
+        completionRate: 88,
+        submitted: 12,
+        pending: 1,
+        upcoming: [
+          { title: "第6章 项目部署", due: "2025-06-08", badge: "剩余 11 天", color: "yellow" }
+        ]
+      },
+      "工程实践4": {
+        totalScore: 87.5,
+        attendance: 18,
+        attendanceMax: 20,
+        attendanceRate: 90,
+        exam: 24,
+        examMax: 30,
+        code: 32,
+        codeMax: 40,
+        pr: 13.5,
+        prMax: 10,
+        examTrend: [22, 28, 24, 18],
+        examLabels: ["期中1", "期中2", "期末", "补考"],
+        totalTrend: [72, 75, 80, 85, 87.5],
+        lastUpdated: "2025-05-24",
+        completionRate: 82,
+        submitted: 9,
+        pending: 2,
+        upcoming: [
+          { title: "第7章 软件需求规格说明书", due: "2025-05-27", badge: "剩余 2 天", color: "red" },
+          { title: "第8章 系统设计文档", due: "2025-06-03", badge: "剩余 9 天", color: "yellow" }
+        ]
+      }
+    };
+
+    const courseFilter = document.getElementById('courseFilter');
+    const courseTitle = document.getElementById('courseTitle');
+    const totalScore = document.getElementById('totalScore');
+    const attendanceScore = document.getElementById('attendanceScore');
+    const attendanceMeta = document.getElementById('attendanceMeta');
+    const examScore = document.getElementById('examScore');
+    const examMeta = document.getElementById('examMeta');
+    const codePrScore = document.getElementById('codePrScore');
+    const codePrMeta = document.getElementById('codePrMeta');
+    const completionRate = document.getElementById('completionRate');
+    const completionBar = document.getElementById('completionBar');
+    const submittedTasks = document.getElementById('submittedTasks');
+    const pendingTasksCount = document.getElementById('pendingTasksCount');
+    const radarAttendance = document.getElementById('radarAttendance');
+    const radarExam = document.getElementById('radarExam');
+    const radarCode = document.getElementById('radarCode');
+    const radarPr = document.getElementById('radarPr');
+    const radarData = document.getElementById('radarData');
+    const barScore0 = document.getElementById('barScore0');
+    const barScore1 = document.getElementById('barScore1');
+    const barScore2 = document.getElementById('barScore2');
+    const barScore3 = document.getElementById('barScore3');
+    const barLabel0 = document.getElementById('barLabel0');
+    const barLabel1 = document.getElementById('barLabel1');
+    const barLabel2 = document.getElementById('barLabel2');
+    const barLabel3 = document.getElementById('barLabel3');
+    const bar0 = document.getElementById('bar0');
+    const bar1 = document.getElementById('bar1');
+    const bar2 = document.getElementById('bar2');
+    const bar3 = document.getElementById('bar3');
+    const totalLine = document.getElementById('totalLine');
+    const totalFill = document.getElementById('totalFill');
+    const lastUpdated = document.getElementById('lastUpdated');
+    const upcomingTasks = document.getElementById('upcomingTasks');
+
+    function normalize(value, max) {
+      return Math.min(1, Math.max(0, value / max));
+    }
+
+    function pointFor(index, ratio) {
+      const angle = (Math.PI * 2 / 4) * index - Math.PI / 2;
+      const radius = 50 * ratio;
+      const cx = 80;
+      const cy = 70;
+      return `${cx + Math.cos(angle) * radius},${cy + Math.sin(angle) * radius}`;
+    }
+
+    function updateRadar(data) {
+      const attendanceRatio = normalize(data.attendance, data.attendanceMax);
+      const examRatio = normalize(data.exam, data.examMax);
+      const codeRatio = normalize(data.code, data.codeMax);
+      const prRatio = normalize(data.pr, data.prMax);
+      radarData.setAttribute('points', [
+        pointFor(0, attendanceRatio),
+        pointFor(1, examRatio),
+        pointFor(2, codeRatio),
+        pointFor(3, prRatio)
+      ].join(' '));
+      radarAttendance.textContent = `出勤 ${data.attendance}/${data.attendanceMax}`;
+      radarExam.textContent = `考试 ${data.exam}/${data.examMax}`;
+      radarCode.textContent = `代码 ${data.code}/${data.codeMax}`;
+      radarPr.textContent = `PR ${data.pr}/${data.prMax}`;
+    }
+
+    function updateBarChart(data) {
+      const maxValue = Math.max(...data.examTrend, data.examMax);
+      const scores = data.examTrend;
+      [barScore0, barScore1, barScore2, barScore3].forEach((node, index) => {
+        node.textContent = scores[index];
+      });
+      [barLabel0, barLabel1, barLabel2, barLabel3].forEach((node, index) => {
+        node.textContent = data.examLabels[index] || `考试${index + 1}`;
+      });
+      [bar0, bar1, bar2, bar3].forEach((bar, index) => {
+        bar.style.height = `${Math.round((scores[index] / maxValue) * 100)}%`;
+      });
+    }
+
+    function updateLineChart(data) {
+      const values = data.totalTrend;
+      const maxValue = Math.max(...values, 100);
+      const points = values.map((value, index) => {
+        const x = 10 + index * 45;
+        const y = 100 - (value / maxValue) * 70;
+        return `${x},${y}`;
+      });
+      totalLine.setAttribute('points', points.join(' '));
+      totalFill.setAttribute('points', `${points.join(' ')} ${190},100 10,100`);
+    }
+
+    function renderUpcomingTasks(data) {
+      upcomingTasks.innerHTML = data.upcoming.map(task => {
+        const bg = task.color === 'red' ? 'bg-red-50 border-red-100 text-red-500' : 'bg-yellow-50 border-yellow-100 text-yellow-600';
+        const dot = task.color === 'red' ? 'bg-red-500' : 'bg-yellow-500';
+        return `
+          <div class="flex items-center gap-3 p-3 ${bg} rounded-lg">
+            <span class="flex-shrink-0 w-2 h-2 rounded-full ${dot}"></span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm text-gray-800 font-medium truncate">${task.title}</p>
+              <p class="text-xs">截止：${task.due} · ${task.badge}</p>
+            </div>
+            <a href="assignments.html" class="text-xs text-blue-500 hover:underline flex-shrink-0">提交</a>
+          </div>`;
+      }).join('');
+    }
+
+    function renderDashboard(courseName) {
+      const data = dashboardData[courseName] || dashboardData['工程实践4'];
+      courseTitle.textContent = courseName;
+      totalScore.textContent = data.totalScore.toFixed(1);
+      attendanceScore.textContent = data.attendance;
+      attendanceMeta.textContent = `满分 ${data.attendanceMax} 分 · 出勤率 ${data.attendanceRate}%`;
+      examScore.textContent = data.exam;
+      examMeta.textContent = `满分 ${data.examMax} 分`;
+      codePrScore.textContent = data.code + data.pr;
+      codePrMeta.textContent = `代码 ${data.code}/${data.codeMax} · PR ${data.pr}/${data.prMax}`;
+      completionRate.textContent = `${data.completionRate}%`;
+      completionBar.style.width = `${data.completionRate}%`;
+      submittedTasks.textContent = data.submitted;
+      pendingTasksCount.textContent = data.pending;
+      lastUpdated.textContent = data.lastUpdated;
+      updateRadar(data);
+      updateBarChart(data);
+      updateLineChart(data);
+      renderUpcomingTasks(data);
+    }
+
+    courseFilter.addEventListener('change', (event) => renderDashboard(event.target.value));
+    renderDashboard(courseFilter.value);
+  </script>
+</body>
+</html>

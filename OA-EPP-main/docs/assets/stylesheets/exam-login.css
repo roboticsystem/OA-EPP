@@ -1,0 +1,234 @@
+/* ========================================================
+   考试登录覆盖层样式
+   ======================================================== */
+.exam-login-wrap {
+  position: relative;
+}
+
+.exam-login-banner {
+  background: linear-gradient(135deg, #1565c0 0%, #1976d2 100%);
+  color: #fff;
+  border-radius: 10px;
+  padding: 28px 24px;
+  text-align: center;
+  margin: 24px 0;
+}
+
+.exam-login-banner h3 {
+  font-size: 1.15rem;
+  margin-bottom: 8px;
+  color: #fff;
+}
+
+.exam-login-banner p {
+  font-size: .9rem;
+  opacity: .88;
+  margin-bottom: 18px;
+  color: #fff;
+}
+
+.exam-login-btn {
+  display: inline-block;
+  background: #fff;
+  color: #1565c0;
+  font-weight: bold;
+  font-size: 1rem;
+  padding: 10px 28px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  transition: box-shadow .2s, transform .1s;
+}
+
+.exam-login-btn:hover {
+  box-shadow: 0 4px 14px rgba(0,0,0,.22);
+  transform: translateY(-1px);
+}
+
+.exam-quiz-overlay {
+  position: relative;
+}
+
+.exam-quiz-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,.88);
+  backdrop-filter: blur(3px);
+  border-radius: 8px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.exam-status-bar {
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: 8px;
+  padding: 12px 18px;
+  margin-bottom: 16px;
+  font-size: .92rem;
+  color: #2e7d32;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.exam-submitted-banner {
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: 10px;
+  padding: 24px;
+  text-align: center;
+  margin: 24px 0;
+}
+
+.exam-submitted-banner .score-big {
+  font-size: 2.4rem;
+  font-weight: bold;
+  color: #1565c0;
+  line-height: 1;
+}
+
+.exam-submitted-banner .score-label {
+  font-size: .9rem;
+  color: #888;
+  margin-top: 6px;
+}
+
+.exam-submitted-banner .submitted-time {
+  font-size: .85rem;
+  color: #aaa;
+  margin-top: 4px;
+}
+
+/* ── Modal ── */
+.exam-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.exam-modal {
+  background: #fff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.25);
+  overflow: hidden;
+}
+
+.exam-modal-header {
+  background: #1565c0;
+  color: #fff;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.exam-modal-header h3 {
+  font-size: 1rem;
+  color: #fff;
+}
+
+.exam-modal-close {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.4rem;
+  cursor: pointer;
+  line-height: 1;
+  opacity: .8;
+}
+
+.exam-modal-close:hover { opacity: 1; }
+
+.exam-modal-body { padding: 20px; }
+
+.exam-modal-body label {
+  display: block;
+  font-size: .88rem;
+  color: #555;
+  margin-bottom: 6px;
+}
+
+.exam-modal-body input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+.exam-modal-body input:focus {
+  outline: none;
+  border-color: #1565c0;
+  box-shadow: 0 0 0 3px rgba(21,101,192,.1);
+}
+
+.exam-candidate-list {
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.exam-candidate-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid #f5f5f5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background .15s;
+}
+
+.exam-candidate-item:last-child { border-bottom: none; }
+.exam-candidate-item:hover { background: #e3f2fd; }
+.exam-candidate-item.selected { background: #e3f2fd; border-left: 3px solid #1565c0; }
+
+.exam-cand-name { font-weight: bold; }
+.exam-cand-meta { font-size: .82rem; color: #888; }
+
+.exam-confirm-btn {
+  width: 100%;
+  padding: 11px;
+  background: #1565c0;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background .2s;
+}
+
+.exam-confirm-btn:hover:not(:disabled) { background: #0d47a1; }
+.exam-confirm-btn:disabled { background: #aaa; cursor: not-allowed; }
+
+.exam-modal-hint {
+  font-size: .82rem;
+  color: #888;
+  text-align: center;
+  margin-top: 10px;
+}
+
+.exam-modal-msg {
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: .9rem;
+  margin-bottom: 10px;
+}
+
+.exam-modal-msg.error { background: #ffebee; color: #c62828; }
+.exam-modal-msg.info  { background: #e3f2fd; color: #1565c0; }

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OA-EPP · 登录</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
+  <div class="w-full max-w-md">
+    <!-- Logo & Title -->
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
+        <svg class="w-9 h-9 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+        </svg>
+      </div>
+      <h1 class="text-2xl font-bold text-gray-800">工程实践管理平台</h1>
+      <p class="text-sm text-gray-500 mt-1">OA-EPP · Engineering Practice Platform</p>
+    </div>
+
+    <!-- Login Card -->
+    <div class="bg-white rounded-2xl shadow-lg p-8">
+      <h2 class="text-lg font-semibold text-gray-700 mb-6">账号登录</h2>
+
+      <!-- Error Alert (示意) -->
+      <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-5 hidden" id="err-box">
+        学号或密码错误，请重试。
+      </div>
+
+      <form action="dashboard.html" method="get" class="space-y-5">
+        <!-- Student ID -->
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">学号 / 邮箱</label>
+          <input
+            type="text"
+            placeholder="请输入学号或邮箱"
+            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+          />
+        </div>
+
+        <!-- Password -->
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">密码</label>
+          <input
+            type="password"
+            placeholder="请输入密码"
+            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+          />
+          <p class="text-xs text-gray-400 mt-1">初始密码为学号，请登录后及时修改</p>
+        </div>
+
+        <!-- Submit -->
+        <button
+          type="submit"
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg text-sm transition"
+        >
+          登 录
+        </button>
+      </form>
+
+      <!-- Divider -->
+      <div class="flex items-center my-5">
+        <div class="flex-1 border-t border-gray-200"></div>
+        <span class="mx-3 text-xs text-gray-400">或</span>
+        <div class="flex-1 border-t border-gray-200"></div>
+      </div>
+
+      <!-- Footer hint -->
+      <p class="text-center text-xs text-gray-400">
+        忘记密码？请联系教师或助教重置。
+      </p>
+    </div>
+
+    <!-- Role Switch -->
+    <div class="flex justify-center gap-6 mt-5 text-xs">
+      <a href="dashboard.html" class="text-blue-600 hover:underline">学生端</a>
+      <a href="admin_students.html" class="text-gray-500 hover:underline">教师端</a>
+    </div>
+  </div>
+</body>
+</html>
