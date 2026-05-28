@@ -54,8 +54,10 @@ services:
     container_name: oaepp_mysql
     image: mysql:8.0
     restart: unless-stopped
-    ports:
-      - "${MYSQL_HOST_PORT:-13306}:3306"  # main=13306；PR Preview 由 Coolify 注入 MYSQL_HOST_PORT=133{pr_id}
+    # 移除主机端口映射，避免 Coolify preview 注入无效占位符导致 docker compose 解析失败。
+    # 如果需要本地开发访问 MySQL，可在 docker-compose.override.yml 中添加端口映射。
+    expose:
+      - "3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
       MYSQL_ROOT_HOST: '%'
@@ -79,8 +81,8 @@ services:
     environment:
       PMA_HOST: oaepp-mysql
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
-    ports:
-      - "${PHPMYADMIN_HOST_PORT:-5050}:80"  # main=5050；PR Preview 由 Coolify 注入 PHPMYADMIN_HOST_PORT=50{pr_id}
+    expose:
+      - "80"
     depends_on:
       - oaepp-mysql
     networks:
@@ -106,8 +108,8 @@ services:
     restart: unless-stopped
     environment:
       REDIS_HOSTS: local:oaepp-redis:6379
-    ports:
-      - "${REDIS_COMMANDER_HOST_PORT:-8081}:8081"  # main=8081；PR Preview 由 Coolify 注入 REDIS_COMMANDER_HOST_PORT=80{pr_id}
+    expose:
+      - "8081"
     depends_on:
       - oaepp-redis
     networks:
