@@ -81,7 +81,10 @@
 <script>
 (function(){
   const IS_LOCAL = location.hostname === "127.0.0.1" || location.hostname === "localhost";
-  const API = IS_LOCAL ? "http://127.0.0.1:8009" : "";
+  /* 与当前页同源；仅 MkDocs(8008) 预览时需指向 API 端口 */
+  const API = location.port === "8008"
+    ? "http://" + location.hostname + ":8009"
+    : "";
 
   let state = {
     token: null, attemptId: null, exam: null, questions: [], answers: {},

@@ -17,26 +17,34 @@
   table{width:100%;border-collapse:collapse;font-size:.85rem}
   th,td{padding:8px;border-bottom:1px solid #eee;text-align:left}
   .q-block{border:1px dashed #bbdefb;padding:12px;margin:8px 0;border-radius:8px}
-  .hidden{display:none}
+  .hidden{display:none !important}
   .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center}
   .login-box{background:#fff;padding:32px;border-radius:12px;width:320px;box-shadow:0 4px 20px rgba(0,0,0,.12)}
+  #app{display:none}
+  .login-alert{background:#ffebee;color:#c62828;border:1px solid #ef9a9a;padding:10px 12px;border-radius:6px;font-size:.85rem;margin-top:10px}
 </style>
 </head>
 <body>
 <div id="login-view" class="login-wrap">
   <div class="login-box">
     <h2 style="color:#1565c0;margin-bottom:16px">教师登录</h2>
-    <input type="password" id="pwd" placeholder="管理密码">
-    <button class="btn btn-p" style="width:100%" id="btn-login">登录</button>
-    <p id="login-err" style="color:#c62828;font-size:.85rem;margin-top:8px"></p>
+    <form id="login-form">
+      <input type="password" id="pwd" placeholder="管理密码" autocomplete="current-password" required>
+      <button type="submit" class="btn btn-p" style="width:100%;margin-top:8px" id="btn-login">登录</button>
+    </form>
+    <div id="login-err"></div>
   </div>
 </div>
-<div id="app" class="hidden">
+<div id="app">
   <div class="header">
     <span>课堂在线考试管理 (F-S-053)</span>
-    <a href="/teacher" style="color:#fff;font-size:.85rem">返回主后台</a>
+    <div style="display:flex;gap:12px;align-items:center">
+      <a href="/teacher" style="color:#fff;font-size:.85rem">返回主后台</a>
+      <button type="button" id="btn-logout" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);padding:4px 12px;border-radius:4px;cursor:pointer;font-size:.85rem">退出</button>
+    </div>
   </div>
   <div class="container">
+    <div id="app-err" class="hidden" style="background:#ffebee;color:#c62828;padding:12px;border-radius:8px;margin-bottom:12px;font-size:.9rem"></div>
     <div class="card">
       <h3 style="margin-bottom:12px">发布新考试</h3>
       <label>考试 ID（留空自动生成）</label>
@@ -64,36 +72,136 @@
   </div>
 </div>
 <script>
-const API = (location.hostname==="127.0.0.1"||location.hostname==="localhost") ? "http://127.0.0.1:8009" : "";
-let token = sessionStorage.getItem("teacher_token") || "";
-let gradeCtx = null;
+(function () {
+  "use strict";
 
-function hdr(){ return { "Content-Type":"application/json", "Authorization":"Bearer "+token }; }
-async function api(path, opts={}) {
-  const r = await fetch(API+path, opts);
-  const d = await r.json().catch(()=>({}));
-  if(!r.ok) throw new Error(d.detail||r.statusText);
-  return d;
-}
+  /* 与 /teacher 相同：相对路径，避免 localhost 与 127.0.0.1 跨域导致登录静默失败 */
+  const API = "";
+  let token = sessionStorage.getItem("teacher_token") || "";
+  let gradeCtx = null;
 
-document.getElementById("btn-login").onclick = async () => {
-  try {
-    const d = await api("/api/teacher/login", { method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ password: document.getElementById("pwd").value }) });
-    token = d.token;
-    sessionStorage.setItem("teacher_token", token);
-    showApp();
-  } catch(e) { document.getElementById("login-err").textContent = e.message; }
-};
+  function formatDetail(detail) {
+    if (!detail) return "";
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail)) {
+      return detail.map(function (x) { return x.msg || String(x); }).join("；");
+    }
+    return String(detail);
+  }
 
-if(token) showApp();
+  function hdr() {
+    return { "Content-Type": "application/json", "Authorization": "Bearer " + token };
+  }
 
-function showApp(){
-  document.getElementById("login-view").classList.add("hidden");
-  document.getElementById("app").classList.remove("hidden");
-  loadExams();
-  if(!document.getElementById("questions").children.length) addQuestion();
-}
+  async function api(path, opts) {
+    opts = opts || {};
+    var r = await fetch(API + path, opts);
+    var d = {};
+    try { d = await r.json(); } catch (e) { /* ignore */ }
+    if (!r.ok) {
+      throw new Error(formatDetail(d.detail) || r.statusText || "请求失败");
+    }
+    return d;
+  }
+
+  function showLoginErr(msg) {
+    var el = document.getElementById("login-err");
+    if (!msg) { el.innerHTML = ""; return; }
+    el.innerHTML = '<div class="login-alert">' + msg + "</div>";
+  }
+
+  function showAppErr(msg) {
+    var el = document.getElementById("app-err");
+    if (!msg) {
+      el.classList.add("hidden");
+      el.textContent = "";
+      return;
+    }
+    el.textContent = msg;
+    el.classList.remove("hidden");
+  }
+
+  function showMain() {
+    document.getElementById("login-view").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    showAppErr("");
+    if (!document.getElementById("questions").children.length) {
+      addQuestion();
+    }
+  }
+
+  function showLogin() {
+    document.getElementById("login-view").style.display = "flex";
+    document.getElementById("app").style.display = "none";
+  }
+
+  async function doLogin() {
+    var pwd = document.getElementById("pwd").value.trim();
+    var btn = document.getElementById("btn-login");
+    showLoginErr("");
+    btn.disabled = true;
+    var btnLabel = btn.textContent;
+    btn.textContent = "登录中…";
+    try {
+      var r = await fetch(API + "/api/teacher/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pwd }),
+      });
+      var data = {};
+      try { data = await r.json(); } catch (e) { /* ignore */ }
+      if (!r.ok) {
+        showLoginErr(formatDetail(data.detail) || "密码错误");
+        return;
+      }
+      if (!data.token) {
+        showLoginErr("登录失败：服务器未返回有效令牌");
+        return;
+      }
+      token = data.token;
+      sessionStorage.setItem("teacher_token", token);
+      showMain();
+      try {
+        await loadExams();
+      } catch (e) {
+        showAppErr("加载考试列表失败：" + (e.message || e));
+      }
+    } catch (e) {
+      showLoginErr("网络错误：" + (e.message || e) + "（请确认已启动考试 API，本地为 8009 端口）");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = btnLabel;
+    }
+  }
+
+  function logout() {
+    token = "";
+    sessionStorage.removeItem("teacher_token");
+    document.getElementById("pwd").value = "";
+    showLoginErr("");
+    showLogin();
+  }
+
+  document.getElementById("login-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    doLogin();
+  });
+
+  document.getElementById("btn-logout").addEventListener("click", logout);
+
+  async function tryRestoreSession() {
+    if (!token) return;
+    try {
+      var r = await fetch(API + "/api/teacher/classroom-exams", { headers: hdr() });
+      if (!r.ok) throw new Error("invalid");
+      showMain();
+      await loadExams();
+    } catch (e) {
+      token = "";
+      sessionStorage.removeItem("teacher_token");
+    }
+  }
+  tryRestoreSession();
 
 function addQuestion(){
   const i = document.getElementById("questions").children.length + 1;
@@ -110,9 +218,10 @@ function addQuestion(){
   `;
   document.getElementById("questions").appendChild(div);
 }
-document.getElementById("btn-add-q").onclick = addQuestion;
 
-document.getElementById("btn-create").onclick = async () => {
+document.getElementById("btn-add-q").addEventListener("click", addQuestion);
+
+document.getElementById("btn-create").addEventListener("click", async function () {
   const questions = [...document.querySelectorAll(".q-block")].map(b => {
     const qtype = b.querySelector(".q-type").value;
     const opts = b.querySelector(".q-options").value.trim().split("\n").filter(Boolean);
@@ -139,7 +248,7 @@ document.getElementById("btn-create").onclick = async () => {
     document.getElementById("create-msg").textContent = e.message;
     document.getElementById("create-msg").style.color = "#c62828";
   }
-};
+});
 
 async function loadExams(){
   const exams = await api("/api/teacher/classroom-exams", { headers:hdr() });
@@ -188,17 +297,23 @@ async function openGrade(examId, attemptId){
     </div>`).join("") || "<p>无简答题</p>";
 }
 
-document.getElementById("btn-save-grade").onclick = async () => {
-  if(!gradeCtx) return;
-  const grades = [...document.querySelectorAll(".grade-score")].map(inp => ({
-    question_id: parseInt(inp.dataset.qid), score: parseFloat(inp.value)||0
-  }));
-  await api(`/api/teacher/classroom-exams/${gradeCtx.examId}/attempts/${gradeCtx.attemptId}/grade`, {
-    method:"POST", headers:hdr(), body: JSON.stringify({ grades })
-  });
-  alert("批改已保存");
-  loadExams();
-};
+document.getElementById("btn-save-grade").addEventListener("click", async function () {
+  if (!gradeCtx) return;
+  try {
+    var grades = [...document.querySelectorAll(".grade-score")].map(function (inp) {
+      return { question_id: parseInt(inp.dataset.qid, 10), score: parseFloat(inp.value) || 0 };
+    });
+    await api("/api/teacher/classroom-exams/" + gradeCtx.examId + "/attempts/" + gradeCtx.attemptId + "/grade", {
+      method: "POST", headers: hdr(), body: JSON.stringify({ grades: grades }),
+    });
+    alert("批改已保存");
+    await loadExams();
+  } catch (e) {
+    alert("保存失败：" + (e.message || e));
+  }
+});
+
+})(); // IIFE
 </script>
 </body>
 </html>
