@@ -95,7 +95,10 @@
 <div id="app">
   <div class="header">
     <h1>🎓 教师管理后台 — 研究生课程《机器人系统》</h1>
-    <button onclick="logout()">退出登录</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <a id="progress-link" href="/teacher/progress" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);padding:6px 16px;border-radius:4px;text-decoration:none;font-size:.9rem">📊 进度看板</a>
+      <button onclick="logout()">退出登录</button>
+    </div>
   </div>
   <div class="container">
 
@@ -170,6 +173,11 @@
 <script>
 const API = '';
 let TOKEN = sessionStorage.getItem('teacher_token') || '';
+// 动态更新进度看板链接，携带 token 免二次登录
+(function updateProgressLink(){
+  var t = sessionStorage.getItem('teacher_token');
+  if(t) document.getElementById('progress-link').href = '/teacher/progress?token=' + encodeURIComponent(t);
+})();
 
 function showMsg(id, msg, type='success') {
   const el = document.getElementById(id);
@@ -189,6 +197,7 @@ async function doLogin() {
     const d = await r.json();
     TOKEN = d.token;
     sessionStorage.setItem('teacher_token', TOKEN);
+    document.getElementById('progress-link').href = '/teacher/progress?token=' + encodeURIComponent(TOKEN);
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     loadExams();

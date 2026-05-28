@@ -56,3 +56,14 @@ def init_db():
         );
         """)
         # 考试记录由 sync_exams() 根据 .md 文件动态维护，此处不再硬编码预置
+
+        # ── 迁移：为已有数据库添加进度看板所需字段 ──────────────────────────
+        for col, col_def in [
+            ("deadline",     "TEXT"),
+            ("published_at", "TEXT DEFAULT (datetime('now','localtime'))"),
+            ("semester",     "TEXT DEFAULT ''"),
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE exams ADD COLUMN {col} {col_def}")
+            except sqlite3.OperationalError:
+                pass  # 字段已存在

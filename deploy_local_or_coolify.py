@@ -19,6 +19,17 @@ import sys
 import time
 from pathlib import Path
 
+# ── Windows 编码兼容：强制 Python 与子进程使用 UTF-8 ────────────────────────
+# 解决 Windows 下 subprocess / read_text() 默认使用 GBK 导致的
+# UnicodeDecodeError: 'gbk' codec can't decode byte ...
+if sys.platform == "win32":
+    # 1) 将当前 Python 标准流的文本编码切换为 utf-8
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    # 2) 确保子进程也以 UTF-8 运行
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    os.environ.setdefault("PYTHONUTF8", "1")
+
 # ── 项目根目录 ─────────────────────────────────────────────────────────────────
 REPO_ROOT        = Path(__file__).resolve().parent
 BACKEND_DIR      = REPO_ROOT / "backend"
@@ -37,7 +48,7 @@ API_PORT    = 8009
 # ── Coolify 配置（从 .env 读取敏感数据）─────────────────────────────────────────
 _env_file = REPO_ROOT / ".env"
 if _env_file.exists():
-    for _line in _env_file.read_text().splitlines():
+    for _line in _env_file.read_text(encoding="utf-8").splitlines():
         _line = _line.strip()
         if _line and not _line.startswith("#") and "=" in _line:
             _k, _v = _line.split("=", 1)
@@ -130,7 +141,8 @@ def _collect_pids_on_port(port: int):
     pid_set = set()
     for cmd in [["lsof", "-ti", f"tcp:{port}"], ["fuser", "-n", "tcp", str(port)]]:
         try:
-            res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            res = subprocess.run(cmd, capture_output=True, text=True,
+                                encoding="utf-8", errors="replace", check=False)
         except FileNotFoundError:
             continue
         text = (res.stdout or "") + " " + (res.stderr or "")
