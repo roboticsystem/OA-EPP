@@ -325,27 +325,40 @@
               <p class="text-xs text-indigo-600">PR 自动触发审查 · 模板位于 .github/review-prompts/ 并纳入 Git</p>
             </div>
             <div class="flex gap-2">
-              <button class="text-xs border border-indigo-200 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-white">Dry-Run 验证</button>
-              <button class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700">保存并应用</button>
+              <button id="review-dry-run" class="text-xs border border-indigo-200 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-white">Dry-Run 验证</button>
+              <button id="review-save" class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700">保存并应用</button>
             </div>
           </div>
           <div class="px-5 py-4">
+            <div class="mb-3 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2 flex flex-wrap items-center gap-2">
+              <span class="text-xs text-indigo-700 font-medium">真实后端接入</span>
+              <input id="review-api-base" class="border border-indigo-200 rounded px-2 py-1 text-xs text-gray-700 w-48" value="http://127.0.0.1:8000" />
+              <input id="review-password" type="password" class="border border-indigo-200 rounded px-2 py-1 text-xs text-gray-700 w-32" placeholder="教师密码" />
+              <button id="review-login" class="text-xs bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700">连接后端</button>
+              <span id="review-connection-status" class="text-xs text-gray-500">未连接</span>
+            </div>
             <!-- 模板选择 -->
             <div class="mb-3">
               <label class="block text-xs text-gray-500 mb-1.5">选择提示词模板</label>
-              <div class="flex flex-wrap gap-2">
-                <button class="text-xs bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full font-medium">通用代码审查 · 默认</button>
-                <button class="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full hover:bg-gray-200">工程实践规范检查</button>
-                <button class="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full hover:bg-gray-200">安全全面审查</button>
-                <button class="text-xs bg-amber-50 text-amber-700 px-3 py-1.5 rounded-full hover:bg-amber-100">课程项目专项审查 · 自定义</button>
-                <button class="text-xs border border-dashed border-gray-300 text-gray-500 px-3 py-1.5 rounded-full hover:bg-gray-50">+ 新建自定义模板</button>
+              <div id="review-template-list" class="flex flex-wrap gap-2">
+                <span class="text-xs text-gray-400">连接后端后加载真实模板...</span>
               </div>
             </div>
             <div class="grid grid-cols-4 gap-2 mb-3">
-              <button class="text-xs border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">复制为自定义</button>
-              <button class="text-xs border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">重命名</button>
-              <button class="text-xs border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">设为默认</button>
-              <button class="text-xs border border-red-100 text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50">删除自定义</button>
+              <button id="review-copy" class="text-xs border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">复制为自定义</button>
+              <button id="review-rename" class="text-xs border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">重命名</button>
+              <button id="review-set-default" class="text-xs border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">设为默认</button>
+              <button id="review-delete" class="text-xs border border-red-100 text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50">删除自定义</button>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">模板名称</label>
+                <input id="review-template-name" class="w-full border border-gray-200 rounded px-3 py-1.5 text-xs text-gray-700" />
+              </div>
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">模板描述</label>
+                <input id="review-template-description" class="w-full border border-gray-200 rounded px-3 py-1.5 text-xs text-gray-700" />
+              </div>
             </div>
             <!-- 可用变量 -->
             <div class="flex flex-wrap gap-1.5 mb-2">
@@ -356,21 +369,10 @@
               <code class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">{author}</code>
             </div>
             <!-- 编辑器 -->
-            <textarea rows="8" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-xs font-mono text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"># 通用代码审查
-
-你是一位严格的代码审查专家，遵循以下规范审查 PR：
-
-1. 代码规范：遵循 Ruff 格式化规范，变量命名使用 snake_case
-2. 安全检查：检查 SQL 注入、硬编码 Secrets、未授权访问风险
-3. Reflex 特定：State 事件处理器不能包含阻塞 I/O；rx.Model 查询须在事件中执行
-4. 架构质量：服务层职责清晰，避免 State 类过重
-
-变更内容：{diff}
-PR 标题：{pr_title}
-PR 描述：{pr_description}</textarea>
+            <textarea id="review-editor" rows="8" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-xs font-mono text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none">连接后端后加载真实提示词内容...</textarea>
             <div class="flex items-center justify-between mt-3">
-              <p class="text-xs text-gray-400">保存至 <code class="bg-gray-100 px-1 rounded font-mono">.github/review-prompts/general-code-review.prompt.md</code>（纳入 Git）</p>
-              <button class="text-xs border border-gray-200 text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-50 flex items-center gap-1">
+              <p class="text-xs text-gray-400">保存至 <code id="review-save-path" class="bg-gray-100 px-1 rounded font-mono">.github/review-prompts/</code>（纳入 Git）</p>
+              <button id="review-clear" class="text-xs border border-gray-200 text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-50 flex items-center gap-1">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                 清除验证痕迹
               </button>
@@ -379,27 +381,24 @@ PR 描述：{pr_description}</textarea>
             <div class="mt-3 border border-gray-200 rounded-lg p-3 bg-gray-50">
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs font-medium text-gray-600">验证结果预览（Dry-Run）</span>
-                <span class="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">AI 调用成功 · 未提交 GitHub</span>
+                <span id="review-dry-status" class="text-xs text-gray-400 bg-white px-2 py-0.5 rounded-full">尚未执行验证</span>
               </div>
               <div class="grid grid-cols-3 gap-2 mb-2">
                 <div class="bg-white border border-gray-100 rounded-lg p-2">
                   <div class="text-xs text-gray-400">AI 调用状态</div>
-                  <div class="text-xs text-green-600 font-medium mt-0.5">success</div>
+                  <div id="review-ai-status" class="text-xs text-gray-700 font-medium mt-0.5">-</div>
                 </div>
                 <div class="bg-white border border-gray-100 rounded-lg p-2">
                   <div class="text-xs text-gray-400">提示词版本</div>
-                  <div class="text-xs text-gray-700 font-mono mt-0.5">general-code-review@3567d641c3c6</div>
+                  <div id="review-prompt-version" class="text-xs text-gray-700 font-mono mt-0.5">-</div>
                 </div>
                 <div class="bg-white border border-gray-100 rounded-lg p-2">
                   <div class="text-xs text-gray-400">临时 Draft Comments</div>
-                  <div class="text-xs text-gray-700 mt-0.5">0 条，可一键清除</div>
+                  <div id="review-draft-count" class="text-xs text-gray-700 mt-0.5">-</div>
                 </div>
               </div>
-              <div class="bg-gray-900 rounded p-3 font-mono text-xs text-gray-200 h-24 overflow-y-auto">
-                <p class="text-green-400">[Dry-Run] github_submission=not_submitted</p>
-                <p>片段 1：建议补充教师端接口鉴权失败路径测试。</p>
-                <p>片段 2：PR 描述需要说明部署配置是否受影响。</p>
-                <p>片段 3：未发现硬编码 Secrets，仍需人工确认 Actions Secret 权限。</p>
+              <div id="review-dry-output" class="bg-gray-900 rounded p-3 font-mono text-xs text-gray-200 h-24 overflow-y-auto">
+                点击「Dry-Run 验证」后在此显示真实后端返回的审查片段。
               </div>
             </div>
           </div>
@@ -495,5 +494,234 @@ PR 描述：{pr_description}</textarea>
       </div>
     </div>
   </main>
+  <script>
+    const reviewState = {
+      token: localStorage.getItem('oaEppTeacherToken') || '',
+      templates: [],
+      currentTemplateId: ''
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    function reviewApiBase() {
+      return $('review-api-base').value.replace(/\/$/, '');
+    }
+
+    function reviewHeaders() {
+      return {
+        'Authorization': `Bearer ${reviewState.token}`,
+        'Content-Type': 'application/json'
+      };
+    }
+
+    function setReviewStatus(message, kind = 'neutral') {
+      const el = $('review-connection-status');
+      el.textContent = message;
+      el.className = kind === 'ok'
+        ? 'text-xs text-green-600'
+        : kind === 'error'
+          ? 'text-xs text-red-500'
+          : 'text-xs text-gray-500';
+    }
+
+    async function reviewFetch(path, options = {}) {
+      const response = await fetch(`${reviewApiBase()}${path}`, {
+        ...options,
+        headers: {
+          ...(options.headers || {}),
+          ...(reviewState.token ? reviewHeaders() : {'Content-Type': 'application/json'})
+        }
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.detail || `请求失败：${response.status}`);
+      }
+      return response.json();
+    }
+
+    function renderTemplateButtons() {
+      const list = $('review-template-list');
+      list.innerHTML = '';
+      reviewState.templates.forEach((template) => {
+        const button = document.createElement('button');
+        const active = template.id === reviewState.currentTemplateId;
+        const custom = !template.built_in;
+        button.className = active
+          ? 'text-xs bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full font-medium'
+          : custom
+            ? 'text-xs bg-amber-50 text-amber-700 px-3 py-1.5 rounded-full hover:bg-amber-100'
+            : 'text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full hover:bg-gray-200';
+        button.textContent = `${template.name}${template.is_default ? ' · 默认' : ''}${custom ? ' · 自定义' : ''}`;
+        button.addEventListener('click', () => loadTemplate(template.id));
+        list.appendChild(button);
+      });
+
+      const createButton = document.createElement('button');
+      createButton.className = 'text-xs border border-dashed border-gray-300 text-gray-500 px-3 py-1.5 rounded-full hover:bg-gray-50';
+      createButton.textContent = '+ 新建自定义模板';
+      createButton.addEventListener('click', createTemplate);
+      list.appendChild(createButton);
+    }
+
+    async function loadTemplates() {
+      const data = await reviewFetch('/api/teacher/review-prompts');
+      reviewState.templates = data.templates;
+      reviewState.currentTemplateId = reviewState.currentTemplateId || data.default_template;
+      renderTemplateButtons();
+      await loadTemplate(reviewState.currentTemplateId);
+    }
+
+    async function loadTemplate(templateId) {
+      const template = await reviewFetch(`/api/teacher/review-prompts/${encodeURIComponent(templateId)}`);
+      reviewState.currentTemplateId = template.id;
+      $('review-template-name').value = template.name;
+      $('review-template-description').value = template.description || '';
+      $('review-editor').value = template.content;
+      $('review-save-path').textContent = `.github/review-prompts/${template.file}`;
+      $('review-prompt-version').textContent = `${template.id}@${template.version}`;
+      renderTemplateButtons();
+    }
+
+    async function loginReviewApi() {
+      localStorage.setItem('oaEppApiBase', reviewApiBase());
+      const password = $('review-password').value;
+      setReviewStatus('连接中...');
+      const data = await fetch(`${reviewApiBase()}/api/teacher/login`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({password})
+      }).then(async (response) => {
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body.detail || '登录失败');
+        }
+        return response.json();
+      });
+      reviewState.token = data.token;
+      localStorage.setItem('oaEppTeacherToken', data.token);
+      setReviewStatus('已连接真实后端', 'ok');
+      await loadTemplates();
+    }
+
+    async function saveTemplate() {
+      if (!reviewState.currentTemplateId) return;
+      const template = await reviewFetch(`/api/teacher/review-prompts/${encodeURIComponent(reviewState.currentTemplateId)}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: $('review-template-name').value,
+          description: $('review-template-description').value,
+          content: $('review-editor').value
+        })
+      });
+      setReviewStatus(`已保存 ${template.name}@${template.version}`, 'ok');
+      await loadTemplates();
+    }
+
+    async function createTemplate() {
+      const name = prompt('新自定义模板名称');
+      if (!name) return;
+      const template = await reviewFetch('/api/teacher/review-prompts', {
+        method: 'POST',
+        body: JSON.stringify({
+          name,
+          description: '通过开发运维原型创建',
+          content: '# 自定义审查模板\n\n请基于 {diff} 审查 PR：{pr_title}\n'
+        })
+      });
+      reviewState.currentTemplateId = template.id;
+      await loadTemplates();
+    }
+
+    async function copyTemplate() {
+      if (!reviewState.currentTemplateId) return;
+      const name = prompt('复制后的自定义模板名称');
+      if (!name) return;
+      const template = await reviewFetch(`/api/teacher/review-prompts/${encodeURIComponent(reviewState.currentTemplateId)}/copy`, {
+        method: 'POST',
+        body: JSON.stringify({name})
+      });
+      reviewState.currentTemplateId = template.id;
+      await loadTemplates();
+    }
+
+    async function renameTemplate() {
+      if (!reviewState.currentTemplateId) return;
+      const name = prompt('新的模板名称', $('review-template-name').value);
+      if (!name) return;
+      await reviewFetch(`/api/teacher/review-prompts/${encodeURIComponent(reviewState.currentTemplateId)}/rename`, {
+        method: 'PATCH',
+        body: JSON.stringify({name})
+      });
+      await loadTemplates();
+    }
+
+    async function deleteTemplate() {
+      if (!reviewState.currentTemplateId) return;
+      if (!confirm('确认删除当前自定义模板？内置模板会被后端拒绝删除。')) return;
+      await reviewFetch(`/api/teacher/review-prompts/${encodeURIComponent(reviewState.currentTemplateId)}`, {
+        method: 'DELETE'
+      });
+      reviewState.currentTemplateId = '';
+      await loadTemplates();
+    }
+
+    async function setDefaultTemplate() {
+      if (!reviewState.currentTemplateId) return;
+      await reviewFetch(`/api/teacher/review-prompts/${encodeURIComponent(reviewState.currentTemplateId)}/default`, {
+        method: 'POST'
+      });
+      await loadTemplates();
+    }
+
+    async function dryRunTemplate() {
+      if (!reviewState.currentTemplateId) return;
+      const data = await reviewFetch('/api/teacher/review-prompts/dry-run', {
+        method: 'POST',
+        body: JSON.stringify({
+          template_id: reviewState.currentTemplateId,
+          pr_title: '开发运维模块接入真实提示词模板',
+          pr_description: '验证 F-D-007 模板管理、Dry-Run 和清理验证痕迹。',
+          diff: $('review-editor').value.slice(0, 1200)
+        })
+      });
+      $('review-dry-status').textContent = `AI 调用${data.ai_call_status} · ${data.github_submission}`;
+      $('review-dry-status').className = 'text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full';
+      $('review-ai-status').textContent = data.ai_call_status;
+      $('review-prompt-version').textContent = `${data.template_id}@${data.prompt_version}`;
+      $('review-draft-count').textContent = `${data.temporary_draft_comments.length} 条，可一键清除`;
+      $('review-dry-output').innerHTML = data.review_snippets
+        .map((snippet) => `<p>${snippet.replace(/[&<>]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</p>`)
+        .join('');
+    }
+
+    async function clearDryRun() {
+      const data = await reviewFetch('/api/teacher/review-prompts/dry-run', {method: 'DELETE'});
+      $('review-dry-status').textContent = `已清除 · ${data.cleared_at}`;
+      $('review-dry-status').className = 'text-xs text-gray-500 bg-white px-2 py-0.5 rounded-full';
+      $('review-ai-status').textContent = '-';
+      $('review-draft-count').textContent = `${data.removed_draft_comments.length} 条已清除`;
+      $('review-dry-output').textContent = '验证痕迹已清除，审查片段和临时 Draft Comments 不再保留。';
+    }
+
+    function bindReviewPromptActions() {
+      $('review-api-base').value = localStorage.getItem('oaEppApiBase') || 'http://127.0.0.1:8000';
+      $('review-login').addEventListener('click', () => loginReviewApi().catch((e) => setReviewStatus(e.message, 'error')));
+      $('review-save').addEventListener('click', () => saveTemplate().catch((e) => setReviewStatus(e.message, 'error')));
+      $('review-copy').addEventListener('click', () => copyTemplate().catch((e) => setReviewStatus(e.message, 'error')));
+      $('review-rename').addEventListener('click', () => renameTemplate().catch((e) => setReviewStatus(e.message, 'error')));
+      $('review-delete').addEventListener('click', () => deleteTemplate().catch((e) => setReviewStatus(e.message, 'error')));
+      $('review-set-default').addEventListener('click', () => setDefaultTemplate().catch((e) => setReviewStatus(e.message, 'error')));
+      $('review-dry-run').addEventListener('click', () => dryRunTemplate().catch((e) => setReviewStatus(e.message, 'error')));
+      $('review-clear').addEventListener('click', () => clearDryRun().catch((e) => setReviewStatus(e.message, 'error')));
+      if (reviewState.token) {
+        setReviewStatus('使用本地 token 连接中...');
+        loadTemplates()
+          .then(() => setReviewStatus('已连接真实后端', 'ok'))
+          .catch(() => setReviewStatus('请输入教师密码后连接后端'));
+      }
+    }
+
+    bindReviewPromptActions();
+  </script>
 </body>
 </html>
