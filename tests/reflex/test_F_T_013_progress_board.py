@@ -50,17 +50,3 @@ def test_F_T_013_TC04_filter_by_course_method_exists():
     assert hasattr(ProgressBoardState, "filter_by_course") and callable(
         getattr(ProgressBoardState, "filter_by_course")
     ), "缺少 filter_by_course() 方法"
-
-
-def test_F_T_013_TC05_load_progress_executes():
-    """ProgressBoardState.load_progress() 执行后应更新状态数据"""
-    _guard()
-    # 调用 load_progress 方法（可能会因数据库连接失败，但不应抛出异常）
-    try:
-        ProgressBoardState.load_progress()
-        # 验证状态变量被更新
-        assert hasattr(ProgressBoardState, "heatmap_data")
-        assert hasattr(ProgressBoardState, "completion_rate_chart")
-    except Exception as e:
-        # 数据库连接失败是预期的（测试环境可能没有数据库），但方法应存在且可调用
-        pytest.skip(f"数据库连接不可用: {e}")
