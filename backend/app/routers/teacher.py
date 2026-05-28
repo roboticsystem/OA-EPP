@@ -2,12 +2,14 @@ import os
 import io
 import chardet
 from datetime import datetime
+from pathlib import Path
 from fastapi import APIRouter, HTTPException, Header, UploadFile, File, Query
 from fastapi.responses import StreamingResponse
 from typing import Optional
 from pydantic import BaseModel
 from app.database import db
 from app.auth_utils import create_token, verify_teacher_token
+from app.review_prompts import PromptStore
 from app.sync_exams import sync_exams
 from pypinyin import lazy_pinyin, Style
 import openpyxl
@@ -38,12 +40,160 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class PromptCreateRequest(BaseModel):
+    name: str
+    description: str = ""
+    content: str
+
+
+class PromptUpdateRequest(BaseModel):
+    name: str
+    description: str = ""
+    content: str
+
+
+class PromptCopyRequest(BaseModel):
+    name: str
+
+
+class PromptRenameRequest(BaseModel):
+    name: str
+
+
+class PromptDryRunRequest(BaseModel):
+    template_id: str
+    pr_title: str = ""
+    pr_description: str = ""
+    diff: str = ""
+
+
+def _prompt_store():
+    default_dir = Path(__file__).resolve().parents[3] / ".github" / "review-prompts"
+    prompts_dir = os.environ.get("REVIEW_PROMPTS_DIR", str(default_dir))
+    return PromptStore(prompts_dir)
+
+
+def _prompt_error(error: Exception):
+    if isinstance(error, KeyError):
+        raise HTTPException(status_code=404, detail=str(error))
+    if isinstance(error, ValueError):
+        raise HTTPException(status_code=422, detail=str(error))
+    raise error
+
+
 @router.post("/api/teacher/login")
 def teacher_login(req: LoginRequest):
     if req.password != TEACHER_PASSWORD:
         raise HTTPException(status_code=401, detail="密码错误")
     token = create_token({"role": "teacher"}, expires_hours=8)
     return {"token": token}
+
+
+@router.get("/api/teacher/review-prompts")
+def list_review_prompts(authorization: Optional[str] = Header(None)):
+    _require_teacher(authorization)
+    store = _prompt_store()
+    return {
+        "default_template": next(
+            template["id"] for template in store.list_templates() if template["is_default"]
+        ),
+        "templates": store.list_templates(),
+    }
+
+
+@router.post("/api/teacher/review-prompts")
+def create_review_prompt(req: PromptCreateRequest, authorization: Optional[str] = Header(None)):
+    _require_teacher(authorization)
+    try:
+        return _prompt_store().create_template(req.name, req.description, req.content)
+    except Exception as e:
+        _prompt_error(e)
+
+
+@router.post("/api/teacher/review-prompts/dry-run")
+def dry_run_review_prompt(req: PromptDryRunRequest, authorization: Optional[str] = Header(None)):
+    _require_teacher(authorization)
+    try:
+        return _prompt_store().run_dry_run(
+            req.template_id,
+            req.pr_title,
+            req.pr_description,
+            req.diff,
+        )
+    except Exception as e:
+        _prompt_error(e)
+
+
+@router.delete("/api/teacher/review-prompts/dry-run")
+def clear_review_prompt_dry_run(authorization: Optional[str] = Header(None)):
+    _require_teacher(authorization)
+    return _prompt_store().clear_dry_run_traces()
+
+
+@router.get("/api/teacher/review-prompts/{template_id}")
+def get_review_prompt(template_id: str, authorization: Optional[str] = Header(None)):
+    _require_teacher(authorization)
+    try:
+        return _prompt_store().get_template(template_id)
+    except Exception as e:
+        _prompt_error(e)
+
+
+@router.put("/api/teacher/review-prompts/{template_id}")
+def update_review_prompt(
+    template_id: str,
+    req: PromptUpdateRequest,
+    authorization: Optional[str] = Header(None),
+):
+    _require_teacher(authorization)
+    try:
+        return _prompt_store().save_template(template_id, req.name, req.description, req.content)
+    except Exception as e:
+        _prompt_error(e)
+
+
+@router.post("/api/teacher/review-prompts/{template_id}/copy")
+def copy_review_prompt(
+    template_id: str,
+    req: PromptCopyRequest,
+    authorization: Optional[str] = Header(None),
+):
+    _require_teacher(authorization)
+    try:
+        return _prompt_store().copy_template(template_id, req.name)
+    except Exception as e:
+        _prompt_error(e)
+
+
+@router.patch("/api/teacher/review-prompts/{template_id}/rename")
+def rename_review_prompt(
+    template_id: str,
+    req: PromptRenameRequest,
+    authorization: Optional[str] = Header(None),
+):
+    _require_teacher(authorization)
+    try:
+        return _prompt_store().rename_template(template_id, req.name)
+    except Exception as e:
+        _prompt_error(e)
+
+
+@router.post("/api/teacher/review-prompts/{template_id}/default")
+def set_default_review_prompt(template_id: str, authorization: Optional[str] = Header(None)):
+    _require_teacher(authorization)
+    try:
+        return _prompt_store().set_default_template(template_id)
+    except Exception as e:
+        _prompt_error(e)
+
+
+@router.delete("/api/teacher/review-prompts/{template_id}")
+def delete_review_prompt(template_id: str, authorization: Optional[str] = Header(None)):
+    _require_teacher(authorization)
+    try:
+        return _prompt_store().delete_template(template_id)
+    except Exception as e:
+        _prompt_error(e)
 
 
 @router.post("/api/teacher/students")
