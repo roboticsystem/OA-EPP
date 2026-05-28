@@ -2,12 +2,13 @@ import os
 import io
 import chardet
 from datetime import datetime
+from urllib.parse import quote
 from fastapi import APIRouter, HTTPException, Header, UploadFile, File, Query
 from fastapi.responses import StreamingResponse
 from typing import Optional
 from pydantic import BaseModel
 from app.database import db
-from app.auth_utils import create_token, verify_teacher_token
+from app.auth_utils import create_token, require_teacher
 from app.sync_exams import sync_exams
 from pypinyin import lazy_pinyin, Style
 import openpyxl
@@ -16,16 +17,6 @@ from openpyxl.styles import Font, PatternFill, Alignment
 router = APIRouter()
 
 TEACHER_PASSWORD = os.environ.get("TEACHER_PASSWORD", "admin123")
-
-
-def _require_teacher(authorization: Optional[str]):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="请先登录")
-    token = authorization.removeprefix("Bearer ").strip()
-    try:
-        verify_teacher_token(token)
-    except ValueError as e:
-        raise HTTPException(status_code=401, detail=str(e))
 
 
 def _name_to_pinyin(name: str):
@@ -52,7 +43,7 @@ async def upload_students(
     authorization: Optional[str] = Header(None)
 ):
     """上传学生名单 CSV（UTF-8 或 GBK 均支持）"""
-    _require_teacher(authorization)
+    require_teacher(authorization)
 
     raw = await file.read()
     encoding = chardet.detect(raw)["encoding"] or "utf-8"
@@ -104,7 +95,7 @@ class AddStudentRequest(BaseModel):
 @router.post("/api/teacher/students/add")
 def add_student(req: AddStudentRequest, authorization: Optional[str] = Header(None)):
     """添加单个学生"""
-    _require_teacher(authorization)
+    require_teacher(authorization)
     req.name = req.name.strip()
     req.student_id = req.student_id.strip()
     if not req.name or not req.student_id:
@@ -126,7 +117,7 @@ def add_student(req: AddStudentRequest, authorization: Optional[str] = Header(No
 @router.delete("/api/teacher/students/{student_id}")
 def delete_student(student_id: str, authorization: Optional[str] = Header(None)):
     """删除单个学生（同时删除其成绩）"""
-    _require_teacher(authorization)
+    require_teacher(authorization)
     with db() as conn:
         student = conn.execute(
             "SELECT name FROM students WHERE student_id=?", (student_id,)
@@ -141,7 +132,7 @@ def delete_student(student_id: str, authorization: Optional[str] = Header(None))
 @router.delete("/api/teacher/students")
 def clear_all_students(authorization: Optional[str] = Header(None)):
     """清空全部学生名单（同时清空所有成绩）"""
-    _require_teacher(authorization)
+    require_teacher(authorization)
     with db() as conn:
         count = conn.execute("SELECT COUNT(*) FROM students").fetchone()[0]
         conn.execute("DELETE FROM scores")
@@ -152,7 +143,7 @@ def clear_all_students(authorization: Optional[str] = Header(None)):
 @router.post("/api/teacher/reset")
 def new_semester_reset(authorization: Optional[str] = Header(None)):
     """新学期重置：清空所有学生名单 + 所有成绩"""
-    _require_teacher(authorization)
+    require_teacher(authorization)
     with db() as conn:
         students = conn.execute("SELECT COUNT(*) FROM students").fetchone()[0]
         scores   = conn.execute("SELECT COUNT(*) FROM scores").fetchone()[0]
@@ -164,7 +155,7 @@ def new_semester_reset(authorization: Optional[str] = Header(None)):
 @router.get("/api/teacher/students/list")
 def list_students(authorization: Optional[str] = Header(None)):
     """获取全部学生名单"""
-    _require_teacher(authorization)
+    require_teacher(authorization)
     with db() as conn:
         rows = conn.execute(
             "SELECT name, student_id, class_name FROM students ORDER BY class_name, name"
@@ -174,7 +165,7 @@ def list_students(authorization: Optional[str] = Header(None)):
 
 @router.get("/api/teacher/exams")
 def list_exams(authorization: Optional[str] = Header(None)):
-    _require_teacher(authorization)
+    require_teacher(authorization)
     with db() as conn:
         exams = conn.execute("SELECT id, title, is_active FROM exams ORDER BY id").fetchall()
 
@@ -210,7 +201,7 @@ class ExamCreate(BaseModel):
 
 @router.post("/api/teacher/exams")
 def create_exam(req: ExamCreate, authorization: Optional[str] = Header(None)):
-    _require_teacher(authorization)
+    require_teacher(authorization)
     with db() as conn:
         conn.execute(
             "INSERT OR REPLACE INTO exams (id, title) VALUES (?,?)",
@@ -225,7 +216,7 @@ class ExamUpdate(BaseModel):
 
 @router.put("/api/teacher/exams/{exam_id}")
 def update_exam(exam_id: str, req: ExamUpdate, authorization: Optional[str] = Header(None)):
-    _require_teacher(authorization)
+    require_teacher(authorization)
     with db() as conn:
         conn.execute("UPDATE exams SET is_active=? WHERE id=?", (req.is_active, exam_id))
     return {"ok": True}
@@ -234,7 +225,7 @@ def update_exam(exam_id: str, req: ExamUpdate, authorization: Optional[str] = He
 @router.get("/api/teacher/scores")
 def get_scores(exam_id: str = Query(...), authorization: Optional[str] = Header(None)):
     """获取某次考试的所有学生成绩（含未提交）"""
-    _require_teacher(authorization)
+    require_teacher(authorization)
     with db() as conn:
         exam = conn.execute("SELECT title FROM exams WHERE id=?", (exam_id,)).fetchone()
         if not exam:
@@ -269,7 +260,7 @@ def get_scores(exam_id: str = Query(...), authorization: Optional[str] = Header(
 @router.get("/api/teacher/scores/export")
 def export_scores(exam_id: str = Query(...), authorization: Optional[str] = Header(None)):
     """导出成绩 Excel"""
-    _require_teacher(authorization)
+    require_teacher(authorization)
 
     with db() as conn:
         exam = conn.execute("SELECT title FROM exams WHERE id=?", (exam_id,)).fetchone()
@@ -319,7 +310,6 @@ def export_scores(exam_id: str = Query(...), authorization: Optional[str] = Head
     wb.save(buf)
     buf.seek(0)
 
-    from urllib.parse import quote
     date_str = datetime.now().strftime("%Y%m%d")
     filename = f"成绩单_{exam['title']}_{date_str}.xlsx"
     encoded_filename = quote(filename, safe="")

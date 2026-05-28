@@ -78,4 +78,14 @@ def init_db():
             FOREIGN KEY(notification_id) REFERENCES notifications(id) ON DELETE CASCADE
         );
         """)
+        # 为 notifications 表创建性能索引
+        conn.executescript("""
+        CREATE INDEX IF NOT EXISTS idx_notifications_category ON notifications(category);
+        CREATE INDEX IF NOT EXISTS idx_notifications_target_role ON notifications(target_role);
+        CREATE INDEX IF NOT EXISTS idx_notifications_target_student ON notifications(target_student_id);
+        CREATE INDEX IF NOT EXISTS idx_notifications_published ON notifications(is_published);
+        CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at);
+        CREATE INDEX IF NOT EXISTS idx_notif_reads_student ON notification_reads(student_id);
+        CREATE INDEX IF NOT EXISTS idx_notif_reads_combo ON notification_reads(notification_id, student_id);
+        """)
         # 考试记录由 sync_exams() 根据 .md 文件动态维护，此处不再硬编码预置

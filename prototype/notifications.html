@@ -288,6 +288,7 @@ async function markAllRead() {
     const data = await res.json();
     globalUnreadCount = 0;
     updateBadge();
+    document.getElementById('btn-mark-all-read').classList.add('hidden');
     showToast(`已标记 ${data.marked_count} 条通知为已读`);
     await loadNotifications();
   } catch { showToast('操作失败'); }
@@ -464,6 +465,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateBadge();
   }
   loadNotifications();
+});
+
+// 页面切换回来时自动刷新未读计数
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible') {
+    const token = getToken();
+    if (token) {
+      globalUnreadCount = await fetchUnreadCount();
+      updateBadge();
+    }
+  }
 });
 </script>
 </body>
