@@ -20,37 +20,35 @@ def verify_identity(req: VerifyRequest):
     - 未提交 → {already_submitted: false, token}
     """
     with db() as conn:
-        student = conn.execute(
-            "SELECT name, student_id, class_name FROM students WHERE student_id = ?",
-            (req.student_id,)
-        ).fetchone()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT u.full_name as name, u.student_no as student_id, s.class_name, u.id as user_id
+            FROM users u
+            JOIN students s ON u.id = s.user_id
+            WHERE u.student_no = %s AND u.role = 'student'
+        """, (req.student_id,))
+        student = cursor.fetchone()
 
         if not student:
             raise HTTPException(status_code=403, detail="学号不在名单中，请联系老师确认")
 
-        exam = conn.execute(
-            "SELECT id, title, is_active FROM exams WHERE id = ?",
-            (req.exam_id,)
-        ).fetchone()
+        cursor.execute("SELECT id, title FROM exams WHERE id = %s", (int(req.exam_id),))
+        exam = cursor.fetchone()
 
         if not exam:
             raise HTTPException(status_code=404, detail="考试不存在")
 
-        if not exam["is_active"]:
-            raise HTTPException(status_code=403, detail="本次考试已关闭，无法答题")
-
-        existing = conn.execute(
-            "SELECT score, total, submitted_at FROM scores WHERE student_id = ? AND exam_id = ?",
-            (req.student_id, req.exam_id)
-        ).fetchone()
+        # 检查是否已提交 - 暂时没有成绩记录功能
+        existing = None
 
         if existing:
             return {
                 "already_submitted": True,
                 "name": student["name"],
-                "score": existing["score"],
-                "total": existing["total"],
-                "submitted_at": existing["submitted_at"],
+                "score": None,
+                "total": None,
+                "submitted_at": None,
             }
 
         token = create_token({

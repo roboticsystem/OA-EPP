@@ -1,20 +1,35 @@
-import sqlite3
 import os
+import pymysql
 from contextlib import contextmanager
+from dotenv import load_dotenv
 
-DB_PATH = os.environ.get("DB_PATH", "/app/data/exam.db")
+# 加载环境变量
+load_dotenv()
+
+MYSQL_HOST = os.environ.get("MYSQL_HOST", "localhost")
+MYSQL_PORT = int(os.environ.get("MYSQL_PORT", 3306))
+MYSQL_USER = os.environ.get("MYSQL_USER", "root")
+MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "")
+MYSQL_DATABASE = os.environ.get("MYSQL_DATABASE", "oaepp_dev")
 
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
+    """获取 MySQL 数据库连接"""
+    conn = pymysql.connect(
+        host=MYSQL_HOST,
+        port=MYSQL_PORT,
+        user=MYSQL_USER,
+        password=MYSQL_PASSWORD,
+        database=MYSQL_DATABASE,
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor
+    )
     return conn
 
 
 @contextmanager
 def db():
+    """数据库连接上下文管理器"""
     conn = get_connection()
     try:
         yield conn
@@ -27,55 +42,9 @@ def db():
 
 
 def init_db():
+    """初始化数据库（不创建表，只检查连接"""
     with db() as conn:
-        conn.executescript("""
-        CREATE TABLE IF NOT EXISTS students (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            name        TEXT NOT NULL,
-            student_id  TEXT UNIQUE NOT NULL,
-            class_name  TEXT DEFAULT '',
-            course_name TEXT DEFAULT '',
-            pinyin      TEXT DEFAULT '',
-            pinyin_abbr TEXT DEFAULT '',
-            password    TEXT DEFAULT '',
-            is_active   INTEGER DEFAULT 1,
-            created_at  TEXT DEFAULT (datetime('now','localtime'))
-        );
-
-        CREATE TABLE IF NOT EXISTS exams (
-            id         TEXT PRIMARY KEY,
-            title      TEXT NOT NULL,
-            is_active  INTEGER DEFAULT 1
-        );
-
-        CREATE TABLE IF NOT EXISTS scores (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id   TEXT NOT NULL,
-            exam_id      TEXT NOT NULL,
-            score        REAL NOT NULL,
-            total        REAL NOT NULL,
-            submitted_at TEXT DEFAULT (datetime('now','localtime')),
-            UNIQUE(student_id, exam_id)
-        );
-
-        CREATE TABLE IF NOT EXISTS import_logs (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            batch_id     TEXT NOT NULL,
-            import_mode  TEXT NOT NULL,
-            operator     TEXT DEFAULT 'teacher',
-            total_records INTEGER DEFAULT 0,
-            success_count INTEGER DEFAULT 0,
-            error_count   INTEGER DEFAULT 0,
-            created_at    TEXT DEFAULT (datetime('now','localtime'))
-        );
-
-        CREATE TABLE IF NOT EXISTS import_errors (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            import_log_id INTEGER,
-            line_number  INTEGER,
-            raw_data     TEXT,
-            error_msg    TEXT,
-            FOREIGN KEY(import_log_id) REFERENCES import_logs(id)
-        );
-        """)
-        # 考试记录由 sync_exams() 根据 .md 文件动态维护，此处不再硬编码预置
+        cursor = conn.cursor()
+        cursor.execute("SHOW TABLES")
+        tables = [list(t.values())[0] for t in cursor.fetchall()]
+        print(f"当前数据库表: {tables}")

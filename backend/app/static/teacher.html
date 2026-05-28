@@ -50,8 +50,7 @@
   .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: .8rem; }
   .badge-green { background: #e8f5e9; color: #2e7d32; }
   .badge-gray { background: #f5f5f5; color: #888; }
-  .upload-area { border: 2px dashed #bbdefb; border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: border-color .2s; }
-  .upload-area:hover { border-color: #1565c0; }
+  .upload-area { border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: border-color .2s; }
   .upload-area input { display: none; }
   .upload-hint { color: #888; font-size: .9rem; margin-top: 8px; }
   .alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 12px; font-size: .9rem; }
@@ -105,7 +104,7 @@
       <div class="card-body">
         <div id="upload-msg"></div>
         <p style="font-size:.88rem;color:#888;margin-bottom:12px">
-          CSV 格式：<code>姓名,学号,班级,课程</code>（第一行为表头，编码 UTF-8 或 GBK 均支持）
+          CSV 格式：<code>姓名,学号,班级,课程</code>
         </p>
         
         <div style="margin-bottom:16px;">
@@ -128,7 +127,7 @@
           <div>点击选择 CSV 文件</div>
           <div class="upload-hint" id="file-name">未选择文件</div>
         </label>
-        <div style="margin-top:12px">
+        <div style="margin-top:12px;text-align:center;">
           <button class="btn btn-success" onclick="uploadStudents()">上传名单</button>
         </div>
         
@@ -258,27 +257,27 @@ async function uploadStudents() {
       return; 
     }
     
-    showMsg('upload-msg', `✅ 批次 ${d.batch_id} 导入完成：成功 ${d.success} 条，错误 ${d.errors} 条`, 
-            d.errors > 0 ? 'error' : 'success');
+    showMsg('upload-msg', `✅ 批次 ${d.batch_id} 导入完成：成功 ${d.success_count} 条，错误 ${d.error_count} 条`, 
+            d.error_count > 0 ? 'error' : 'success');
     
     const resultDiv = document.getElementById('upload-result');
     resultDiv.style.display = 'block';
     
     let resultHtml = `
-      <div style="padding:16px;background:${d.errors>0?'#fff3f3':'#e8f5e9'};border-radius:8px;">
+      <div style="padding:16px;background:${d.error_count>0?'#fff3f3':'#e8f5e9'};border-radius:8px;">
         <p style="font-weight:bold;margin-bottom:8px;">
           导入模式：${d.import_mode === 'incremental' ? '增量导入' : '全量覆盖'}
         </p>
         <p style="margin-bottom:8px;">
-          总记录：${d.total} | 成功：<span style="color:#2e7d32;">${d.success}</span> | 
-          错误：<span style="color:#c62828;">${d.errors}</span>
+          总记录：${d.total} | 成功：<span style="color:#2e7d32;">${d.success_count}</span> | 
+          错误：<span style="color:#c62828;">${d.error_count}</span>
         </p>
     `;
     
-    if (d.error_details && d.error_details.length > 0) {
+    if (d.errors && d.errors.length > 0) {
       resultHtml += `
         <div style="margin-top:12px;">
-          <p style="font-weight:bold;color:#c62828;margin-bottom:8px;">错误详情：</p>
+          <p style="font-weight:bold;color:#c62828;margin-bottom:8px;">⚠️ 错误详情（可修正后重新导入）：</p>
           <table style="width:100%;font-size:.85rem;border-collapse:collapse;">
             <thead>
               <tr style="background:#ffebee;">
@@ -289,17 +288,18 @@ async function uploadStudents() {
             </thead>
             <tbody>
       `;
-      for (const err of d.error_details.slice(0, 10)) {
+      for (const err of d.errors.slice(0, 20)) {
+        const rawDataStr = Object.entries(err.raw || {}).map(([k,v]) => `${k}:${v}`).join(', ');
         resultHtml += `
-          <tr>
-            <td style="padding:8px;border:1px solid #ffcdd2;">${err.line}</td>
-            <td style="padding:8px;border:1px solid #ffcdd2;font-family:monospace;font-size:.8rem;">${err.raw_data}</td>
+          <tr style="background:#fff5f5;">
+            <td style="padding:8px;border:1px solid #ffcdd2;font-weight:bold;color:#c62828;">${err.line}</td>
+            <td style="padding:8px;border:1px solid #ffcdd2;font-family:monospace;font-size:.8rem;">${rawDataStr}</td>
             <td style="padding:8px;border:1px solid #ffcdd2;color:#c62828;">${err.errors.join('; ')}</td>
           </tr>
         `;
       }
-      if (d.error_details.length > 10) {
-        resultHtml += `<tr><td colspan="3" style="padding:8px;border:1px solid #ffcdd2;text-align:center;color:#888;">...还有 ${d.error_details.length - 10} 条错误</td></tr>`;
+      if (d.errors.length > 20) {
+        resultHtml += `<tr><td colspan="3" style="padding:8px;border:1px solid #ffcdd2;text-align:center;color:#888;">...还有 ${d.errors.length - 20} 条错误</td></tr>`;
       }
       resultHtml += `</tbody></table></div>`;
     }
@@ -324,7 +324,7 @@ async function loadImportLogs() {
     const d = await r.json();
     const logsDiv = document.getElementById('import-logs');
     
-    if (!d.logs || d.logs.length === 0) {
+    if (!d.data || d.data.length === 0) {
       logsDiv.innerHTML = '<p style="color:#888">暂无导入记录</p>';
       return;
     }
@@ -333,11 +333,12 @@ async function loadImportLogs() {
       <table style="width:100%;font-size:.85rem;">
         <thead>
           <tr style="background:#e3f2fd;">
-            <th style="padding:10px 12px;text-align:left;">批次</th>
-            <th style="padding:10px 12px;text-align:left;">模式</th>
-            <th style="padding:10px 12px;text-align:left;">总数</th>
+            <th style="padding:10px 12px;text-align:left;">批次号</th>
+            <th style="padding:10px 12px;text-align:left;">导入模式</th>
+            <th style="padding:10px 12px;text-align:left;">操作人</th>
+            <th style="padding:10px 12px;text-align:left;">总记录</th>
             <th style="padding:10px 12px;text-align:left;">成功</th>
-            <th style="padding:10px 12px;text-align:left;">错误</th>
+            <th style="padding:10px 12px;text-align:left;">失败</th>
             <th style="padding:10px 12px;text-align:left;">时间</th>
             <th style="padding:10px 12px;text-align:left;">操作</th>
           </tr>
@@ -345,21 +346,22 @@ async function loadImportLogs() {
         <tbody>
     `;
     
-    for (const log of d.logs) {
-      const modeLabel = log.import_mode === 'incremental' ? '增量' : '全量';
+    for (const log of d.data) {
+      const modeLabel = log.import_mode === 'incremental' ? '增量导入' : '全量覆盖';
       const hasErrors = log.error_count > 0;
       html += `
         <tr style="border-bottom:1px solid #f0f0f0;">
-          <td style="padding:10px 12px;font-family:monospace;">${log.batch_id}</td>
+          <td style="padding:10px 12px;font-family:monospace;font-weight:bold;">${log.batch_id}</td>
           <td style="padding:10px 12px;">
             <span class="badge badge-${log.import_mode==='incremental'?'green':'gray'}">${modeLabel}</span>
           </td>
+          <td style="padding:10px 12px;">${log.operator || 'teacher'}</td>
           <td style="padding:10px 12px;">${log.total_records}</td>
-          <td style="padding:10px 12px;color:#2e7d32;">${log.success_count}</td>
-          <td style="padding:10px 12px;color:${hasErrors?'#c62828':'#888'};">${log.error_count}</td>
-          <td style="padding:10px 12px;font-size:.8rem;color:#666;">${log.created_at}</td>
+          <td style="padding:10px 12px;color:#2e7d32;font-weight:bold;">${log.success_count}</td>
+          <td style="padding:10px 12px;color:${hasErrors?'#c62828':'#888'};font-weight:bold;">${log.error_count}</td>
+          <td style="padding:10px 12px;font-size:.8rem;color:#666;">${new Date(log.created_at).toLocaleString('zh-CN')}</td>
           <td style="padding:10px 12px;">
-            ${hasErrors ? `<button class="btn btn-outline btn-sm" onclick="showImportErrors(${log.id})">查看错误</button>` : '—'}
+            <button class="btn btn-outline btn-sm" onclick="showImportErrors(${log.id})">查看详情</button>
           </td>
         </tr>
       `;
@@ -379,34 +381,9 @@ async function showImportErrors(logId) {
     });
     const d = await r.json();
     
-    let html = `
-      <div style="max-height:400px;overflow-y:auto;">
-        <table style="width:100%;font-size:.85rem;">
-          <thead>
-            <tr style="background:#ffebee;position:sticky;top:0;">
-              <th style="padding:8px;text-align:left;border:1px solid #ffcdd2;">行号</th>
-              <th style="padding:8px;text-align:left;border:1px solid #ffcdd2;">原始数据</th>
-              <th style="padding:8px;text-align:left;border:1px solid #ffcdd2;">错误信息</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
-    
-    for (const err of d.errors) {
-      html += `
-        <tr>
-          <td style="padding:8px;border:1px solid #ffcdd2;">${err.line_number}</td>
-          <td style="padding:8px;border:1px solid #ffcdd2;font-family:monospace;font-size:.8rem;">${err.raw_data}</td>
-          <td style="padding:8px;border:1px solid #ffcdd2;color:#c62828;">${err.error_msg}</td>
-        </tr>
-      `;
-    }
-    
-    html += `</tbody></table></div>`;
-    
-    showConfirmDialog('导入错误详情', html, () => {});
+    showConfirmDialog('导入日志详情', `<div style="white-space:pre-wrap;max-height:400px;overflow-y:auto;">${d.log_content}</div>`, () => {});
   } catch(e) {
-    alert('加载错误详情失败：' + e);
+    alert('加载日志详情失败：' + e);
   }
 }
 
