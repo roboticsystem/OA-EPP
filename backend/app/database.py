@@ -54,5 +54,17 @@ def init_db():
             submitted_at TEXT DEFAULT (datetime('now','localtime')),
             UNIQUE(student_id, exam_id)
         );
+
+        CREATE TABLE IF NOT EXISTS timeline_events (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id   TEXT NOT NULL,
+            event_type   TEXT NOT NULL CHECK(event_type IN ('publish','submit','grade','feedback')),
+            title        TEXT NOT NULL,
+            description  TEXT DEFAULT '',
+            course       TEXT DEFAULT '',
+            related_id   TEXT DEFAULT '',
+            event_time   TEXT NOT NULL,
+            created_at   TEXT DEFAULT (datetime('now','localtime'))
+        );
         """)
         # 考试记录由 sync_exams() 根据 .md 文件动态维护，此处不再硬编码预置
