@@ -4,6 +4,7 @@ from pydantic import BaseModel, field_validator
 import json
 from app.database import db
 from app.auth_utils import verify_teacher_token
+from app.github_client import push_files, check_token, get_repo_file_content, file_exists
 
 router = APIRouter()
 
@@ -181,26 +182,10 @@ def get_commitlint_failures(authorization: Optional[str] = Header(None)):
     return [dict(r) for r in rows]
 
 
-# ─── 生成 CI 配置文件内容 ────────────────────────────────────────────────────
+# ─── 生成 CI 配置文件内容（CI 联动：根据 enabled 状态决定规则级别）────────────
 
-_COMMITLINT_YML = """name: Commit Message 检查
-
-on: [pull_request]
-
-jobs:
-  commitlint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: wagoid/commitlint-github-action@v5
-        with:
-          configFile: .commitlintrc.json
-"""
-
-
-def _build_commitlintrc(config: dict) -> str:
+def _build_commitlintrc(config: dict, force_enabled: Optional[bool] = None) -> str:
+    is_enabled = force_enabled if force_enabled is not None else (config["enabled"] in (1, True))
     type_enum = config["type_enum"]
     if isinstance(type_enum, str):
         try:
@@ -208,10 +193,13 @@ def _build_commitlintrc(config: dict) -> str:
         except json.JSONDecodeError:
             type_enum = ["feat", "fix", "refactor", "style", "test", "docs", "chore"]
 
+    # 规则级别：enabled=2(error 导致CI失败), disabled=0(关闭)
+    level = 2 if is_enabled else 0
+
     rules = {
-        "type-enum": [2, "always", type_enum],
-        "subject-min-length": [2, "always", config["subject_min_length"]],
-        "header-max-length": [2, "always", config["header_max_length"]]
+        "type-enum": [level, "always", type_enum],
+        "subject-min-length": [level, "always", config["subject_min_length"]],
+        "header-max-length": [level, "always", config["header_max_length"]]
     }
 
     rc = {
@@ -229,7 +217,7 @@ def generate_commitlint_config(authorization: Optional[str] = Header(None)):
     if not config:
         raise HTTPException(status_code=404, detail="请先保存配置")
 
-    workflow_yml = _COMMITLINT_YML
+    workflow_yml = "name: Commit Message 检查\n\non: [pull_request]\n\njobs:\n  commitlint:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          fetch-depth: 0\n      - uses: wagoid/commitlint-github-action@v5\n        with:\n          configFile: .commitlintrc.json\n"
     commitlintrc = _build_commitlintrc(config)
 
     return {
@@ -245,4 +233,167 @@ def generate_commitlint_config(authorization: Optional[str] = Header(None)):
             {"path": ".github/workflows/commitlint.yml", "content": workflow_yml},
             {"path": ".commitlintrc.json", "content": commitlintrc}
         ]
+    }
+
+
+# ─── 一键提交至仓库（Git 版本控制）──────────────────────────────────────────
+
+@router.post("/api/teacher/commitlint/push")
+def push_commitlint_config(authorization: Optional[str] = Header(None)):
+    """
+    将当前 commitlint 配置生成的文件一键提交至 GitHub 仓库，
+    纳入 Git 版本控制，自动触发 CI。
+    """
+    _require_teacher(authorization)
+
+    with db() as conn:
+        config = conn.execute("SELECT * FROM commitlint_config WHERE id=1").fetchone()
+    if not config:
+        raise HTTPException(status_code=404, detail="请先保存配置")
+
+    workflow_yml = "name: Commit Message 检查\n\non: [pull_request]\n\njobs:\n  commitlint:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          fetch-depth: 0\n      - uses: wagoid/commitlint-github-action@v5\n        with:\n          configFile: .commitlintrc.json\n"
+    commitlintrc = _build_commitlintrc(config)
+
+    is_enabled = config["enabled"] in (1, True)
+    status_label = "启用" if is_enabled else "停用"
+    version = config["rule_version"]
+
+    files = [
+        {"path": ".github/workflows/commitlint.yml", "content": workflow_yml},
+        {"path": ".commitlintrc.json", "content": commitlintrc},
+    ]
+
+    commit_message = (
+        f"chore(commitlint): {status_label}配置 v{version}\n\n"
+        f"由 OA-EPP 平台自动提交。\n"
+        f"规则版本: v{version}\n"
+        f"规则类型: {config['rule_type']}\n"
+        f"启用状态: {status_label}\n"
+    )
+
+    try:
+        result = push_files(files, commit_message.strip())
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"提交至仓库失败: {e}")
+
+    return {
+        "ok": True,
+        "commit_sha": result["commit_sha"],
+        "commit_url": result["commit_url"],
+        "version": version,
+        "enabled": is_enabled,
+        "files": [
+            {"path": ".github/workflows/commitlint.yml", "status": "已提交"},
+            {"path": ".commitlintrc.json", "status": "已提交"},
+        ],
+    }
+
+
+# ─── 保存配置并自动提交至仓库 ──────────────────────────────────────────────
+
+class SaveAndPushRequest(BaseModel):
+    rule_type: str = "conventional"
+    type_enum: list[str] = ["feat", "fix", "refactor", "style", "test", "docs", "chore"]
+    header_max_length: int = 100
+    subject_min_length: int = 5
+
+
+@router.post("/api/teacher/commitlint/save-and-push")
+def save_and_push_commitlint(
+    req: SaveAndPushRequest,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    保存配置到数据库，自动升级版本号，并将配置文件一键提交至 GitHub 仓库。
+    提交后自动触发 CI，版本变更纳入 Git 历史可回溯。
+    """
+    _require_teacher(authorization)
+
+    with db() as conn:
+        old = conn.execute("SELECT rule_version, enabled FROM commitlint_config WHERE id=1").fetchone()
+        new_version = _bump_version(old["rule_version"]) if old else "1.0.0"
+        old_enabled = old["enabled"] in (1, True) if old else True
+
+        conn.execute(
+            """UPDATE commitlint_config SET
+                rule_type=?, type_enum=?, header_max_length=?,
+                subject_min_length=?, rule_version=?,
+                updated_at=datetime('now','localtime')
+               WHERE id=1""",
+            (
+                req.rule_type,
+                json.dumps(req.type_enum, ensure_ascii=False),
+                req.header_max_length,
+                req.subject_min_length,
+                new_version,
+            ),
+        )
+        config = conn.execute("SELECT * FROM commitlint_config WHERE id=1").fetchone()
+
+    is_enabled = config["enabled"] in (1, True)
+    commitlintrc = _build_commitlintrc(config, force_enabled=is_enabled)
+    workflow_yml = "name: Commit Message 检查\n\non: [pull_request]\n\njobs:\n  commitlint:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          fetch-depth: 0\n      - uses: wagoid/commitlint-github-action@v5\n        with:\n          configFile: .commitlintrc.json\n"
+
+    files = [
+        {"path": ".github/workflows/commitlint.yml", "content": workflow_yml},
+        {"path": ".commitlintrc.json", "content": commitlintrc},
+    ]
+
+    status_label = "启用" if is_enabled else "停用"
+    commit_message = (
+        f"chore(commitlint): {status_label}配置 v{new_version}\n\n"
+        f"由 OA-EPP 平台自动提交。\n"
+        f"规则版本: v{new_version}\n"
+        f"规则类型: {req.rule_type}\n"
+        f"启用状态: {status_label}\n"
+    )
+
+    try:
+        push_result = push_files(files, commit_message.strip())
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"提交至仓库失败: {e}")
+
+    result = dict(config)
+    try:
+        result["type_enum"] = json.loads(result["type_enum"])
+    except (json.JSONDecodeError, TypeError):
+        pass
+    result["commit_sha"] = push_result["commit_sha"]
+    result["commit_url"] = push_result["commit_url"]
+    result["git_history_url"] = f"https://github.com/uwislab/robotics-systems-course/commits/main/.commitlintrc.json"
+
+    return result
+
+
+# ─── 检查仓库中配置文件的同步状态 ─────────────────────────────────────────
+
+@router.get("/api/teacher/commitlint/repo-status")
+def check_repo_status(authorization: Optional[str] = Header(None)):
+    """检查 GitHub Token 有效性及仓库中 commitlint 配置文件是否存在。"""
+    _require_teacher(authorization)
+
+    token_ok = check_token()
+
+    if not token_ok.get("ok"):
+        return {
+            "token_ok": False,
+            "error": token_ok.get("error", "GitHub Token 未配置"),
+            "workflow_in_repo": None,
+            "commitlintrc_in_repo": None,
+        }
+
+    try:
+        workflow_exists = file_exists(".github/workflows/commitlint.yml")
+        commitlintrc_exists = file_exists(".commitlintrc.json")
+    except Exception:
+        workflow_exists = None
+        commitlintrc_exists = None
+
+    return {
+        "token_ok": True,
+        "repo_full_name": token_ok.get("full_name"),
+        "repo_url": token_ok.get("html_url"),
+        "default_branch": token_ok.get("default_branch"),
+        "workflow_in_repo": workflow_exists,
+        "commitlintrc_in_repo": commitlintrc_exists,
     }

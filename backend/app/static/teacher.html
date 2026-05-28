@@ -259,9 +259,31 @@
               <div class="form-hint">默认 5 字符</div>
             </div>
           </div>
-          <div style="display:flex;gap:8px;margin-top:8px">
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
             <button class="btn btn-primary" onclick="saveCommitlintConfig()">💾 保存配置</button>
-            <button class="btn btn-success" onclick="generateCommitlintConfig()">⚡ 生成 CI 配置文件</button>
+            <button class="btn btn-success" onclick="saveAndPushCommitlint()">📤 保存并提交到仓库</button>
+            <button class="btn btn-outline" onclick="generateCommitlintConfig()">⚡ 预览配置文件</button>
+            <button class="btn btn-warning" id="cl-push-btn" onclick="pushCommitlintConfig()">⬆ 提交到仓库</button>
+          </div>
+        </div>
+
+        <!-- 仓库同步状态 -->
+        <div id="cl-repo-status" style="margin-bottom:16px;padding:12px 16px;background:#f8f9fa;border-radius:8px;display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:.88rem;font-weight:bold;color:#555">📡 仓库同步状态</span>
+            <button class="btn btn-outline btn-sm" onclick="loadRepoStatus()">🔄 刷新</button>
+          </div>
+          <div id="cl-repo-status-detail">
+            <p style="color:#888;font-size:.85rem">正在检查…</p>
+          </div>
+          <div id="cl-push-result" style="display:none;margin-top:8px;padding:10px 14px;background:#e8f5e9;border-radius:6px">
+            <p style="font-size:.85rem;font-weight:bold;color:#2e7d32">✅ 已提交至仓库</p>
+            <p style="font-size:.82rem;color:#555;margin-top:4px">
+              提交记录：
+              <a id="cl-commit-link" href="#" target="_blank" style="color:#1565c0;text-decoration:underline">查看 commit</a>
+              <span style="margin:0 8px;color:#ccc">|</span>
+              <a id="cl-history-link" href="https://github.com/uwislab/robotics-systems-course/commits/main/.commitlintrc.json" target="_blank" style="color:#1565c0;text-decoration:underline">查看 Git 历史</a>
+            </p>
           </div>
         </div>
 
@@ -278,7 +300,11 @@
               <div class="code-block" id="cl-preview-commitlintrc"></div>
             </div>
           </div>
-          <p style="font-size:.8rem;color:#999;margin-top:8px">将上述两个文件提交至仓库根目录即可生效。后续可通过「保存配置」更新版本并重新生成。</p>
+          <p style="font-size:.8rem;color:#888;margin-top:8px">
+            ⚡ 提交后 GitHub Actions 将自动触发 CI。
+            <span class="cl-success">启用</span>时不合规 commit 将导致 CI 失败并阻止 PR 合并；
+            <span class="cl-inactive">停用</span>时规则级别为 0（仅记录不阻断）。
+          </p>
         </div>
 
         <!-- 最近校验失败记录 -->
@@ -601,6 +627,7 @@ async function loadCommitlintStatus() {
   }
   const data = await r.json();
   renderCommitlintStatus(data);
+  loadRepoStatus();
 }
 
 function renderCommitlintStatus(data) {
@@ -709,8 +736,90 @@ async function generateCommitlintConfig() {
     document.getElementById('cl-preview-workflow').textContent = d.workflow.content;
     document.getElementById('cl-preview-commitlintrc').textContent = d.commitlintrc.content;
     document.getElementById('cl-preview-section').style.display = 'block';
-    showMsg('cl-msg', '✅ 配置文件已生成，请将文件提交至仓库', 'success');
+    showMsg('cl-msg', '✅ 配置文件已生成，可提交至仓库', 'success');
   } catch(e) { showMsg('cl-msg', '网络错误：' + e, 'error'); }
+}
+
+async function pushCommitlintConfig() {
+  const btn = document.getElementById('cl-push-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 提交中…';
+  try {
+    const r = await fetch(`${API}/api/teacher/commitlint/push`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`}
+    });
+    const d = await r.json();
+    if (!r.ok) { showMsg('cl-msg', d.detail || '提交失败', 'error'); btn.disabled = false; btn.textContent = '⬆ 提交到仓库'; return; }
+    document.getElementById('cl-commit-link').href = d.commit_url;
+    document.getElementById('cl-push-result').style.display = 'block';
+    showMsg('cl-msg', `✅ 已提交至仓库，commit: ${d.commit_sha.slice(0, 7)}`, 'success');
+    loadRepoStatus();
+  } catch(e) { showMsg('cl-msg', '网络错误：' + e, 'error'); }
+  btn.disabled = false;
+  btn.textContent = '⬆ 提交到仓库';
+}
+
+async function saveAndPushCommitlint() {
+  const typeEnum = [...clTypeList];
+  const data = {
+    rule_type: document.getElementById('cl-rule-type').value,
+    type_enum: typeEnum,
+    header_max_length: parseInt(document.getElementById('cl-header-max').value) || 100,
+    subject_min_length: parseInt(document.getElementById('cl-subject-min').value) || 5
+  };
+  try {
+    const r = await fetch(`${API}/api/teacher/commitlint/save-and-push`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+    const d = await r.json();
+    if (!r.ok) { showMsg('cl-msg', d.detail || '提交失败', 'error'); return; }
+    document.getElementById('cl-commit-link').href = d.commit_url;
+    document.getElementById('cl-push-result').style.display = 'block';
+    showMsg('cl-msg', `✅ 配置已保存并提交至仓库，版本 v${d.rule_version}，commit: ${d.commit_sha.slice(0, 7)}`, 'success');
+    loadCommitlintStatus();
+    loadRepoStatus();
+  } catch(e) { showMsg('cl-msg', '网络错误：' + e, 'error'); }
+}
+
+async function loadRepoStatus() {
+  const container = document.getElementById('cl-repo-status');
+  container.style.display = 'block';
+  const detail = document.getElementById('cl-repo-status-detail');
+  detail.innerHTML = '<p style="color:#888;font-size:.85rem">正在检查…</p>';
+  try {
+    const r = await fetch(`${API}/api/teacher/commitlint/repo-status`, {
+      headers: {'Authorization': `Bearer ${TOKEN}`}
+    });
+    const d = await r.json();
+    if (!d.token_ok) {
+      detail.innerHTML = `
+        <p style="font-size:.85rem;color:#e65100">⚠ GitHub Token 未配置或无效</p>
+        <p style="font-size:.78rem;color:#999;margin-top:4px">请在 .env 文件中设置 GITHUB_TOKEN，或联系管理员配置后刷新</p>
+      `;
+      document.getElementById('cl-push-btn').style.display = 'none';
+      return;
+    }
+    document.getElementById('cl-push-btn').style.display = '';
+    const wfStatus = d.workflow_in_repo === true ? '<span class="cl-success">✅ 已存在</span>' :
+                     d.workflow_in_repo === false ? '<span class="cl-warning">⚠ 未提交</span>' :
+                     '<span style="color:#999">检查中…</span>';
+    const rcStatus = d.commitlintrc_in_repo === true ? '<span class="cl-success">✅ 已存在</span>' :
+                     d.commitlintrc_in_repo === false ? '<span class="cl-warning">⚠ 未提交</span>' :
+                     '<span style="color:#999">检查中…</span>';
+    detail.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.85rem">
+        <div><span style="color:#888">仓库：</span><a href="${d.repo_url || '#'}" target="_blank" style="color:#1565c0">${d.repo_full_name || '—'}</a></div>
+        <div><span style="color:#888">分支：</span>${d.default_branch || '—'}</div>
+        <div><span style="color:#888">commitlint.yml：</span>${wfStatus}</div>
+        <div><span style="color:#888">.commitlintrc.json：</span>${rcStatus}</div>
+      </div>
+    `;
+  } catch(e) {
+    detail.innerHTML = `<p style="font-size:.85rem;color:#c62828">❌ 检查失败：${e.message || e}</p>`;
+  }
 }
 
 function renderFailures(failures) {
