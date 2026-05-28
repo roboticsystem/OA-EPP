@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from typing import Optional
 from pydantic import BaseModel
 from app.database import db
-from app.auth_utils import create_token, verify_teacher_token
+from app.auth_utils import create_token, hash_password, verify_teacher_token
 from app.sync_exams import sync_exams
 from pypinyin import lazy_pinyin, Style
 import openpyxl
@@ -119,6 +119,10 @@ def add_student(req: AddStudentRequest, authorization: Optional[str] = Header(No
         conn.execute(
             "INSERT INTO students (name, student_id, class_name, pinyin, pinyin_abbr) VALUES (?,?,?,?,?)",
             (req.name, req.student_id, req.class_name.strip(), pinyin, abbr)
+        )
+        conn.execute(
+            "INSERT INTO student_accounts (student_id, password_hash) VALUES (?, ?)",
+            (req.student_id, hash_password(req.student_id)),
         )
     return {"ok": True}
 

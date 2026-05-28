@@ -54,5 +54,19 @@ def init_db():
             submitted_at TEXT DEFAULT (datetime('now','localtime')),
             UNIQUE(student_id, exam_id)
         );
+
+        CREATE TABLE IF NOT EXISTS student_accounts (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id     TEXT UNIQUE NOT NULL,
+            email          TEXT DEFAULT '',
+            password_hash  TEXT NOT NULL DEFAULT '',
+            failed_attempts INTEGER DEFAULT 0,
+            locked_until   TEXT DEFAULT '',
+            created_at     TEXT DEFAULT (datetime('now','localtime')),
+            FOREIGN KEY(student_id) REFERENCES students(student_id) ON DELETE CASCADE
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_student_accounts_email_unique
+            ON student_accounts(email) WHERE email != '';
         """)
         # 考试记录由 sync_exams() 根据 .md 文件动态维护，此处不再硬编码预置
