@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OA-EPP · 课程详情</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex">
+
+  <aside class="w-56 bg-white border-r border-gray-200 flex flex-col min-h-screen fixed left-0 top-0 z-10">
+    <div class="px-5 py-5 border-b border-gray-100">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center"><svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg></div>
+        <div><span class="font-bold text-gray-800 text-sm">OA-EPP</span><span class="ml-1.5 text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">学生端</span></div>
+      </div>
+    </div>
+    <nav class="flex-1 px-3 py-4 space-y-1">
+      <a href="dashboard.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>总览仪表盘</a>
+      <a href="courses.html" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 font-medium text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>课程学习</a>
+      <a href="assignments.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>作业提交</a>
+      <a href="grades.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>成绩查看</a>
+      <a href="attendance.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>课堂签到</a>
+      <a href="exam.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>在线考试</a>
+      <a href="profile.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>个人资料</a>
+    </nav>
+    <div class="px-4 py-4 border-t border-gray-100">
+      <div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">张</div><div class="flex-1 min-w-0"><p class="text-sm font-medium text-gray-800 truncate">张三（学生）</p><p class="text-xs text-gray-400 truncate">2024001</p></div></div>
+      <a href="login.html" class="mt-3 block text-center text-xs text-gray-400 hover:text-red-500 transition">退出登录</a>
+    </div>
+  </aside>
+
+  <main class="ml-56 flex-1 p-8 min-h-screen">
+    <div class="mb-6">
+      <a href="courses.html" class="text-xs text-blue-600 hover:underline flex items-center gap-1 mb-2">
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>返回课程列表
+      </a>
+      <h1 class="text-xl font-bold text-gray-800" id="course-title">课程详情</h1>
+      <p class="text-sm text-gray-400 mt-0.5" id="course-meta"></p>
+    </div>
+
+    <div id="chapter-list" class="space-y-4">
+      <!-- 由 JS 渲染 -->
+    </div>
+  </main>
+
+  <script>
+  var API = '';
+  var params = new URLSearchParams(window.location.search);
+  var courseId = params.get('id') || 'EP4';
+
+  function getTypeColor(t) {
+    return {'考试':'bg-red-100 text-red-600','作业':'bg-blue-100 text-blue-600','签到':'bg-green-100 text-green-600'}[t] || 'bg-gray-100 text-gray-500';
+  }
+  function getStatusColor(s) {
+    return {'已完成':'bg-green-100 text-green-600','进行中':'bg-blue-100 text-blue-600','待开始':'bg-gray-100 text-gray-500','未通过':'bg-red-100 text-red-600'}[s] || 'bg-gray-100 text-gray-500';
+  }
+
+  async function loadCourse() {
+    try {
+      var r = await fetch(API + '/api/courses/' + courseId + '/chapters');
+      var d = await r.json();
+      document.getElementById('course-title').textContent = d.course.title;
+      document.getElementById('course-meta').textContent = d.course.semester + ' · 总分 ' + (d.course.total_score || 100) + ' 分 · 共 ' + d.chapters.length + ' 章';
+      renderChapters(d.chapters);
+    } catch(e) {
+      document.getElementById('chapter-list').innerHTML = '<div class="text-center py-12 text-sm text-gray-400">加载课程数据失败</div>';
+    }
+  }
+
+  function renderChapters(chapters) {
+    var container = document.getElementById('chapter-list');
+    if (!chapters.length) {
+      container.innerHTML = '<div class="text-center py-12 text-sm text-gray-400">暂无章节数据</div>';
+      return;
+    }
+    var now = new Date();
+    var html = '';
+    for (var i = 0; i < chapters.length; i++) {
+      var ch = chapters[i];
+      var dl = ch.deadline ? '<span class="' + (new Date(ch.deadline.replace(' ', 'T')) < now ? 'text-red-500' : 'text-gray-600') + '">' + ch.deadline + '</span>' : '<span class="text-gray-400">待定</span>';
+      var chapterUrl = '/chapter?id=' + ch.id;
+      html += '<div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition">'
+        + '<div class="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-100">'
+        + '<div class="flex items-center gap-3">'
+        + '<span class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-bold">' + ch.chapter_no + '</span>'
+        + '<div><h3 class="text-sm font-semibold text-gray-800">' + ch.title + '</h3>'
+        + '<p class="text-xs text-gray-400 mt-0.5">截止：' + dl + '</p></div></div>'
+        + '<div class="flex items-center gap-2">'
+        + '<span class="text-xs px-2 py-0.5 rounded-full font-medium ' + getTypeColor(ch.chapter_type) + '">' + ch.chapter_type + '</span>'
+        + '<span class="text-xs px-2 py-0.5 rounded-full font-medium ' + getStatusColor(ch.status) + '">' + ch.status + '</span>'
+        + '<a href="' + chapterUrl + '" class="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition ml-2">查看详情 →</a>'
+        + '</div></div>'
+        + '<div class="px-6 py-3 text-xs text-gray-500">'
+        + '评分标准：' + (ch.grading_criteria || '见文档')
+        + '</div></div>';
+    }
+    container.innerHTML = html;
+  }
+
+  loadCourse();
+  </script>
+</body>
+</html>

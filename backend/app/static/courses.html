@@ -68,7 +68,7 @@
               <th class="px-6 py-3 font-medium">类型</th>
               <th class="px-6 py-3 font-medium">截止时间</th>
               <th class="px-6 py-3 font-medium">状态</th>
-              <th class="px-6 py-3 font-medium">评分标准</th>
+              <th class="px-6 py-3 font-medium">操作</th>
             </tr>
           </thead>
           <tbody id="chapter-body" class="divide-y divide-gray-100"></tbody>
@@ -186,13 +186,14 @@
       } else {
         dlHtml = '<span class="text-gray-400">待定</span>';
       }
-      rows.push('<tr class="hover:bg-gray-50 transition">'
+      var detailUrl = '/chapter?id=' + ch.id;
+      rows.push('<tr class="hover:bg-gray-50 transition cursor-pointer" onclick="window.location.href=\'' + detailUrl + '\'">'
         + '<td class="px-6 py-4 text-gray-700 font-medium">' + ch.chapter_no + '</td>'
         + '<td class="px-6 py-4 text-gray-800">' + ch.title + '</td>'
         + '<td class="px-6 py-4"><span class="text-xs px-2 py-0.5 rounded-full font-medium ' + tc + '">' + ch.chapter_type + '</span></td>'
         + '<td class="px-6 py-4 text-xs">' + dlHtml + '</td>'
         + '<td class="px-6 py-4"><span class="text-xs px-2 py-0.5 rounded-full font-medium ' + sc + '">' + ch.status + '</span></td>'
-        + '<td class="px-6 py-4 text-xs text-gray-500 max-w-xs">' + (ch.grading_criteria || '—') + '</td>'
+        + '<td class="px-6 py-4 text-xs"><a href="' + detailUrl + '" class="text-blue-600 hover:underline">查看详情</a></td>'
         + '</tr>');
     }
 
