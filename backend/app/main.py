@@ -48,3 +48,9 @@ def score_page():
 def startup():
     init_db()
     sync_exams()
+    print("\n" + "=" * 60)
+    print("  🎓 OA-EPP 考试系统已启动")
+    print("  学生端: http://localhost:8000/score")
+    print("  教师端: http://localhost:8000/teacher")
+    print("  API文档: http://localhost:8000/api/docs")
+    print("=" * 60 + "\n")
