@@ -63,14 +63,14 @@ def create_notification(req: NotificationCreate, authorization: Optional[str] = 
             student_ids = req.target_user_ids
         elif req.course_id:
             cur.execute(
-                "SELECT e.student_user_id FROM enrollments e WHERE e.course_id = %s",
+                "SELECT DISTINCT e.student_user_id FROM enrollments e WHERE e.course_id = %s",
                 (req.course_id,)
             )
             students = cur.fetchall()
             student_ids = [s["student_user_id"] for s in students]
         else:
             cur.execute("""
-                SELECT e.student_user_id FROM enrollments e
+                SELECT DISTINCT e.student_user_id FROM enrollments e
                 JOIN courses c ON e.course_id = c.id
                 WHERE c.status = 'open'
             """)

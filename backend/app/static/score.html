@@ -189,8 +189,9 @@ async function selectStudent(studentId, name, className) {
     if (!r.ok) { alert('查询失败'); return; }
     const d = await r.json();
     renderResults(d);
-    // 加载通知
+    // 加载通知并启动自动轮询
     loadNotifications(studentId);
+    startNotifPolling(studentId);
   } catch(e) { alert('网络错误：' + e); }
 }
 
@@ -238,22 +239,25 @@ const N_CAT_LABELS = {
 let notifCurrentCat = 'all';
 let notifAllItems = [];
 let notifCurrentStudentId = null;
+let notifPollInterval = null;
 
-async function loadNotifications(studentId) {
+async function loadNotifications(studentId, isSilent = false) {
   const module = document.getElementById('notif-module');
   const listEl = document.getElementById('notif-list');
   const badgeWrap = document.getElementById('notif-badge-wrap');
   const badge = document.getElementById('notif-badge');
 
   notifCurrentStudentId = studentId;
-  notifCurrentCat = 'all';
-  module.style.display = 'block';
-  listEl.innerHTML = '<p style="color:#888;font-size:.9rem;text-align:center;padding:16px">加载中…</p>';
+  if (!isSilent) {
+    notifCurrentCat = 'all';
+    module.style.display = 'block';
+    listEl.innerHTML = '<p style="color:#888;font-size:.9rem;text-align:center;padding:16px">加载中…</p>';
+  }
 
   try {
     const r = await fetch(`${API}/api/public/notifications?student_id=${encodeURIComponent(studentId)}&page_size=50`);
     const d = await r.json();
-    notifAllItems = d.items || [];
+    const newItems = d.items || [];
 
     // 更新未读角标
     const unread = d.unread_count || 0;
@@ -264,9 +268,35 @@ async function loadNotifications(studentId) {
       badgeWrap.style.display = 'none';
     }
 
+    // 静默轮询：只在有新通知时才刷新列表
+    if (isSilent) {
+      const oldIds = new Set(notifAllItems.map(i => i.id));
+      const hasNew = newItems.some(i => !oldIds.has(i.id));
+      if (!hasNew) return;
+    }
+
+    notifAllItems = newItems;
     renderNotifList();
   } catch(e) {
-    listEl.innerHTML = '<p style="color:#c62828;text-align:center;padding:16px">加载失败</p>';
+    if (!isSilent) {
+      listEl.innerHTML = '<p style="color:#c62828;text-align:center;padding:16px">加载失败</p>';
+    }
+  }
+}
+
+function startNotifPolling(studentId) {
+  stopNotifPolling();
+  notifPollInterval = setInterval(() => {
+    if (notifCurrentStudentId) {
+      loadNotifications(notifCurrentStudentId, true);
+    }
+  }, 15000);
+}
+
+function stopNotifPolling() {
+  if (notifPollInterval) {
+    clearInterval(notifPollInterval);
+    notifPollInterval = null;
   }
 }
 
@@ -350,6 +380,9 @@ function escHtml2(s) {
   d.textContent = s || '';
   return d.innerHTML;
 }
+
+// 页面卸载时停止轮询
+window.addEventListener('beforeunload', () => stopNotifPolling());
 </script>
 </body>
 </html>
