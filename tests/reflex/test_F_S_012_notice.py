@@ -4,6 +4,7 @@
 TDD RED   : oaepp.states.notice 不存在 → ImportError → 所有用例失败（预期）
 TDD GREEN : NoticeState 实现后 → 全部通过
 """
+# pyright: reportMissingImports=false
 import pytest  # noqa: F401, pylint: disable=unused-import
 from typing import TYPE_CHECKING
 
