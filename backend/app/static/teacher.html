@@ -75,6 +75,30 @@
   .confirm-dialog h3 { margin-bottom: 10px; }
   .confirm-dialog p { color: #666; font-size: .9rem; margin-bottom: 20px; line-height: 1.6; }
   .confirm-dialog .btn-row { display: flex; gap: 10px; justify-content: center; }
+
+  /* Commitlint 配置 */
+  .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .info-item { background: #f8f9fa; border-radius: 8px; padding: 14px; text-align: center; }
+  .info-value { font-size: 1.1rem; font-weight: bold; color: #1565c0; }
+  .info-label { font-size: .78rem; color: #888; margin-top: 4px; }
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: .85rem; color: #555; margin-bottom: 4px; font-weight: bold; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-hint { font-size: .78rem; color: #999; margin-top: 2px; }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .tag { display: inline-flex; align-items: center; gap: 4px; background: #e3f2fd; color: #1565c0; padding: 3px 10px; border-radius: 14px; font-size: .82rem; }
+  .tag .remove-tag { cursor: pointer; font-weight: bold; color: #c62828; font-size: 1rem; line-height: 1; margin-left: 2px; }
+  .tag .remove-tag:hover { color: #b71c1c; }
+  .code-block { background: #263238; color: #e0e0e0; border-radius: 6px; padding: 14px; font-family: "Cascadia Code", "Fira Code", Consolas, monospace; font-size: .82rem; line-height: 1.6; overflow-x: auto; white-space: pre; max-height: 260px; overflow-y: auto; }
+  .failure-item { padding: 10px 14px; border-left: 3px solid #c62828; background: #fff5f5; border-radius: 4px; margin-bottom: 8px; }
+  .failure-item .commit-msg { font-weight: bold; font-size: .9rem; }
+  .failure-item .commit-meta { font-size: .8rem; color: #888; margin-top: 4px; }
+  .failure-item .commit-error { font-size: .8rem; color: #c62828; margin-top: 2px; }
+  .cl-success { color: #2e7d32; }
+  .cl-warning { color: #e65100; }
+  .cl-error { color: #c62828; }
+  .cl-inactive { color: #999; }
+
   #app { display: none; }
 </style>
 </head>
@@ -164,6 +188,109 @@
       </div>
     </div>
 
+    <!-- Commitlint 配置（F-D-009）-->
+    <div class="card">
+      <div class="card-title">
+        <span>✅ Commit 消息格式自动校验（F-D-009）</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="cl-status-badge" class="badge badge-gray" style="font-size:.8rem">加载中…</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="cl-msg"></div>
+
+        <!-- 状态总览 -->
+        <div id="cl-status-section" style="margin-bottom:16px">
+          <div class="info-grid" id="cl-status-grid">
+            <div class="info-item"><div class="info-value" id="cl-val-enabled">—</div><div class="info-label">启用状态</div></div>
+            <div class="info-item"><div class="info-value" id="cl-val-version">—</div><div class="info-label">规则版本</div></div>
+            <div class="info-item"><div class="info-value" id="cl-val-rule-type">—</div><div class="info-label">规则类型</div></div>
+            <div class="info-item"><div class="info-value" id="cl-val-type-count">—</div><div class="info-label">Type 数量</div></div>
+          </div>
+        </div>
+
+        <!-- 启用/禁用切换 -->
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:12px 16px;background:#f8f9fa;border-radius:8px">
+          <span style="font-size:.9rem;font-weight:bold">Commitlint 检查：</span>
+          <label class="switch">
+            <input type="checkbox" id="cl-toggle" onchange="toggleCommitlint(this.checked)">
+            <span class="slider"></span>
+          </label>
+          <span id="cl-toggle-label" style="font-size:.9rem">—</span>
+          <span style="font-size:.78rem;color:#888;margin-left:8px">关闭后 CI 工作流将跳过 commit 消息校验</span>
+        </div>
+
+        <!-- 配置编辑 -->
+        <div style="border:1px solid #e0e0e0;border-radius:8px;padding:16px;margin-bottom:16px">
+          <p style="font-size:.88rem;font-weight:bold;margin-bottom:12px;color:#555">规则配置</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label>规则集</label>
+              <select id="cl-rule-type" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:.9rem">
+                <option value="conventional">Conventional Commits 标准</option>
+                <option value="custom">自定义规则</option>
+              </select>
+              <div class="form-hint">选择「自定义」可自由编辑下方规则参数</div>
+            </div>
+            <div class="form-group">
+              <label>规则版本</label>
+              <input type="text" id="cl-rule-version" readonly style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:.9rem;background:#f5f5f5;color:#888">
+              <div class="form-hint">每次保存配置自动升级版本号</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Type 枚举列表</label>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="cl-type-input" placeholder="输入 type 名称后按 Enter 添加" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:.9rem" onkeydown="if(event.key==='Enter'){addTypeTag();event.preventDefault()}">
+              <button class="btn btn-outline btn-sm" onclick="addTypeTag()" style="white-space:nowrap">+ 添加</button>
+            </div>
+            <div class="tag-list" id="cl-type-tags"></div>
+            <div class="form-hint">如 feat, fix, refactor, style, test, docs, chore</div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Header 最大长度</label>
+              <input type="number" id="cl-header-max" min="1" max="200" value="100" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:.9rem">
+              <div class="form-hint">默认 100 字符</div>
+            </div>
+            <div class="form-group">
+              <label>Subject 最小长度</label>
+              <input type="number" id="cl-subject-min" min="1" max="50" value="5" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:.9rem">
+              <div class="form-hint">默认 5 字符</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-primary" onclick="saveCommitlintConfig()">💾 保存配置</button>
+            <button class="btn btn-success" onclick="generateCommitlintConfig()">⚡ 生成 CI 配置文件</button>
+          </div>
+        </div>
+
+        <!-- 预览生成的配置 -->
+        <div id="cl-preview-section" style="display:none;margin-bottom:16px">
+          <p style="font-size:.88rem;font-weight:bold;margin-bottom:8px;color:#555">生成的配置文件预览</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <p style="font-size:.8rem;color:#888;margin-bottom:4px">📄 .github/workflows/commitlint.yml</p>
+              <div class="code-block" id="cl-preview-workflow"></div>
+            </div>
+            <div>
+              <p style="font-size:.8rem;color:#888;margin-bottom:4px">📄 .commitlintrc.json</p>
+              <div class="code-block" id="cl-preview-commitlintrc"></div>
+            </div>
+          </div>
+          <p style="font-size:.8rem;color:#999;margin-top:8px">将上述两个文件提交至仓库根目录即可生效。后续可通过「保存配置」更新版本并重新生成。</p>
+        </div>
+
+        <!-- 最近校验失败记录 -->
+        <div>
+          <p style="font-size:.88rem;font-weight:bold;margin-bottom:8px;color:#555">最近校验失败记录</p>
+          <div id="cl-failures-list">
+            <p style="color:#888;font-size:.85rem">暂无失败记录</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -193,6 +320,7 @@ async function doLogin() {
     document.getElementById('app').style.display = 'block';
     loadExams();
     loadStudentList();
+    loadCommitlintStatus();
   } catch(e) { showMsg('login-msg', '网络错误：' + e, 'error'); }
 }
 
@@ -458,6 +586,161 @@ function showConfirmDialog(title, message, onConfirm) {
   backdrop.querySelector('#confirm-ok').onclick = () => { backdrop.remove(); onConfirm(); };
 }
 
+// ───── Commitlint 配置管理（F-D-009）─────
+
+let clTypeList = [];
+
+async function loadCommitlintStatus() {
+  const r = await fetch(`${API}/api/teacher/commitlint/status`, {
+    headers: {'Authorization': `Bearer ${TOKEN}`}
+  });
+  if (r.status === 401) { logout(); return; }
+  if (!r.ok) {
+    document.getElementById('cl-status-badge').textContent = '⚠ 加载失败';
+    return;
+  }
+  const data = await r.json();
+  renderCommitlintStatus(data);
+}
+
+function renderCommitlintStatus(data) {
+  const enabled = data.enabled === 1 || data.enabled === true;
+  const typeList = Array.isArray(data.type_enum) ? data.type_enum : [];
+
+  document.getElementById('cl-val-enabled').textContent = enabled ? '已启用' : '已停用';
+  document.getElementById('cl-val-enabled').className = `info-value ${enabled ? 'cl-success' : 'cl-inactive'}`;
+  document.getElementById('cl-val-version').textContent = data.rule_version || '1.0.0';
+  document.getElementById('cl-val-rule-type').textContent = data.rule_type === 'custom' ? '自定义' : 'Conventional Commits';
+  document.getElementById('cl-val-type-count').textContent = typeList.length + ' 个';
+
+  // 更新开关
+  document.getElementById('cl-toggle').checked = enabled;
+  document.getElementById('cl-toggle-label').textContent = enabled ? '已启用' : '已停用';
+  document.getElementById('cl-toggle-label').className = enabled ? 'cl-success' : 'cl-inactive';
+
+  // 更新 badge
+  const badge = document.getElementById('cl-status-badge');
+  badge.textContent = enabled ? '🟢 已启用' : '🔴 已停用';
+  badge.className = `badge ${enabled ? 'badge-green' : 'badge-gray'}`;
+
+  // 填充编辑表单
+  document.getElementById('cl-rule-type').value = data.rule_type || 'conventional';
+  document.getElementById('cl-rule-version').value = data.rule_version || '1.0.0';
+  document.getElementById('cl-header-max').value = data.header_max_length ?? 100;
+  document.getElementById('cl-subject-min').value = data.subject_min_length ?? 5;
+
+  clTypeList = typeList;
+  renderTypeTags();
+
+  // 渲染失败记录
+  renderFailures(data.recent_failures || []);
+}
+
+function renderTypeTags() {
+  const container = document.getElementById('cl-type-tags');
+  if (!clTypeList.length) {
+    container.innerHTML = '<span style="color:#999;font-size:.82rem">暂无 type，请添加</span>';
+    return;
+  }
+  container.innerHTML = clTypeList.map(t => `
+    <span class="tag">${t} <span class="remove-tag" onclick="removeTypeTag('${t}')">&times;</span></span>
+  `).join('');
+}
+
+function addTypeTag() {
+  const input = document.getElementById('cl-type-input');
+  const val = input.value.trim().toLowerCase();
+  if (!val) return;
+  if (clTypeList.includes(val)) {
+    input.value = '';
+    return;
+  }
+  clTypeList.push(val);
+  input.value = '';
+  renderTypeTags();
+}
+
+function removeTypeTag(tag) {
+  clTypeList = clTypeList.filter(t => t !== tag);
+  renderTypeTags();
+}
+
+async function saveCommitlintConfig() {
+  const data = {
+    rule_type: document.getElementById('cl-rule-type').value,
+    type_enum: clTypeList,
+    header_max_length: parseInt(document.getElementById('cl-header-max').value) || 100,
+    subject_min_length: parseInt(document.getElementById('cl-subject-min').value) || 5
+  };
+  try {
+    const r = await fetch(`${API}/api/teacher/commitlint/config`, {
+      method: 'PUT',
+      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+    const d = await r.json();
+    if (!r.ok) { showMsg('cl-msg', d.detail || '保存失败', 'error'); return; }
+    showMsg('cl-msg', '✅ 配置已保存，版本 ' + d.rule_version, 'success');
+    loadCommitlintStatus();
+  } catch(e) { showMsg('cl-msg', '网络错误：' + e, 'error'); }
+}
+
+async function toggleCommitlint(checked) {
+  try {
+    const r = await fetch(`${API}/api/teacher/commitlint/toggle`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify({enabled: checked})
+    });
+    const d = await r.json();
+    if (!r.ok) { showMsg('cl-msg', d.detail || '操作失败', 'error'); return; }
+    loadCommitlintStatus();
+  } catch(e) { showMsg('cl-msg', '网络错误：' + e, 'error'); }
+}
+
+async function generateCommitlintConfig() {
+  try {
+    const r = await fetch(`${API}/api/teacher/commitlint/generate`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`}
+    });
+    const d = await r.json();
+    if (!r.ok) { showMsg('cl-msg', d.detail || '生成失败', 'error'); return; }
+    document.getElementById('cl-preview-workflow').textContent = d.workflow.content;
+    document.getElementById('cl-preview-commitlintrc').textContent = d.commitlintrc.content;
+    document.getElementById('cl-preview-section').style.display = 'block';
+    showMsg('cl-msg', '✅ 配置文件已生成，请将文件提交至仓库', 'success');
+  } catch(e) { showMsg('cl-msg', '网络错误：' + e, 'error'); }
+}
+
+function renderFailures(failures) {
+  const container = document.getElementById('cl-failures-list');
+  if (!failures || !failures.length) {
+    container.innerHTML = '<p style="color:#888;font-size:.85rem">暂无失败记录</p>';
+    return;
+  }
+  container.innerHTML = failures.map(f => `
+    <div class="failure-item">
+      <div class="commit-msg">${escapeHtml(f.commit_msg)}</div>
+      <div class="commit-meta">
+        ${f.commit_sha ? `<code>${f.commit_sha.slice(0, 7)}</code>` : ''}
+        ${f.author ? ' · ' + escapeHtml(f.author) : ''}
+        ${f.branch ? ' · ' + escapeHtml(f.branch) : ''}
+        ${f.pr_number ? ' · PR #' + f.pr_number : ''}
+        · ${f.failed_at || ''}
+      </div>
+      ${f.error_msg ? `<div class="commit-error">${escapeHtml(f.error_msg)}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 // ───── 初始化：检查已有 token ─────
 if (TOKEN) {
   fetch(`${API}/api/teacher/exams`, { headers: {'Authorization': `Bearer ${TOKEN}`} })
@@ -467,6 +750,7 @@ if (TOKEN) {
         document.getElementById('app').style.display = 'block';
         loadExams();
         loadStudentList();
+        loadCommitlintStatus();
       } else {
         TOKEN = ''; sessionStorage.removeItem('teacher_token');
       }

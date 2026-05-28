@@ -54,5 +54,29 @@ def init_db():
             submitted_at TEXT DEFAULT (datetime('now','localtime')),
             UNIQUE(student_id, exam_id)
         );
+
+        CREATE TABLE IF NOT EXISTS commitlint_config (
+            id                  INTEGER PRIMARY KEY DEFAULT 1,
+            enabled             INTEGER DEFAULT 1,
+            rule_type           TEXT DEFAULT 'conventional',
+            type_enum           TEXT DEFAULT '["feat","fix","refactor","style","test","docs","chore"]',
+            header_max_length   INTEGER DEFAULT 100,
+            subject_min_length  INTEGER DEFAULT 5,
+            rule_version        TEXT DEFAULT '1.0.0',
+            updated_at          TEXT DEFAULT (datetime('now','localtime'))
+        );
+
+        CREATE TABLE IF NOT EXISTS commitlint_failures (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            commit_sha  TEXT NOT NULL,
+            commit_msg  TEXT NOT NULL,
+            author      TEXT DEFAULT '',
+            branch      TEXT DEFAULT '',
+            pr_number   INTEGER DEFAULT 0,
+            failed_at   TEXT DEFAULT (datetime('now','localtime')),
+            error_msg   TEXT DEFAULT ''
+        );
+
+        INSERT OR IGNORE INTO commitlint_config (id) VALUES (1);
         """)
         # 考试记录由 sync_exams() 根据 .md 文件动态维护，此处不再硬编码预置
