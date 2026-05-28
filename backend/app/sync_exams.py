@@ -82,7 +82,7 @@ def _find_docs_dir() -> "Path | None":
 
     # 回退到镜像内置的备用文档目录（/app/docs_baked/）
     if _BAKED_DOCS_DIR.is_dir() and any(_BAKED_DOCS_DIR.rglob("*.md")):
-        print(f"[sync_exams] 使用内置备用文档目录：{_BAKED_DOCS_DIR}")
+        print(f"[sync_exams] 使用内置备用文档目录: {_BAKED_DOCS_DIR}")
         return _BAKED_DOCS_DIR
 
     return None
@@ -116,52 +116,30 @@ def sync_exams() -> dict:
     added   = []
     updated = []
     deleted = []
-    
-    try:
-        with db() as conn:
-            cursor = conn.cursor()
-            
-            # 获取现有考试 - 我们使用 title 作为标识
-            cursor.execute("SELECT id, title FROM exams")
-            existing = {r["title"]: r["id"] for r in cursor.fetchall()}
-            
-            # 查找默认课程（如果没有就创建一个默认课程）
-            cursor.execute("SELECT id FROM courses LIMIT 1")
-            course = cursor.fetchone()
-            if not course:
-                print("[sync_exams] 没有找到课程，跳过数据库同步")
-                return {"injected_meta": injected, "db_added": [], "db_updated": [], "db_deleted": [], "exams": []}
-            
-            course_id = course["id"]
-            
-            # 查找默认教师
-            cursor.execute("SELECT user_id FROM teachers LIMIT 1")
-            teacher = cursor.fetchone()
-            if not teacher:
-                print("[sync_exams] 没有找到教师，跳过数据库同步")
-                return {"injected_meta": injected, "db_added": [], "db_updated": [], "db_deleted": [], "exams": []}
-            
-            teacher_id = teacher["user_id"]
-            
-            now = "2099-12-31 23:59:59"
-            
-            for eid, etitle in found.items():
-                # 在数据库中查找该考试
-                if etitle not in existing:
-                    # 插入新考试
-                    cursor.execute("""
-                        INSERT INTO exams (course_id, title, exam_type, start_at, end_at, created_by)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (course_id, etitle, 'quiz', '2024-01-01 00:00:00', '2099-12-31 23:59:59', teacher_id))
-                    added.append(eid)
-                    print(f"[sync_exams] 数据库新增考试：{eid} - {etitle}")
-                else:
-                    # 考试已存在，跳过
-                    pass
-            
-            # 不删除考试，因为可能有其他数据关联
-            print(f"[sync_exams] 完成：发现 {len(found)} 个考试，注入 {len(injected)} 个文件，DB 新增 {len(added)} 个")
-    except Exception as e:
-        print(f"[sync_exams] 数据库同步出错：{e}")
+    with db() as conn:
+        existing = {r["id"]: r["title"] for r in conn.execute("SELECT id, title FROM exams")}
+        for eid, etitle in found.items():
+            if eid not in existing:
+                conn.execute("INSERT INTO exams (id, title, is_active) VALUES (%s,%s,1)", (eid, etitle))
+                added.append(eid)
+                print(f"[sync_exams] 数据库新增考试：{eid} - {etitle}")
+            else:
+                # 如果文档中 exam-title 与数据库中不一致，更新数据库中的标题
+                if existing.get(eid) != etitle:
+                    conn.execute("UPDATE exams SET title=%s WHERE id=%s", (etitle, eid))
+                    updated.append(eid)
+                    print(f"[sync_exams] 数据库更新考试标题：{eid} - {etitle}")
+        # 只有在确实扫描到考试文档时才清理孤立记录，防止挂载目录为空时误删所有考试
+        if found:
+            for eid in list(existing):
+                if eid not in found:
+                    conn.execute("DELETE FROM exams WHERE id=%s", (eid,))
+                    deleted.append(eid)
+                    print(f"[sync_exams] 数据库删除孤立考试：{eid}")
+        elif existing:
+            print(f"[sync_exams] ⚠️  文档扫描结果为空，跳过孤立记录清理（保留 {len(existing)} 条现有记录）")
 
-    return {"injected_meta": injected, "db_added": added, "db_updated": updated, "db_deleted": deleted, "exams": list(found.keys())}
+    print(f"[sync_exams] 完成：发现 {len(found)} 个考试，"
+          f"注入 {len(injected)} 个文件，DB 新增 {len(added)}，更新 {len(updated)}，删除 {len(deleted)}")
+    return {"injected_meta": injected, "db_added": added, "db_updated": updated, "db_deleted": deleted,
+            "exams": list(found.keys())}
