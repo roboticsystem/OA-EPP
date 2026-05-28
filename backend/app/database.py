@@ -26,6 +26,19 @@ def db():
         conn.close()
 
 
+def _migrate_chapters(conn):
+    """幂等地为旧 chapters 表补充 F-S-011 字段"""
+    existing = {row["name"] for row in conn.execute("PRAGMA table_info(chapters)").fetchall()}
+    for col, ddl in {
+        "chapter_type":     "ALTER TABLE chapters ADD COLUMN chapter_type     TEXT DEFAULT '作业'",
+        "deadline":         "ALTER TABLE chapters ADD COLUMN deadline         TEXT DEFAULT ''",
+        "status":           "ALTER TABLE chapters ADD COLUMN status           TEXT DEFAULT '待开始'",
+        "grading_criteria": "ALTER TABLE chapters ADD COLUMN grading_criteria TEXT DEFAULT ''",
+    }.items():
+        if col not in existing:
+            conn.execute(ddl)
+
+
 def init_db():
     with db() as conn:
         conn.executescript("""
@@ -54,5 +67,26 @@ def init_db():
             submitted_at TEXT DEFAULT (datetime('now','localtime')),
             UNIQUE(student_id, exam_id)
         );
+
+        CREATE TABLE IF NOT EXISTS courses (
+            id         TEXT PRIMARY KEY,
+            title      TEXT NOT NULL,
+            semester   TEXT DEFAULT '',
+            is_active  INTEGER DEFAULT 1
+        );
+
+        CREATE TABLE IF NOT EXISTS chapters (
+            id               TEXT PRIMARY KEY,
+            course_id        TEXT NOT NULL REFERENCES courses(id),
+            chapter_no       INTEGER NOT NULL,
+            title            TEXT NOT NULL,
+            filename         TEXT NOT NULL,
+            file_path        TEXT NOT NULL,
+            chapter_type     TEXT DEFAULT '作业',
+            deadline         TEXT DEFAULT '',
+            status           TEXT DEFAULT '待开始',
+            grading_criteria TEXT DEFAULT ''
+        );
         """)
+        _migrate_chapters(conn)
         # 考试记录由 sync_exams() 根据 .md 文件动态维护，此处不再硬编码预置

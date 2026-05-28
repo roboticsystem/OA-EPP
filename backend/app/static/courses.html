@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OA-EPP · 课程学习</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex">
+
+  <!-- 侧边栏 -->
+  <aside class="w-56 bg-white border-r border-gray-200 flex flex-col min-h-screen fixed left-0 top-0 z-10">
+    <div class="px-5 py-5 border-b border-gray-100">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+          </svg>
+        </div>
+        <div>
+          <span class="font-bold text-gray-800 text-sm">OA-EPP</span>
+          <span class="ml-1.5 text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">学生端</span>
+        </div>
+      </div>
+    </div>
+    <nav class="flex-1 px-3 py-4 space-y-1">
+      <a href="dashboard.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        总览仪表盘
+      </a>
+      <a href="courses.html" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 font-medium text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        课程学习
+      </a>
+      <a href="assignments.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        作业提交
+      </a>
+      <a href="grades.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        成绩查看
+      </a>
+      <a href="attendance.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        课堂签到
+      </a>
+      <a href="exam.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        在线考试
+      </a>
+      <a href="profile.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        个人资料
+      </a>
+    </nav>
+    <div class="px-4 py-4 border-t border-gray-100">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">张</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-800 truncate">张三（学生）</p>
+          <p class="text-xs text-gray-400 truncate">2024001</p>
+        </div>
+      </div>
+      <a href="login.html" class="mt-3 block text-center text-xs text-gray-400 hover:text-red-500 transition">退出登录</a>
+    </div>
+  </aside>
+
+  <!-- 主内容区 -->
+  <main class="ml-56 flex-1 p-8">
+    <!-- 顶部导航 -->
+    <div class="mb-6">
+      <h1 class="text-xl font-bold text-gray-800">课程学习</h1>
+      <p class="text-sm text-gray-400 mt-0.5">查看所有工程实践课程与当前学期章节明细</p>
+    </div>
+
+    <!-- 课程卡片区域（F-S-010） -->
+    <div id="course-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <!-- JS 动态渲染 -->
+    </div>
+
+    <!-- 当前学期章节明细（F-S-011） -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-blue-50">
+        <div>
+          <h2 class="text-base font-bold text-gray-800">当前学期章节明细</h2>
+          <p class="text-xs text-gray-500 mt-0.5">工程实践4（EP4）· 2025-2026 学年第 2 学期</p>
+        </div>
+        <span class="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-medium" id="chapter-count">加载中…</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm" id="chapter-table">
+          <thead>
+            <tr class="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
+              <th class="px-6 py-3 font-medium">章节号</th>
+              <th class="px-6 py-3 font-medium">章节名</th>
+              <th class="px-6 py-3 font-medium">类型</th>
+              <th class="px-6 py-3 font-medium">截止时间</th>
+              <th class="px-6 py-3 font-medium">状态</th>
+              <th class="px-6 py-3 font-medium">评分标准</th>
+            </tr>
+          </thead>
+          <tbody id="chapter-body" class="divide-y divide-gray-100">
+            <!-- JS 动态渲染 -->
+          </tbody>
+        </table>
+      </div>
+      <div id="chapter-empty" class="hidden px-6 py-12 text-center text-sm text-gray-400">
+        暂无章节数据
+      </div>
+    </div>
+
+    <!-- 课程公告区 -->
+    <div class="mt-6 bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <h3 class="text-sm font-semibold text-gray-700 mb-3">📢 课程公告</h3>
+      <div class="space-y-3" id="announcements">
+        <div class="flex items-start gap-3 p-3 bg-green-50 rounded-lg border border-green-100">
+          <span class="w-2 h-2 rounded-full bg-green-500 mt-1.5 flex-shrink-0"></span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm text-gray-700">EP4 第 1 章作业已发布，截止时间为 2026-06-15 23:59</p>
+            <p class="text-xs text-gray-400 mt-0.5">2026-05-28 10:00</p>
+          </div>
+          <span class="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full flex-shrink-0">未读</span>
+        </div>
+        <div class="flex items-start gap-3 p-3 bg-orange-50 rounded-lg border border-orange-100">
+          <span class="w-2 h-2 rounded-full bg-orange-500 mt-1.5 flex-shrink-0"></span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm text-gray-700">EP3 第 3 章作业即将到期，请尽快提交</p>
+            <p class="text-xs text-gray-400 mt-0.5">2026-05-25 14:30</p>
+          </div>
+          <span class="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full flex-shrink-0">未读</span>
+        </div>
+        <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+          <span class="w-2 h-2 rounded-full bg-gray-300 mt-1.5 flex-shrink-0"></span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm text-gray-600">EP2 所有章节评分已完成，请查看成绩详情</p>
+            <p class="text-xs text-gray-400 mt-0.5">2026-05-20 09:15</p>
+          </div>
+          <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0">已读</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API = '';
+
+    async function loadCourses() {
+      try {
+        const r = await fetch(`${API}/api/courses`);
+        const courses = await r.json();
+        renderCourseCards(courses);
+        // 默认显示 EP4 章节
+        const ep4 = courses.find(c => c.id === 'EP4');
+        if (ep4) loadChapters('EP4');
+        document.getElementById('chapter-count').textContent =
+          ep4 ? `${ep4.completed_chapters || 0} / ${ep4.total_chapters || 0} 章已完成` : '无数据';
+      } catch (e) {
+        document.getElementById('course-cards').innerHTML =
+          '<div class="col-span-4 text-center py-8 text-sm text-gray-400">加载课程数据失败</div>';
+      }
+    }
+
+    function renderCourseCards(courses) {
+      const container = document.getElementById('course-cards');
+      if (!courses.length) {
+        container.innerHTML = '<div class="col-span-4 text-center py-8 text-sm text-gray-400">暂无课程数据</div>';
+        return;
+      }
+      container.innerHTML = courses.map(c => {
+        const pct = c.total_chapters > 0 ? Math.round(c.completed_chapters / c.total_chapters * 100) : 0;
+        const isCurrent = c.id === 'EP4';
+        return `
+          <div class="bg-white rounded-xl border ${isCurrent ? 'border-blue-300' : 'border-gray-200'} shadow-sm p-5 hover:shadow-md transition cursor-pointer" onclick="loadChapters('${c.id}')">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-bold text-gray-800">${c.title}</h3>
+              ${isCurrent
+                ? '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">当前</span>'
+                : '<span class="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full">已完成</span>'
+              }
+            </div>
+            <div class="space-y-2 text-xs text-gray-500 mb-3">
+              <div class="flex justify-between">
+                <span>章节总数</span>
+                <span class="font-medium text-gray-700">${c.total_chapters || 0}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>已完成</span>
+                <span class="font-medium text-gray-700">${c.completed_chapters || 0}</span>
+              </div>
+            </div>
+            <!-- 进度条 -->
+            <div class="w-full bg-gray-100 rounded-full h-2">
+              <div class="bg-blue-600 h-2 rounded-full transition-all" style="width:${pct}%"></div>
+            </div>
+            <div class="flex justify-between mt-1">
+              <span class="text-xs text-gray-400">进度</span>
+              <span class="text-xs font-medium text-gray-600">${pct}%</span>
+            </div>
+            ${isCurrent
+              ? '<p class="mt-2 text-xs text-orange-500 flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>进行中 · 点击查看章节</p>'
+              : '<p class="mt-2 text-xs text-green-500 flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>全部完成</p>'
+            }
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function loadChapters(courseId) {
+      try {
+        const r = await fetch(`${API}/api/courses/${courseId}/chapters`);
+        const data = await r.json();
+        renderChapterTable(data.chapters, data.course);
+      } catch (e) {
+        document.getElementById('chapter-body').innerHTML =
+          '<tr><td colspan="6" class="px-6 py-8 text-center text-sm text-gray-400">加载章节数据失败</td></tr>';
+      }
+    }
+
+    function renderChapterTable(chapters, course) {
+      const tbody = document.getElementById('chapter-body');
+      const empty = document.getElementById('chapter-empty');
+
+      if (!chapters.length) {
+        tbody.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      const typeColors = {
+        '考试': 'bg-red-100 text-red-600',
+        '作业': 'bg-blue-100 text-blue-600',
+        '签到': 'bg-green-100 text-green-600',
+      };
+      const statusColors = {
+        '已完成': 'bg-green-100 text-green-600',
+        '进行中': 'bg-blue-100 text-blue-600',
+        '待开始': 'bg-gray-100 text-gray-500',
+        '未通过': 'bg-red-100 text-red-600',
+      };
+
+      // 更新表格标题
+      const headerRow = document.querySelector('#chapter-table thead tr');
+      // 高亮对应课程卡片
+      document.querySelectorAll('#course-cards > div').forEach((card, idx) => {
+        card.classList.remove('border-blue-300', 'ring-2', 'ring-blue-200');
+        if (course && card.querySelector('h3')?.textContent === course.title) {
+          card.classList.add('ring-2', 'ring-blue-200');
+        }
+      });
+
+      tbody.innerHTML = chapters.map(ch => {
+        const typeColor = typeColors[ch.chapter_type] || 'bg-gray-100 text-gray-500';
+        const statusColor = statusColors[ch.status] || 'bg-gray-100 text-gray-500';
+        const deadline = ch.deadline || '待定';
+        const grading = ch.grading_criteria || '—';
+        return `
+          <tr class="hover:bg-gray-50 transition">
+            <td class="px-6 py-4 text-gray-700 font-medium">${ch.chapter_no}</td>
+            <td class="px-6 py-4 text-gray-800">${ch.title}</td>
+            <td class="px-6 py-4">
+              <span class="text-xs px-2 py-0.5 rounded-full font-medium ${typeColor}">${ch.chapter_type}</span>
+            </td>
+            <td class="px-6 py-4 text-gray-500 text-xs">${deadline}</td>
+            <td class="px-6 py-4">
+              <span class="text-xs px-2 py-0.5 rounded-full font-medium ${statusColor}">${ch.status}</span>
+            </td>
+            <td class="px-6 py-4 text-gray-500 text-xs">${grading}</td>
+          </tr>
+        `;
+      }).join('');
+
+      // 更新计数
+      const done = chapters.filter(ch => ch.status === '已完成').length;
+      document.getElementById('chapter-count').textContent =
+        `${done} / ${chapters.length} 章已完成`;
+    }
+
+    loadCourses();
+  </script>
+</body>
+</html>
