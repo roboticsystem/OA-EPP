@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>课堂考试管理 - 教师</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei",sans-serif;background:#f5f5f5;color:#333}
+  .header{background:#1565c0;color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center}
+  .container{max-width:960px;margin:20px auto;padding:0 16px}
+  .card{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.1);margin-bottom:16px;padding:20px}
+  input,select,textarea{width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;margin-bottom:8px;font-size:.9rem}
+  .btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+  .btn-p{background:#1565c0;color:#fff}.btn-d{background:#c62828;color:#fff}
+  .btn-o{background:#fff;border:1px solid #1565c0;color:#1565c0}
+  table{width:100%;border-collapse:collapse;font-size:.85rem}
+  th,td{padding:8px;border-bottom:1px solid #eee;text-align:left}
+  .q-block{border:1px dashed #bbdefb;padding:12px;margin:8px 0;border-radius:8px}
+  .hidden{display:none}
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center}
+  .login-box{background:#fff;padding:32px;border-radius:12px;width:320px;box-shadow:0 4px 20px rgba(0,0,0,.12)}
+</style>
+</head>
+<body>
+<div id="login-view" class="login-wrap">
+  <div class="login-box">
+    <h2 style="color:#1565c0;margin-bottom:16px">教师登录</h2>
+    <input type="password" id="pwd" placeholder="管理密码">
+    <button class="btn btn-p" style="width:100%" id="btn-login">登录</button>
+    <p id="login-err" style="color:#c62828;font-size:.85rem;margin-top:8px"></p>
+  </div>
+</div>
+<div id="app" class="hidden">
+  <div class="header">
+    <span>课堂在线考试管理 (F-S-053)</span>
+    <a href="/teacher" style="color:#fff;font-size:.85rem">返回主后台</a>
+  </div>
+  <div class="container">
+    <div class="card">
+      <h3 style="margin-bottom:12px">发布新考试</h3>
+      <label>考试 ID（留空自动生成）</label>
+      <input id="exam-id" placeholder="exam-week11">
+      <label>标题</label>
+      <input id="exam-title" placeholder="第11周随堂测验">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label>开始时间</label><input id="exam-start" placeholder="2026-05-28 09:00:00"></div>
+        <div><label>结束时间</label><input id="exam-end" placeholder="2026-05-28 09:30:00"></div>
+      </div>
+      <div id="questions"></div>
+      <button class="btn btn-o" id="btn-add-q">+ 添加题目</button>
+      <button class="btn btn-p" id="btn-create" style="margin-top:12px">发布考试</button>
+      <p id="create-msg" style="margin-top:8px;font-size:.85rem"></p>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:12px">考试列表</h3>
+      <div id="exam-list"></div>
+    </div>
+    <div class="card hidden" id="grade-panel">
+      <h3 id="grade-title">批改答卷</h3>
+      <div id="grade-body"></div>
+      <button class="btn btn-p" id="btn-save-grade">保存批改</button>
+    </div>
+  </div>
+</div>
+<script>
+const API = (location.hostname==="127.0.0.1"||location.hostname==="localhost") ? "http://127.0.0.1:8009" : "";
+let token = sessionStorage.getItem("teacher_token") || "";
+let gradeCtx = null;
+
+function hdr(){ return { "Content-Type":"application/json", "Authorization":"Bearer "+token }; }
+async function api(path, opts={}) {
+  const r = await fetch(API+path, opts);
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(d.detail||r.statusText);
+  return d;
+}
+
+document.getElementById("btn-login").onclick = async () => {
+  try {
+    const d = await api("/api/teacher/login", { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ password: document.getElementById("pwd").value }) });
+    token = d.token;
+    sessionStorage.setItem("teacher_token", token);
+    showApp();
+  } catch(e) { document.getElementById("login-err").textContent = e.message; }
+};
+
+if(token) showApp();
+
+function showApp(){
+  document.getElementById("login-view").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  loadExams();
+  if(!document.getElementById("questions").children.length) addQuestion();
+}
+
+function addQuestion(){
+  const i = document.getElementById("questions").children.length + 1;
+  const div = document.createElement("div");
+  div.className = "q-block";
+  div.innerHTML = `
+    <strong>题目 ${i}</strong>
+    <select class="q-type"><option value="single">单选</option><option value="multi">多选</option>
+      <option value="blank">填空</option><option value="short">简答</option></select>
+    <textarea class="q-content" rows="2" placeholder="题干"></textarea>
+    <input class="q-options" placeholder="选项（每行一个，单选/多选必填）">
+    <input class="q-key" placeholder='答案键 JSON，如 {"correct":"A"} 或 {"correct":["A","C"]} 或 {"acceptable":["答案"]}'>
+    <input class="q-score" type="number" value="2" min="0.5" step="0.5" placeholder="分值">
+  `;
+  document.getElementById("questions").appendChild(div);
+}
+document.getElementById("btn-add-q").onclick = addQuestion;
+
+document.getElementById("btn-create").onclick = async () => {
+  const questions = [...document.querySelectorAll(".q-block")].map(b => {
+    const qtype = b.querySelector(".q-type").value;
+    const opts = b.querySelector(".q-options").value.trim().split("\n").filter(Boolean);
+    return {
+      qtype, content: b.querySelector(".q-content").value.trim(),
+      options: ["single","multi"].includes(qtype) ? opts : null,
+      answer_key: JSON.parse(b.querySelector(".q-key").value.trim() || "{}"),
+      score: parseFloat(b.querySelector(".q-score").value) || 2,
+    };
+  });
+  const body = {
+    id: document.getElementById("exam-id").value.trim() || undefined,
+    title: document.getElementById("exam-title").value.trim(),
+    start_at: document.getElementById("exam-start").value.trim(),
+    end_at: document.getElementById("exam-end").value.trim(),
+    questions,
+  };
+  try {
+    const d = await api("/api/teacher/classroom-exams", { method:"POST", headers:hdr(), body:JSON.stringify(body) });
+    document.getElementById("create-msg").textContent = "发布成功："+d.id;
+    document.getElementById("create-msg").style.color = "#2e7d32";
+    loadExams();
+  } catch(e) {
+    document.getElementById("create-msg").textContent = e.message;
+    document.getElementById("create-msg").style.color = "#c62828";
+  }
+};
+
+async function loadExams(){
+  const exams = await api("/api/teacher/classroom-exams", { headers:hdr() });
+  document.getElementById("exam-list").innerHTML = exams.length ? `<table>
+    <tr><th>标题</th><th>时间</th><th>状态</th><th>题数</th><th>已交</th><th>操作</th></tr>
+    ${exams.map(e=>`<tr>
+      <td>${e.title}</td><td style="font-size:.75rem">${e.start_at}<br>${e.end_at}</td>
+      <td>${e.status}</td><td>${e.question_count}</td><td>${e.submitted_count}</td>
+      <td><button class="btn btn-o btn-sm" data-id="${e.id}">提交列表</button>
+      <button class="btn btn-d btn-sm" data-del="${e.id}">删除</button></td>
+    </tr>`).join("")}</table>
+    <p style="margin-top:8px;font-size:.8rem;color:#888">学生入口：<a href="/classroom-exam">/classroom-exam</a></p>` : "<p>暂无考试</p>";
+
+  document.querySelectorAll("[data-id]").forEach(b => b.onclick = () => loadAttempts(b.dataset.id));
+  document.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+    if(!confirm("确定删除？")) return;
+    await api("/api/teacher/classroom-exams/"+b.dataset.del, { method:"DELETE", headers:hdr() });
+    loadExams();
+  });
+}
+
+async function loadAttempts(examId){
+  const d = await api("/api/teacher/classroom-exams/"+examId+"/attempts", { headers:hdr() });
+  const box = document.createElement("div");
+  box.innerHTML = `<h4 style="margin:12px 0">${d.exam_title} — 提交列表</h4><table>
+    <tr><th>姓名</th><th>学号</th><th>状态</th><th>客观分</th><th>总分</th><th>操作</th></tr>
+    ${d.attempts.filter(a=>a.status!=="draft").map(a=>`<tr>
+      <td>${a.name}</td><td>${a.student_id}</td><td>${a.status}</td>
+      <td>${a.objective_score??"—"}</td><td>${a.total_score??"—"}</td>
+      <td>${a.subjective_pending?`<button data-grade="${a.id}" data-exam="${examId}">批改</button>`:"—"}</td>
+    </tr>`).join("") || "<tr><td colspan=6>暂无提交</td></tr>"}
+  </table>`;
+  document.getElementById("exam-list").appendChild(box);
+  box.querySelectorAll("[data-grade]").forEach(b => b.onclick = () => openGrade(b.dataset.exam, b.dataset.grade));
+}
+
+async function openGrade(examId, attemptId){
+  const d = await api(`/api/teacher/classroom-exams/${examId}/attempts/${attemptId}`, { headers:hdr() });
+  gradeCtx = { examId, attemptId };
+  document.getElementById("grade-panel").classList.remove("hidden");
+  document.getElementById("grade-title").textContent = `批改 — ${d.attempt.student_id}`;
+  document.getElementById("grade-body").innerHTML = d.questions.filter(q=>q.qtype==="short").map(q=>`
+    <div class="q-block"><p><strong>${q.content}</strong>（满分${q.max_score}）</p>
+    <p style="background:#f5f5f5;padding:8px;border-radius:6px;margin:8px 0">${q.student_answer||"（未作答）"}</p>
+    <label>得分</label><input type="number" class="grade-score" data-qid="${q.question_id}" max="${q.max_score}" min="0" step="0.5" value="0">
+    </div>`).join("") || "<p>无简答题</p>";
+}
+
+document.getElementById("btn-save-grade").onclick = async () => {
+  if(!gradeCtx) return;
+  const grades = [...document.querySelectorAll(".grade-score")].map(inp => ({
+    question_id: parseInt(inp.dataset.qid), score: parseFloat(inp.value)||0
+  }));
+  await api(`/api/teacher/classroom-exams/${gradeCtx.examId}/attempts/${gradeCtx.attemptId}/grade`, {
+    method:"POST", headers:hdr(), body: JSON.stringify({ grades })
+  });
+  alert("批改已保存");
+  loadExams();
+};
+</script>
+</body>
+</html>
