@@ -84,12 +84,12 @@ async def upload_students(
     with db() as conn:
         conn.executemany("""
             INSERT INTO students (name, student_id, class_name, pinyin, pinyin_abbr)
-            VALUES (?,?,?,?,?)
-            ON CONFLICT(student_id) DO UPDATE SET
-                name=excluded.name,
-                class_name=excluded.class_name,
-                pinyin=excluded.pinyin,
-                pinyin_abbr=excluded.pinyin_abbr
+            VALUES (%s,%s,%s,%s,%s)
+            ON DUPLICATE KEY UPDATE
+                name=VALUES(name),
+                class_name=VALUES(class_name),
+                pinyin=VALUES(pinyin),
+                pinyin_abbr=VALUES(pinyin_abbr)
         """, records)
 
     return {"count": len(records)}
@@ -112,12 +112,12 @@ def add_student(req: AddStudentRequest, authorization: Optional[str] = Header(No
     pinyin, abbr = _name_to_pinyin(req.name)
     with db() as conn:
         existing = conn.execute(
-            "SELECT name FROM students WHERE student_id=?", (req.student_id,)
+            "SELECT name FROM students WHERE student_id=%s", (req.student_id,)
         ).fetchone()
         if existing:
             raise HTTPException(status_code=409, detail=f"学号 {req.student_id} 已存在（{existing['name']}）")
         conn.execute(
-            "INSERT INTO students (name, student_id, class_name, pinyin, pinyin_abbr) VALUES (?,?,?,?,?)",
+            "INSERT INTO students (name, student_id, class_name, pinyin, pinyin_abbr) VALUES (%s,%s,%s,%s,%s)",
             (req.name, req.student_id, req.class_name.strip(), pinyin, abbr)
         )
     return {"ok": True}
@@ -129,12 +129,12 @@ def delete_student(student_id: str, authorization: Optional[str] = Header(None))
     _require_teacher(authorization)
     with db() as conn:
         student = conn.execute(
-            "SELECT name FROM students WHERE student_id=?", (student_id,)
+            "SELECT name FROM students WHERE student_id=%s", (student_id,)
         ).fetchone()
         if not student:
             raise HTTPException(status_code=404, detail="学号不存在")
-        conn.execute("DELETE FROM scores WHERE student_id=?", (student_id,))
-        conn.execute("DELETE FROM students WHERE student_id=?", (student_id,))
+        conn.execute("DELETE FROM scores WHERE student_id=%s", (student_id,))
+        conn.execute("DELETE FROM students WHERE student_id=%s", (student_id,))
     return {"ok": True, "deleted": student["name"]}
 
 
@@ -167,7 +167,8 @@ def list_students(authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
     with db() as conn:
         rows = conn.execute(
-            "SELECT name, student_id, class_name FROM students ORDER BY class_name, name"
+            "SELECT u.full_name AS name, u.student_no AS student_id, COALESCE(s.class_name,'') AS class_name "
+            "FROM students s JOIN users u ON s.user_id=u.id WHERE u.role='student' ORDER BY s.class_name, u.full_name"
         ).fetchall()
     return [dict(r) for r in rows]
 
@@ -190,10 +191,10 @@ def list_exams(authorization: Optional[str] = Header(None)):
         result = []
         for e in exams:
             submitted = conn.execute(
-                "SELECT COUNT(*) FROM scores WHERE exam_id=?", (e["id"],)
+                "SELECT COUNT(*) FROM scores WHERE exam_id=%s", (e["id"],)
             ).fetchone()[0]
             avg = conn.execute(
-                "SELECT AVG(score) FROM scores WHERE exam_id=?", (e["id"],)
+                "SELECT AVG(score) FROM scores WHERE exam_id=%s", (e["id"],)
             ).fetchone()[0]
             result.append({
                 "id": e["id"], "title": e["title"], "is_active": e["is_active"],
@@ -213,7 +214,7 @@ def create_exam(req: ExamCreate, authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
     with db() as conn:
         conn.execute(
-            "INSERT OR REPLACE INTO exams (id, title) VALUES (?,?)",
+            "REPLACE INTO exams (id, title) VALUES (%s,%s)",
             (req.id, req.title)
         )
     return {"ok": True}
@@ -227,7 +228,7 @@ class ExamUpdate(BaseModel):
 def update_exam(exam_id: str, req: ExamUpdate, authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
     with db() as conn:
-        conn.execute("UPDATE exams SET is_active=? WHERE id=?", (req.is_active, exam_id))
+        conn.execute("UPDATE exams SET is_active=%s WHERE id=%s", (req.is_active, exam_id))
     return {"ok": True}
 
 
@@ -236,7 +237,7 @@ def get_scores(exam_id: str = Query(...), authorization: Optional[str] = Header(
     """获取某次考试的所有学生成绩（含未提交）"""
     _require_teacher(authorization)
     with db() as conn:
-        exam = conn.execute("SELECT title FROM exams WHERE id=?", (exam_id,)).fetchone()
+        exam = conn.execute("SELECT title FROM exams WHERE id=%s", (exam_id,)).fetchone()
         if not exam:
             raise HTTPException(status_code=404, detail="考试不存在")
 
@@ -246,7 +247,7 @@ def get_scores(exam_id: str = Query(...), authorization: Optional[str] = Header(
         scores_map = {
             r["student_id"]: dict(r)
             for r in conn.execute(
-                "SELECT student_id, score, total, submitted_at FROM scores WHERE exam_id=?",
+                "SELECT student_id, score, total, submitted_at FROM scores WHERE exam_id=%s",
                 (exam_id,)
             ).fetchall()
         }
@@ -272,7 +273,7 @@ def export_scores(exam_id: str = Query(...), authorization: Optional[str] = Head
     _require_teacher(authorization)
 
     with db() as conn:
-        exam = conn.execute("SELECT title FROM exams WHERE id=?", (exam_id,)).fetchone()
+        exam = conn.execute("SELECT title FROM exams WHERE id=%s", (exam_id,)).fetchone()
         if not exam:
             raise HTTPException(status_code=404, detail="考试不存在")
 
@@ -282,7 +283,7 @@ def export_scores(exam_id: str = Query(...), authorization: Optional[str] = Head
         scores_map = {
             r["student_id"]: dict(r)
             for r in conn.execute(
-                "SELECT student_id, score, total, submitted_at FROM scores WHERE exam_id=?",
+                "SELECT student_id, score, total, submitted_at FROM scores WHERE exam_id=%s",
                 (exam_id,)
             ).fetchall()
         }
@@ -339,12 +340,14 @@ def get_binding_summary(authorization: Optional[str] = Header(None)):
     """获取全班绑定状态汇总统计"""
     _require_teacher(authorization)
     with db() as conn:
-        total = conn.execute("SELECT COUNT(*) FROM students").fetchone()[0]
+        total = conn.execute(
+            "SELECT COUNT(*) FROM students s JOIN users u ON s.user_id=u.id WHERE u.role='student'"
+        ).fetchone()[0]
         bound = conn.execute(
-            "SELECT COUNT(*) FROM github_bindings WHERE status='bound'"
+            "SELECT COUNT(*) FROM github_bindings WHERE verify_status='approved'"
         ).fetchone()[0]
         pending = conn.execute(
-            "SELECT COUNT(*) FROM github_bindings WHERE status='pending'"
+            "SELECT COUNT(*) FROM github_bindings WHERE verify_status='pending'"
         ).fetchone()[0]
         unbound = total - bound - pending
     return {"total": total, "bound": bound, "pending": pending, "unbound": max(unbound, 0)}
@@ -362,46 +365,49 @@ def get_binding_list(
 
     with db() as conn:
         query = """
-            SELECT s.name, s.student_id, s.class_name,
+            SELECT u.full_name AS name, u.student_no AS student_id,
+                   COALESCE(s.class_name, '') AS class_name,
                    COALESCE(g.github_username, '') AS github_username,
-                   COALESCE(g.status, 'unbound') AS binding_status,
+                   COALESCE(g.verify_status, 'unbound') AS binding_status,
                    COALESCE(g.github_name, '') AS github_name,
-                   g.verified_at, g.updated_at
+                   g.verified_at
             FROM students s
-            LEFT JOIN github_bindings g ON s.student_id = g.student_id
+            JOIN users u ON s.user_id = u.id
+            LEFT JOIN github_bindings g ON s.user_id = g.student_user_id
+            WHERE u.role = 'student'
         """
         conditions = []
         params: list = []
 
         if status and status != "all":
             if status == "unbound":
-                conditions.append("(g.status IS NULL OR g.status='unbound')")
+                conditions.append("(g.verify_status IS NULL OR g.verify_status NOT IN ('approved','pending'))")
             else:
-                conditions.append("g.status = ?")
+                conditions.append("g.verify_status = %s")
                 params.append(status)
 
         if search:
             conditions.append(
-                "(s.name LIKE ? OR s.student_id LIKE ? OR g.github_username LIKE ?)"
+                "(u.full_name LIKE %s OR u.student_no LIKE %s OR g.github_username LIKE %s)"
             )
             like = f"%{search}%"
             params.extend([like, like, like])
 
         if conditions:
-            query += " WHERE " + " AND ".join(conditions)
+            query += " AND " + " AND ".join(conditions)
 
         if sort_by_status:
             query += """
                 ORDER BY
                     CASE
-                        WHEN g.status IS NULL OR g.status='unbound' THEN 0
-                        WHEN g.status='pending' THEN 1
-                        WHEN g.status='bound' THEN 2
+                        WHEN g.verify_status IS NULL OR g.verify_status NOT IN ('approved','pending') THEN 0
+                        WHEN g.verify_status = 'pending' THEN 1
+                        WHEN g.verify_status = 'approved' THEN 2
                     END,
-                    s.student_id
+                    u.student_no
             """
         else:
-            query += " ORDER BY s.student_id"
+            query += " ORDER BY u.student_no"
 
     with db() as conn:
         rows = conn.execute(query, params).fetchall()
