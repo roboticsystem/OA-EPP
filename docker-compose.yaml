@@ -54,8 +54,11 @@ services:
     container_name: oaepp_mysql
     image: mysql:8.0
     restart: unless-stopped
+    ports:
+      - "13306:3306"         # 对外暴露供学生开发调试；生产环境可移除此行
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
+      MYSQL_ROOT_HOST: '%'
       MYSQL_USER: user
       MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
       MYSQL_DATABASE: oaepp_database
