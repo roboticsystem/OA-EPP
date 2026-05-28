@@ -33,8 +33,17 @@ jobs:
       - name: 加载课程专属配置
         run: |
           echo "加载机器人系统课程 Review规则..."
+          python .github/scripts/build_pr_agent_config.py --output "$RUNNER_TEMP/pr-agent-configuration.toml"
+          echo "默认模板清单："
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path(".github/review-prompts/manifest.json").read_text(encoding="utf-8"))
+          print(f"default_template={manifest['default_template']}")
+          print("templates=" + ",".join(template["id"] for template in manifest["templates"]))
+          PY
           echo '--- configuration start ---'
-          sed -n '1,200p' .github/pr_agent/configuration.toml || true
+          sed -n '1,220p' "$RUNNER_TEMP/pr-agent-configuration.toml" || true
           echo '--- configuration end ---'
 
       - name: Run PR Agent Review（机器人系统课程定制版）
@@ -46,7 +55,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.MODELS_API_KEY }}
           OPENAI_API_BASE: https://models.inference.ai.azure.com
           LITELLM_DROP_PARAMS: "true"
-          PR_AGENT_CONFIG_PATH: .github/pr_agent/configuration.toml
+          PR_AGENT_CONFIG_PATH: ${{ runner.temp }}/pr-agent-configuration.toml
         run: |
           set -x
           # pr-agent 0.2.4 语法：--pr_url 必须在子命令之前
