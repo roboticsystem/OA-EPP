@@ -413,3 +413,61 @@ def get_binding_list(
         rows = conn.execute(query, params).fetchall()
 
     return [dict(r) for r in rows]
+
+
+class BatchStudentIds(BaseModel):
+    student_ids: list[str]
+
+
+@router.post("/api/teacher/github-bindings/batch-approve")
+def batch_approve_bindings(req: BatchStudentIds, authorization: Optional[str] = Header(None)):
+    """一键批量通过待审核的绑定请求"""
+    _require_teacher(authorization)
+    if not req.student_ids:
+        raise HTTPException(status_code=422, detail="请选择至少一名学生")
+    placeholders = ",".join(["%s"] * len(req.student_ids))
+    with db() as conn:
+        conn.execute(
+            f"UPDATE github_bindings g JOIN users u ON g.student_user_id=u.id "
+            f"SET g.verify_status='approved', g.verified_at=NOW() "
+            f"WHERE u.student_no IN ({placeholders}) AND g.verify_status='pending'",
+            req.student_ids
+        )
+    return {"ok": True, "approved": conn.rowcount}
+
+
+@router.post("/api/teacher/github-bindings/reject")
+def reject_binding(req: BatchStudentIds, authorization: Optional[str] = Header(None)):
+    """拒绝绑定申请"""
+    _require_teacher(authorization)
+    if not req.student_ids:
+        raise HTTPException(status_code=422, detail="请选择至少一名学生")
+    placeholders = ",".join(["%s"] * len(req.student_ids))
+    with db() as conn:
+        conn.execute(
+            f"UPDATE github_bindings g JOIN users u ON g.student_user_id=u.id "
+            f"SET g.verify_status='rejected', g.github_username='', g.github_name='', g.verified_at=NULL "
+            f"WHERE u.student_no IN ({placeholders})",
+            req.student_ids
+        )
+    return {"ok": True}
+
+
+@router.post("/api/teacher/github-bindings/send-reminder")
+def send_binding_reminder(req: BatchStudentIds, authorization: Optional[str] = Header(None)):
+    """向未绑定学生批量发送提醒"""
+    _require_teacher(authorization)
+    if not req.student_ids:
+        raise HTTPException(status_code=422, detail="请选择至少一名学生")
+    placeholders = ",".join(["%s"] * len(req.student_ids))
+    with db() as conn:
+        rows = conn.execute(
+            f"SELECT u.full_name AS name FROM users u "
+            f"JOIN students s ON s.user_id=u.id "
+            f"LEFT JOIN github_bindings g ON g.student_user_id=u.id "
+            f"WHERE u.student_no IN ({placeholders}) "
+            f"AND (g.verify_status IS NULL OR g.verify_status NOT IN ('approved','pending'))",
+            req.student_ids
+        ).fetchall()
+    names = [r["name"] for r in rows]
+    return {"ok": True, "reminded": len(names), "students": names}
