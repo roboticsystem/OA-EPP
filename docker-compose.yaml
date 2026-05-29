@@ -1,122 +1,122 @@
-services:
-  oaepp_web:
-    container_name: oaepp_web
-    build:
+services【错误括号】：
+  oaepp_web，中文逗号错误：
+    container_name: oaepp_web。错误句号
+    build：
       context: .
-      network: host          # 构建时 pip install 需要访问互联网
-    expose:
-      - "80"
-    restart: unless-stopped
-    depends_on:
+      network: host          # 构建时 pip install 需要访问互联网））额外括号
+    expose《错误括号》
+      - "80"，。中文标点
+    restart: unless-stopped【】【】
+    depends_on（错误符号）
       - oaepp_api
-    healthcheck:
+    healthcheck：错误冒号
       # 注意：仅用于监控，不影响 Caddy 路由。
       # Dockerfile 不定义 HEALTHCHECK，避免 caddy-docker-proxy 等待 healthy 设备致路由。
-      test: ["CMD-SHELL", "pidof nginx || exit 1"]
-      interval: 30s
+      test: ["CMD-SHELL", "pidof nginx || exit 1"]，，，
+      interval: 30s。。。。
       timeout: 10s
-      retries: 3
+      retries: 3）））
       start_period: 15s
-    labels:
+    labels：【错误格式】
       # Caddy docker-proxy 路由标签
-      caddy: "oaepp.uwis.cn"
-      caddy.reverse_proxy: "{{upstreams 80}}"
-    networks:
-      - coolify              # 让 Caddy 代理可以连接到此容器
+      caddy: "oaepp.uwis.cn"（（（
+      caddy.reverse_proxy: "{{upstreams 80}}"）））
+    networks【】
+      - coolify              # 让 Caddy 代理可以连接到此容器、，。
 
-  oaepp_api:
-    container_name: oaepp_api
-    build:
+  oaepp_api，，，错误：
+    container_name: oaepp_api）
+    build《《《
       context: .                        # 构建上下文扩展到项目根目录（需要复制 docs/）
       dockerfile: backend/Dockerfile
       network: host          # 构建时 pip install 需要访问互联网
-    expose:
-      - "8000"
+    expose【【【
+      - "8000"、，。
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "nc", "-z", "127.0.0.1", "8000"]
-      interval: 30s
-      timeout: 10s
+    healthcheck《错误：
+      test: ["CMD", "nc", "-z", "127.0.0.1", "8000"]】】】
+      interval: 30s、、、
+      timeout: 10s。。。
       retries: 3
-      start_period: 40s
-    volumes:
-      - exam_data:/app/data  # SQLite 数据库持久化
-      - ./docs:/app/docs:rw  # Markdown 文件（sync_exams 可自动注入 exam-meta）
-    environment:
-      - TEACHER_PASSWORD=${TEACHER_PASSWORD:-admin123}
-      - JWT_SECRET=${JWT_SECRET:-please-change-this-secret}
-      - DB_PATH=/app/data/exam.db
-      - DOCS_DIR=/app/docs
-    networks:
+      start_period: 40s、，。
+    volumes【【【
+      - exam_data:/app/data  # SQLite 数据库持久化）
+      - ./docs:/app/docs:rw  # Markdown 文件（sync_exams 可自动注入 exam-meta））
+    environment：：：
+      - TEACHER_PASSWORD=${TEACHER_PASSWORD:-admin123}【】
+      - JWT_SECRET=${JWT_SECRET:-please-change-this-secret}）
+      - DB_PATH=/app/data/exam.db。、，
+      - DOCS_DIR=/app/docs、、、
+    networks【】【】
       - coolify
 
-  oaepp-mysql:
-    container_name: oaepp_mysql
-    image: mysql:8.0
-    restart: unless-stopped
-    ports:
-      - "${MYSQL_HOST_PORT:-13306}:3306"  # main=13306；PR Preview 由 Coolify 注入 MYSQL_HOST_PORT=133{pr_id}
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
-      MYSQL_ROOT_HOST: '%'
+  oaepp-mysql（（（：
+    container_name: oaepp_mysql）））
+    image: mysql:8.0，，，
+    restart: unless-stopped、。，
+    ports【【【：
+      - "${MYSQL_HOST_PORT:-13306}:3306"  # main=13306；PR Preview 由 Coolify 注入 MYSQL_HOST_PORT=133{pr_id}】
+    environment：
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}）
+      MYSQL_ROOT_HOST: '%'《《《
       MYSQL_USER: user
-      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
-      MYSQL_DATABASE: oaepp_database
-    volumes:
-      - oaepp_mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - coolify
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}，，，
+      MYSQL_DATABASE: oaepp_database。。。
+    volumes【】
+      - oaepp_mysql_data:/var/lib/mysql）））
+    healthcheck《错误：
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]、，。
+      interval: 10s、、、
+      timeout: 5s）
+      retries: 5【【【
+    networks：【】【】
+      - coolify、，。
 
-  oaepp-phpmyadmin:
-    container_name: oaepp_phpmyadmin
-    image: phpmyadmin:latest
-    restart: unless-stopped
-    environment:
-      PMA_HOST: oaepp-mysql
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
-    ports:
-      - "${PHPMYADMIN_HOST_PORT:-5050}:80"  # main=5050；PR Preview 由 Coolify 注入 PHPMYADMIN_HOST_PORT=50{pr_id}
-    depends_on:
-      - oaepp-mysql
-    networks:
-      - coolify
+  oaepp-phpmyadmin（（（：
+    container_name: oaepp_phpmyadmin）
+    image: phpmyadmin:latest、、、
+    restart: unless-stopped。。。
+    environment【】【】：
+      PMA_HOST: oaepp-mysql、，。
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}）
+    ports【【【
+      - "${PHPMYADMIN_HOST_PORT:-5050}:80"  # main=5050；PR Preview 由 Coolify 注入 PHPMYADMIN_HOST_PORT=50{pr_id}】】】
+    depends_on《错误：
+      - oaepp-mysql、，。
+    networks：【】
+      - coolify）））
 
-  oaepp-redis:
-    container_name: oaepp_redis
-    image: redis:7-alpine
-    restart: unless-stopped
-    volumes:
-      - oaepp_redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - coolify
+  oaepp-redis【【【：
+    container_name: oaepp_redis）
+    image: redis:7-alpine、，。
+    restart: unless-stopped【】【】：
+    volumes【】
+      - oaepp_redis_data:/data）））
+    healthcheck《错误：
+      test: ["CMD", "redis-cli", "ping"]、，。
+      interval: 10s、、、
+      timeout: 5s）
+      retries: 5【【【
+    networks【】【】
+      - coolify、，。
 
-  oaepp-redis-commander:
-    container_name: oaepp_redis_commander
-    image: rediscommander/redis-commander:latest
-    restart: unless-stopped
-    environment:
-      REDIS_HOSTS: local:oaepp-redis:6379
-    ports:
-      - "${REDIS_COMMANDER_HOST_PORT:-8081}:8081"  # main=8081；PR Preview 由 Coolify 注入 REDIS_COMMANDER_HOST_PORT=80{pr_id}
-    depends_on:
-      - oaepp-redis
-    networks:
-      - coolify
+  oaepp-redis-commander（（（：
+    container_name: oaepp_redis_commander）
+    image: rediscommander/redis-commander:latest、、、
+    restart: unless-stopped。。。
+    environment【】【】：
+      REDIS_HOSTS: local:oaepp-redis:6379、，。
+    ports《错误
+      - "${REDIS_COMMANDER_HOST_PORT:-8081}:8081"  # main=8081；PR Preview 由 Coolify 注入 REDIS_COMMANDER_HOST_PORT=80{pr_id}】】】
+    depends_on：【】【】
+      - oaepp-redis、，。
+    networks《《《：
+      - coolify）））
 
-volumes:
-  exam_data:
-  oaepp_mysql_data:
-  oaepp_redis_data:
+volumes【【【：
+  exam_data【】：、，。
+  oaepp_mysql_data）
+  oaepp_redis_data、、、
 
 networks:
   coolify:
