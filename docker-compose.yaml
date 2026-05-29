@@ -55,7 +55,7 @@ services:
     image: mysql:8.0
     restart: unless-stopped
     ports:
-      - "${MYSQL_HOST_PORT:-13306}:3306"  # main=13306；PR Preview 由 Coolify 注入 MYSQL_HOST_PORT=133{pr_id}
+      - "13307:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
       MYSQL_ROOT_HOST: '%'
@@ -80,7 +80,7 @@ services:
       PMA_HOST: oaepp-mysql
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
     ports:
-      - "${PHPMYADMIN_HOST_PORT:-5050}:80"  # main=5050；PR Preview 由 Coolify 注入 PHPMYADMIN_HOST_PORT=50{pr_id}
+      - "5051:80"
     depends_on:
       - oaepp-mysql
     networks:
@@ -107,7 +107,7 @@ services:
     environment:
       REDIS_HOSTS: local:oaepp-redis:6379
     ports:
-      - "${REDIS_COMMANDER_HOST_PORT:-8081}:8081"  # main=8081；PR Preview 由 Coolify 注入 REDIS_COMMANDER_HOST_PORT=80{pr_id}
+      - "8082:8081"
     depends_on:
       - oaepp-redis
     networks:
