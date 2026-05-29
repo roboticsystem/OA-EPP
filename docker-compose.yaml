@@ -84,8 +84,9 @@ services:
     # phpMyAdmin 作为 Web UI 服务，需要通过 healthcheck 告知 Coolify 本服务可用。
     # 该检查必须能在容器内访问本地 HTTP 服务，否则 Coolify 可能不会将其纳入路由。
     healthcheck:
-      # phpmyadmin 镜像不一定带 curl 二进制，改用 PHP CLI 检查本地 HTTP 响应
-      test: ["CMD-SHELL", "php -r \"exit((bool)@file_get_contents('http://127.0.0.1/') ? 0 : 1);\""]
+      # phpmyadmin 镜像中 PHP CLI 的 allow_url_fopen 默认可能被禁用，file_get_contents HTTP 请求不可靠。
+      # 使用 curl 作为更稳定的本地 HTTP 健康检查命令。
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
