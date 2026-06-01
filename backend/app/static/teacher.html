@@ -520,15 +520,55 @@ if (TOKEN) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  进度看板功能（静态数据版本）
+//  进度看板功能（后端API版本）
 // ═══════════════════════════════════════════════════════════════════════════
 
 let pbData = null;
 let pbExpanded = false;
+let pbEventSource = null;
 
-// 静态演示数据
-const PB_STATIC_DATA = {
-  students: [
+// 获取进度看板数据（调用后端API）
+async function fetchProgressData() {
+  const sortOrder = document.getElementById('pb-sort-order').value;
+  const bottomN = parseInt(document.getElementById('pb-bottom-n').value) || 5;
+  
+  try {
+    const params = new URLSearchParams({
+      sort_order: sortOrder,
+      bottom_n: bottomN
+    });
+    
+    const resp = await fetch(`${API}/api/teacher/progress/matrix?${params}`, {
+      headers: { 'Authorization': `Bearer ${TOKEN}` }
+    });
+    
+    if (!resp.ok) {
+      throw new Error('获取进度数据失败');
+    }
+    
+    pbData = await resp.json();
+    renderPBHeatmap(pbData);
+    renderPBBarChart(pbData);
+    
+    // 更新图例下的提示文字
+    const legendDiv = document.querySelector('#progress-board-body .card-body div:nth-child(1)');
+    if (legendDiv) {
+      const statSpan = legendDiv.querySelector('span:last-child');
+      if (statSpan) {
+        statSpan.textContent = `（点击单元格查看提交详情 · ${pbData.students?.length || 0} 名学生 · ${pbData.exams?.filter(e => e.is_active)?.length || 0} 个任务）`;
+      }
+    }
+    
+  } catch (e) {
+    console.error('获取进度数据失败:', e);
+    // 如果API调用失败，显示静态演示数据
+    loadStaticDemoData();
+  }
+}
+
+// 加载静态演示数据（作为降级方案）
+function loadStaticDemoData() {
+  const students = [
     {student_id:"20230001",name:"张明远",class_name:"2023级机器人1班",completion_rate:0.8,statuses:{}},
     {student_id:"20230002",name:"李雪晴",class_name:"2023级机器人1班",completion_rate:0.4,statuses:{}},
     {student_id:"20230003",name:"王浩然",class_name:"2023级机器人1班",completion_rate:1.0,statuses:{}},
@@ -544,8 +584,9 @@ const PB_STATIC_DATA = {
     {student_id:"20230013",name:"黄建平",class_name:"2023级机器人1班",completion_rate:0.8,statuses:{}},
     {student_id:"20230014",name:"林诗涵",class_name:"2023级机器人2班",completion_rate:1.0,statuses:{}},
     {student_id:"20230015",name:"杨瑞峰",class_name:"2023级机器人1班",completion_rate:0.6,statuses:{}}
-  ],
-  exams: [
+  ];
+  
+  const exams = [
     {id:"hw01",title:"第一章 机器人学基础",is_active:true,deadline:"2025-03-15T23:59",published_at:"2025-03-01T08:00",semester:"2024-2025-2"},
     {id:"hw02",title:"第二章 运动学与动力学",is_active:true,deadline:"2025-03-30T23:59",published_at:"2025-03-16T08:00",semester:"2024-2025-2"},
     {id:"hw03",title:"第三章 轨迹规划",is_active:true,deadline:"2025-04-20T23:59",published_at:"2025-04-01T08:00",semester:"2024-2025-2"},
@@ -553,13 +594,9 @@ const PB_STATIC_DATA = {
     {id:"hw05",title:"第五章 传感器与感知",is_active:true,deadline:"2025-05-30T23:59",published_at:"2025-05-11T08:00",semester:"2024-2025-2"},
     {id:"hw06",title:"第六章 路径规划",is_active:true,deadline:"2025-06-20T23:59",published_at:"2025-05-31T08:00",semester:"2024-2025-2"},
     {id:"hw07",title:"第七章 机器视觉入门",is_active:false,deadline:"2025-07-05T23:59",published_at:"2025-06-21T08:00",semester:"2024-2025-2"}
-  ]
-};
-
-// 生成随机提交状态
-function generateStaticStatuses() {
-  const students = PB_STATIC_DATA.students;
-  const exams = PB_STATIC_DATA.exams;
+  ];
+  
+  // 生成随机提交状态
   const baseCompletion = [0.8,0.4,1.0,0.6,0.2,0.0,1.0,0.8,0.4,0.6,0.0,0.2,0.8,1.0,0.6];
   
   students.forEach((s, si) => {
@@ -593,6 +630,75 @@ function generateStaticStatuses() {
       }
     });
   });
+  
+  // 计算考试完成率
+  exams.forEach(e => {
+    if (!e.is_active) {
+      e.submitted = 0;
+      e.completion_rate = 0;
+      return;
+    }
+    let sub = 0;
+    students.forEach(s => {
+      const st = s.statuses[e.id];
+      if (st && (st.status === 'submitted' || st.status === 'late')) sub++;
+    });
+    e.submitted = sub;
+    e.total_students = students.length;
+    e.completion_rate = students.length > 0 ? Math.round(sub / students.length * 1000) / 1000 : 0;
+  });
+  
+  // 排序和置顶标记
+  const sortOrder = document.getElementById('pb-sort-order').value;
+  const bottomN = parseInt(document.getElementById('pb-bottom-n').value) || 5;
+  
+  if (sortOrder === 'completion_asc') {
+    students.sort((a,b) => a.completion_rate - b.completion_rate);
+    students.forEach((s, idx) => { s.highlight = (idx < bottomN && s.completion_rate < 1); });
+  } else {
+    students.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  }
+  
+  pbData = {students, exams};
+  renderPBHeatmap(pbData);
+  renderPBBarChart(pbData);
+}
+
+// 启动 SSE 实时更新
+function startPBEventSource() {
+  if (pbEventSource) return;
+  
+  try {
+    const url = `${API}/api/teacher/progress/events?token=${encodeURIComponent(TOKEN)}`;
+    pbEventSource = new EventSource(url);
+    
+    pbEventSource.onmessage = function(event) {
+      try {
+        const data = JSON.parse(event.data);
+        pbData = data;
+        refreshProgressBoard();
+      } catch (e) {
+        console.error('解析 SSE 数据失败:', e);
+      }
+    };
+    
+    pbEventSource.onerror = function(error) {
+      console.error('SSE 连接错误:', error);
+      pbEventSource.close();
+      pbEventSource = null;
+    };
+    
+  } catch (e) {
+    console.warn('SSE 不可用，将使用轮询方式');
+  }
+}
+
+// 停止 SSE 连接
+function stopPBEventSource() {
+  if (pbEventSource) {
+    pbEventSource.close();
+    pbEventSource = null;
+  }
 }
 
 // 展开/收起看板
@@ -605,13 +711,15 @@ function toggleProgressBoard() {
     body.style.display = 'block';
     icon.textContent = '▲';
     if (!pbData) {
-      generateStaticStatuses();
-      pbData = JSON.parse(JSON.stringify(PB_STATIC_DATA));
+      fetchProgressData();
+    } else {
       refreshProgressBoard();
     }
+    startPBEventSource(); // 启动实时更新
   } else {
     body.style.display = 'none';
     icon.textContent = '▼';
+    // stopPBEventSource(); // 可选：收起时停止实时更新
   }
 }
 
@@ -626,27 +734,28 @@ function refreshProgressBoard() {
   let students = JSON.parse(JSON.stringify(pbData.students));
   let exams = JSON.parse(JSON.stringify(pbData.exams));
   
-  // 排序
+  // 排序和置顶标记
   if (sortOrder === 'completion_asc') {
     students.sort((a,b) => a.completion_rate - b.completion_rate);
+    students.forEach((s, idx) => { s.highlight = (idx < bottomN && s.completion_rate < 1); });
   } else {
     students.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+    students.forEach(s => { s.highlight = false; });
   }
   
-  // 置顶标记
-  students.forEach((s, idx) => { s.highlight = (idx < bottomN && s.completion_rate < 1); });
-  
-  // 更新考试完成率
+  // 更新考试完成率（如果后端没有提供）
   const activeExams = exams.filter(e => e.is_active);
   activeExams.forEach(e => {
-    let sub = 0;
-    students.forEach(s => {
-      const st = (s.statuses||{})[e.id];
-      if (st && (st.status === 'submitted' || st.status === 'late')) sub++;
-    });
-    e.total_students = students.length;
-    e.submitted = sub;
-    e.completion_rate = students.length > 0 ? Math.round(sub / students.length * 1000) / 1000 : 0;
+    if (e.completion_rate === undefined || e.submitted === undefined) {
+      let sub = 0;
+      students.forEach(s => {
+        const st = (s.statuses||{})[e.id];
+        if (st && (st.status === 'submitted' || st.status === 'late')) sub++;
+      });
+      e.total_students = students.length;
+      e.submitted = sub;
+      e.completion_rate = students.length > 0 ? Math.round(sub / students.length * 1000) / 1000 : 0;
+    }
   });
   
   const filteredData = {students, exams: activeExams};
@@ -789,7 +898,7 @@ function renderPBBarChart(data) {
   ctx.fillStyle = '#999';
   ctx.font = '10px "Microsoft YaHei",sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('共 '+exams[0].total_students+' 名学生 · '+exams.length+' 个活跃任务（静态演示数据）',W/2,H-4);
+  ctx.fillText('共 '+exams[0].total_students+' 名学生 · '+exams.length+' 个活跃任务',W/2,H-4);
 }
 
 // 显示详情弹窗

@@ -8,13 +8,12 @@ router = APIRouter()
 
 
 class SubmitRequest(BaseModel):
-    score: float
-    total: float
+    answers: dict
 
 
 @router.post("/api/exam/submit")
-def submit_score(req: SubmitRequest, authorization: Optional[str] = Header(None)):
-    """提交成绩，需要学生 JWT。每人每考试只能提交一次。"""
+def submit_exam(req: SubmitRequest, authorization: Optional[str] = Header(None)):
+    """提交考试答卷，需要学生 JWT。每人每考试只能提交一次。"""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="未登录")
     token = authorization.removeprefix("Bearer ").strip()
@@ -27,33 +26,28 @@ def submit_score(req: SubmitRequest, authorization: Optional[str] = Header(None)
     student_id = payload["student_id"]
     exam_id = payload["exam_id"]
 
-    if req.score < 0 or req.total <= 0 or req.score > req.total:
-        raise HTTPException(status_code=422, detail="成绩数据无效")
-
     with db() as conn:
-        # 再次确认未提交（防止并发重复）
         existing = conn.execute(
-            "SELECT id FROM scores WHERE student_id = ? AND exam_id = ?",
+            "SELECT id FROM exam_attempts WHERE student_user_id = %s AND exam_id = %s AND status = 'submitted'",
             (student_id, exam_id)
         ).fetchone()
         if existing:
-            raise HTTPException(status_code=409, detail="您已经提交过本次考试的成绩")
+            raise HTTPException(status_code=409, detail="您已经提交过本次考试")
 
         conn.execute(
-            "INSERT INTO scores (student_id, exam_id, score, total) VALUES (?,?,?,?)",
-            (student_id, exam_id, req.score, req.total)
+            "INSERT INTO exam_attempts (exam_id, student_user_id, status, submitted_at) VALUES (%s,%s,%s, NOW())",
+            (exam_id, student_id, "submitted")
         )
 
-    return {"ok": True, "student_id": student_id, "exam_id": exam_id,
-            "score": req.score, "total": req.total}
+    return {"ok": True, "student_id": student_id, "exam_id": exam_id}
 
 
 @router.get("/api/scores")
-def get_scores(student_id: str = Query(...)):
+def get_scores(student_id: int = Query(...)):
     """查询某学生所有考试成绩（公开接口，凭学号查询）"""
     with db() as conn:
         student = conn.execute(
-            "SELECT name, student_id, class_name FROM students WHERE student_id = ?",
+            "SELECT u.id AS student_id, u.full_name AS name, s.class_name FROM users u JOIN students s ON u.id = s.user_id WHERE u.id = %s AND u.role = 'student' AND u.is_active = 1",
             (student_id,)
         ).fetchone()
         if not student:
@@ -63,7 +57,7 @@ def get_scores(student_id: str = Query(...)):
         scores_map = {
             row["exam_id"]: dict(row)
             for row in conn.execute(
-                "SELECT exam_id, score, total, submitted_at FROM scores WHERE student_id = ?",
+                "SELECT exam_id, total_score, submitted_at FROM exam_attempts WHERE student_user_id = %s AND status = 'submitted'",
                 (student_id,)
             ).fetchall()
         }
@@ -74,8 +68,7 @@ def get_scores(student_id: str = Query(...)):
         result.append({
             "exam_id": exam["id"],
             "exam_title": exam["title"],
-            "score": s["score"] if s else None,
-            "total": s["total"] if s else None,
+            "score": s["total_score"] if s else None,
             "submitted_at": s["submitted_at"] if s else None,
         })
 

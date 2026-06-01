@@ -74,33 +74,45 @@ async def upload_students(
         if len(parts) < 2:
             continue
         name = parts[0]
-        student_id = parts[1]
+        student_no = parts[1]
         class_name = parts[2] if len(parts) > 2 else ""
-        if not name or not student_id:
+        if not name or not student_no:
             continue
-        pinyin, abbr = _name_to_pinyin(name)
-        records.append((name, student_id, class_name, pinyin, abbr))
+        records.append((name, student_no, class_name))
 
     if not records:
         raise HTTPException(status_code=422, detail="CSV 中没有有效数据行")
 
     with db() as conn:
-        conn.executemany("""
-            INSERT INTO students (name, student_id, class_name, pinyin, pinyin_abbr)
-            VALUES (?,?,?,?,?)
-            ON CONFLICT(student_id) DO UPDATE SET
-                name=excluded.name,
-                class_name=excluded.class_name,
-                pinyin=excluded.pinyin,
-                pinyin_abbr=excluded.pinyin_abbr
-        """, records)
+        for name, student_no, class_name in records:
+            user_existing = conn.execute(
+                "SELECT id FROM users WHERE student_no=%s", (student_no,)
+            ).fetchone()
+            if user_existing:
+                conn.execute(
+                    "UPDATE users SET full_name=%s WHERE id=%s",
+                    (name, user_existing["id"])
+                )
+                conn.execute(
+                    "UPDATE students SET class_name=%s WHERE user_id=%s",
+                    (class_name, user_existing["id"])
+                )
+            else:
+                user_result = conn.execute(
+                    "INSERT INTO users (role, student_no, email, password_hash, full_name) VALUES ('student', %s, %s, 'dummy', %s)",
+                    (student_no, f"{student_no}@edu.local", name)
+                )
+                conn.execute(
+                    "INSERT INTO students (user_id, class_name) VALUES (%s, %s)",
+                    (user_result.lastrowid, class_name)
+                )
 
     return {"count": len(records)}
 
 
 class AddStudentRequest(BaseModel):
     name: str
-    student_id: str
+    student_no: str
     class_name: str = ""
 
 
@@ -109,36 +121,41 @@ def add_student(req: AddStudentRequest, authorization: Optional[str] = Header(No
     """添加单个学生"""
     _require_teacher(authorization)
     req.name = req.name.strip()
-    req.student_id = req.student_id.strip()
-    if not req.name or not req.student_id:
+    req.student_no = req.student_no.strip()
+    if not req.name or not req.student_no:
         raise HTTPException(status_code=422, detail="姓名和学号不能为空")
-    pinyin, abbr = _name_to_pinyin(req.name)
     with db() as conn:
-        existing = conn.execute(
-            "SELECT name FROM students WHERE student_id=?", (req.student_id,)
+        user_existing = conn.execute(
+            "SELECT id, full_name FROM users WHERE student_no=%s", (req.student_no,)
         ).fetchone()
-        if existing:
-            raise HTTPException(status_code=409, detail=f"学号 {req.student_id} 已存在（{existing['name']}）")
+        if user_existing:
+            raise HTTPException(status_code=409, detail=f"学号 {req.student_no} 已存在（{user_existing['full_name']}）")
+        user_result = conn.execute(
+            "INSERT INTO users (role, student_no, email, password_hash, full_name) VALUES ('student', %s, %s, 'dummy', %s)",
+            (req.student_no, f"{req.student_no}@edu.local", req.name)
+        )
         conn.execute(
-            "INSERT INTO students (name, student_id, class_name, pinyin, pinyin_abbr) VALUES (?,?,?,?,?)",
-            (req.name, req.student_id, req.class_name.strip(), pinyin, abbr)
+            "INSERT INTO students (user_id, class_name) VALUES (%s, %s)",
+            (user_result.lastrowid, req.class_name.strip())
         )
     return {"ok": True}
 
 
-@router.delete("/api/teacher/students/{student_id}")
-def delete_student(student_id: str, authorization: Optional[str] = Header(None)):
+@router.delete("/api/teacher/students/{student_no}")
+def delete_student(student_no: str, authorization: Optional[str] = Header(None)):
     """删除单个学生（同时删除其成绩）"""
     _require_teacher(authorization)
     with db() as conn:
-        student = conn.execute(
-            "SELECT name FROM students WHERE student_id=?", (student_id,)
+        user = conn.execute(
+            "SELECT id, full_name FROM users WHERE student_no=%s", (student_no,)
         ).fetchone()
-        if not student:
+        if not user:
             raise HTTPException(status_code=404, detail="学号不存在")
-        conn.execute("DELETE FROM scores WHERE student_id=?", (student_id,))
-        conn.execute("DELETE FROM students WHERE student_id=?", (student_id,))
-    return {"ok": True, "deleted": student["name"]}
+        conn.execute("DELETE FROM exam_attempts WHERE student_user_id=%s", (user["id"],))
+        conn.execute("DELETE FROM submissions WHERE student_user_id=%s", (user["id"],))
+        conn.execute("DELETE FROM students WHERE user_id=%s", (user["id"],))
+        conn.execute("DELETE FROM users WHERE id=%s", (user["id"],))
+    return {"ok": True, "deleted": user["full_name"]}
 
 
 @router.delete("/api/teacher/students")
@@ -146,9 +163,11 @@ def clear_all_students(authorization: Optional[str] = Header(None)):
     """清空全部学生名单（同时清空所有成绩）"""
     _require_teacher(authorization)
     with db() as conn:
-        count = conn.execute("SELECT COUNT(*) FROM students").fetchone()[0]
-        conn.execute("DELETE FROM scores")
+        count = conn.execute("SELECT COUNT(*) AS cnt FROM students").fetchone()['cnt']
+        conn.execute("DELETE FROM exam_attempts")
+        conn.execute("DELETE FROM submissions")
         conn.execute("DELETE FROM students")
+        conn.execute("DELETE FROM users WHERE role='student'")
     return {"ok": True, "deleted_count": count}
 
 
@@ -157,11 +176,13 @@ def new_semester_reset(authorization: Optional[str] = Header(None)):
     """新学期重置：清空所有学生名单 + 所有成绩"""
     _require_teacher(authorization)
     with db() as conn:
-        students = conn.execute("SELECT COUNT(*) FROM students").fetchone()[0]
-        scores   = conn.execute("SELECT COUNT(*) FROM scores").fetchone()[0]
-        conn.execute("DELETE FROM scores")
+        students = conn.execute("SELECT COUNT(*) AS cnt FROM students").fetchone()['cnt']
+        exam_attempts_count = conn.execute("SELECT COUNT(*) AS cnt FROM exam_attempts").fetchone()['cnt']
+        conn.execute("DELETE FROM exam_attempts")
+        conn.execute("DELETE FROM submissions")
         conn.execute("DELETE FROM students")
-    return {"ok": True, "deleted_students": students, "deleted_scores": scores}
+        conn.execute("DELETE FROM users WHERE role='student'")
+    return {"ok": True, "deleted_students": students, "deleted_exam_attempts": exam_attempts_count}
 
 
 @router.get("/api/teacher/students/list")
@@ -170,7 +191,7 @@ def list_students(authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
     with db() as conn:
         rows = conn.execute(
-            "SELECT name, student_id, class_name FROM students ORDER BY class_name, name"
+            "SELECT u.full_name AS name, u.id AS student_id, s.class_name FROM users u JOIN students s ON u.id = s.user_id WHERE u.role = 'student' AND u.is_active = 1 ORDER BY s.class_name, u.full_name"
         ).fetchall()
     return [dict(r) for r in rows]
 
@@ -180,32 +201,24 @@ def list_exams(authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
     with db() as conn:
         exams = conn.execute(
-            "SELECT id, title, is_active, deadline, published_at, semester FROM exams ORDER BY id"
+            "SELECT id, title, exam_type, start_at, end_at FROM exams ORDER BY id"
         ).fetchall()
-
-    # 懒加载同步：若数据库中还没有考试记录，尝试立即扫描文档目录
-    if not exams:
-        print("[list_exams] 考试表为空，触发懒加载同步…")
-        sync_exams()
-        with db() as conn:
-            exams = conn.execute(
-                "SELECT id, title, is_active, deadline, published_at, semester FROM exams ORDER BY id"
-            ).fetchall()
-
-    with db() as conn:
-        total_students = conn.execute("SELECT COUNT(*) FROM students").fetchone()[0]
+        total_students = conn.execute("SELECT COUNT(*) AS cnt FROM students").fetchone()['cnt']
         result = []
         for e in exams:
+            now = datetime.now()
+            is_active = e["start_at"] <= now <= e["end_at"]
             submitted = conn.execute(
-                "SELECT COUNT(*) FROM scores WHERE exam_id=?", (e["id"],)
-            ).fetchone()[0]
+                "SELECT COUNT(*) AS cnt FROM exam_attempts WHERE exam_id=%s", (e["id"],)
+            ).fetchone()['cnt']
             avg = conn.execute(
-                "SELECT AVG(score) FROM scores WHERE exam_id=?", (e["id"],)
-            ).fetchone()[0]
+                "SELECT AVG(total_score) AS avg_score FROM exam_attempts WHERE exam_id=%s AND total_score IS NOT NULL", (e["id"],)
+            ).fetchone()['avg_score']
             result.append({
-                "id": e["id"], "title": e["title"], "is_active": e["is_active"],
-                "deadline": e["deadline"], "published_at": e["published_at"],
-                "semester": e["semester"] or "",
+                "id": e["id"], "title": e["title"],
+                "exam_type": e["exam_type"],
+                "is_active": is_active,
+                "start_at": e["start_at"], "end_at": e["end_at"],
                 "submitted": submitted, "total_students": total_students,
                 "avg_score": round(avg, 1) if avg else None,
             })
@@ -218,13 +231,11 @@ def list_semesters(authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
     with db() as conn:
         rows = conn.execute(
-            "SELECT DISTINCT semester FROM exams WHERE semester IS NOT NULL AND semester != '' ORDER BY semester DESC"
+            "SELECT DISTINCT c.term FROM courses c WHERE c.term IS NOT NULL AND c.term != '' ORDER BY c.term DESC"
         ).fetchall()
-    semesters = [r["semester"] for r in rows]
-    # 如果数据库中没有学期数据，返回一个默认值
+    semesters = [r["term"] for r in rows]
     if not semesters:
         now = datetime.now()
-        # 推算当前学期：9月-次年2月为第一学期，3月-8月为第二学期
         if now.month >= 9:
             semesters = [f"{now.year}-{now.year+1}-1"]
         elif now.month <= 2:
@@ -235,8 +246,11 @@ def list_semesters(authorization: Optional[str] = Header(None)):
 
 
 class ExamCreate(BaseModel):
-    id: str
+    course_id: int
     title: str
+    exam_type: str = "quiz"
+    start_at: str
+    end_at: str
 
 
 @router.post("/api/teacher/exams")
@@ -244,62 +258,66 @@ def create_exam(req: ExamCreate, authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
     with db() as conn:
         conn.execute(
-            "INSERT OR REPLACE INTO exams (id, title) VALUES (?,?)",
-            (req.id, req.title)
+            "INSERT INTO exams (course_id, title, exam_type, start_at, end_at, created_by) VALUES (%s,%s,%s,%s,%s,0)",
+            (req.course_id, req.title, req.exam_type, req.start_at, req.end_at)
         )
     return {"ok": True}
 
 
 class ExamUpdate(BaseModel):
-    is_active: Optional[int] = None
-    deadline: Optional[str] = None       # ISO datetime, e.g. "2025-06-30T23:59"
-    published_at: Optional[str] = None   # ISO datetime
-    semester: Optional[str] = None       # e.g. "2024-2025-2"
+    title: Optional[str] = None
+    exam_type: Optional[str] = None
+    start_at: Optional[str] = None
+    end_at: Optional[str] = None
 
 
 @router.put("/api/teacher/exams/{exam_id}")
-def update_exam(exam_id: str, req: ExamUpdate, authorization: Optional[str] = Header(None)):
-    """更新考试属性：开关、截止时间、发布时间、学期。"""
+def update_exam(exam_id: int, req: ExamUpdate, authorization: Optional[str] = Header(None)):
+    """更新考试属性"""
     _require_teacher(authorization)
     updates = {}
-    if req.is_active is not None:
-        updates["is_active"] = req.is_active
-    if req.deadline is not None:
-        updates["deadline"] = req.deadline
-    if req.published_at is not None:
-        updates["published_at"] = req.published_at
-    if req.semester is not None:
-        updates["semester"] = req.semester
+    if req.title is not None:
+        updates["title"] = req.title
+    if req.exam_type is not None:
+        updates["exam_type"] = req.exam_type
+    if req.start_at is not None:
+        updates["start_at"] = req.start_at
+    if req.end_at is not None:
+        updates["end_at"] = req.end_at
 
     if not updates:
         raise HTTPException(status_code=422, detail="没有需要更新的字段")
 
-    set_clause = ", ".join(f"{k}=?" for k in updates)
+    set_clause = ", ".join(f"{k}=%s" for k in updates)
     values = list(updates.values())
     with db() as conn:
-        existing = conn.execute("SELECT id FROM exams WHERE id=?", (exam_id,)).fetchone()
+        existing = conn.execute("SELECT id FROM exams WHERE id=%s", (exam_id,)).fetchone()
         if not existing:
             raise HTTPException(status_code=404, detail=f"考试 {exam_id} 不存在")
-        conn.execute(f"UPDATE exams SET {set_clause} WHERE id=?", (*values, exam_id))
+        conn.execute(f"UPDATE exams SET {set_clause} WHERE id=%s", (*values, exam_id))
     return {"ok": True, "updated": updates}
 
 
 @router.get("/api/teacher/scores")
-def get_scores(exam_id: str = Query(...), authorization: Optional[str] = Header(None)):
+def get_scores(exam_id: int = Query(...), authorization: Optional[str] = Header(None)):
     """获取某次考试的所有学生成绩（含未提交）"""
     _require_teacher(authorization)
     with db() as conn:
-        exam = conn.execute("SELECT title FROM exams WHERE id=?", (exam_id,)).fetchone()
+        exam = conn.execute("SELECT title FROM exams WHERE id=%s", (exam_id,)).fetchone()
         if not exam:
             raise HTTPException(status_code=404, detail="考试不存在")
 
-        students = conn.execute(
-            "SELECT name, student_id, class_name FROM students ORDER BY student_id"
-        ).fetchall()
+        students = conn.execute("""
+            SELECT u.id as student_id, u.full_name as name, s.class_name
+            FROM users u
+            JOIN students s ON u.id = s.user_id
+            WHERE u.role = 'student' AND u.is_active = 1
+            ORDER BY u.full_name
+        """).fetchall()
         scores_map = {
-            r["student_id"]: dict(r)
+            r["student_user_id"]: dict(r)
             for r in conn.execute(
-                "SELECT student_id, score, total, submitted_at FROM scores WHERE exam_id=?",
+                "SELECT student_user_id, total_score, submitted_at FROM exam_attempts WHERE exam_id=%s",
                 (exam_id,)
             ).fetchall()
         }
@@ -311,8 +329,7 @@ def get_scores(exam_id: str = Query(...), authorization: Optional[str] = Header(
             "name": s["name"],
             "student_id": s["student_id"],
             "class_name": s["class_name"],
-            "score": sc["score"] if sc else None,
-            "total": sc["total"] if sc else None,
+            "score": sc["total_score"] if sc else None,
             "submitted_at": sc["submitted_at"] if sc else None,
         })
 
@@ -320,22 +337,26 @@ def get_scores(exam_id: str = Query(...), authorization: Optional[str] = Header(
 
 
 @router.get("/api/teacher/scores/export")
-def export_scores(exam_id: str = Query(...), authorization: Optional[str] = Header(None)):
+def export_scores(exam_id: int = Query(...), authorization: Optional[str] = Header(None)):
     """导出成绩 Excel"""
     _require_teacher(authorization)
 
     with db() as conn:
-        exam = conn.execute("SELECT title FROM exams WHERE id=?", (exam_id,)).fetchone()
+        exam = conn.execute("SELECT title FROM exams WHERE id=%s", (exam_id,)).fetchone()
         if not exam:
             raise HTTPException(status_code=404, detail="考试不存在")
 
-        students = conn.execute(
-            "SELECT name, student_id, class_name FROM students ORDER BY student_id"
-        ).fetchall()
+        students = conn.execute("""
+            SELECT u.id as student_id, u.full_name as name, s.class_name
+            FROM users u
+            JOIN students s ON u.id = s.user_id
+            WHERE u.role = 'student' AND u.is_active = 1
+            ORDER BY u.full_name
+        """).fetchall()
         scores_map = {
-            r["student_id"]: dict(r)
+            r["student_user_id"]: dict(r)
             for r in conn.execute(
-                "SELECT student_id, score, total, submitted_at FROM scores WHERE exam_id=?",
+                "SELECT student_user_id, total_score, submitted_at FROM exam_attempts WHERE exam_id=%s",
                 (exam_id,)
             ).fetchall()
         }
@@ -346,8 +367,8 @@ def export_scores(exam_id: str = Query(...), authorization: Optional[str] = Head
 
     header_fill = PatternFill("solid", fgColor="4472C4")
     header_font = Font(bold=True, color="FFFFFF")
-    headers = ["姓名", "学号", "班级", "得分", "满分", "提交时间"]
-    col_widths = [12, 14, 20, 8, 8, 20]
+    headers = ["姓名", "学号", "班级", "得分", "提交时间"]
+    col_widths = [12, 14, 20, 8, 20]
 
     for col, (h, w) in enumerate(zip(headers, col_widths), 1):
         cell = ws.cell(row=1, column=col, value=h)
@@ -361,11 +382,10 @@ def export_scores(exam_id: str = Query(...), authorization: Optional[str] = Head
         ws.cell(row=row_idx, column=1, value=s["name"])
         ws.cell(row=row_idx, column=2, value=s["student_id"])
         ws.cell(row=row_idx, column=3, value=s["class_name"])
-        ws.cell(row=row_idx, column=4, value=sc["score"] if sc else "")
-        ws.cell(row=row_idx, column=5, value=sc["total"] if sc else "")
-        ws.cell(row=row_idx, column=6, value=sc["submitted_at"] if sc else "")
+        ws.cell(row=row_idx, column=4, value=sc["total_score"] if sc else "")
+        ws.cell(row=row_idx, column=5, value=sc["submitted_at"] if sc else "")
         if not sc:
-            for col in range(1, 7):
+            for col in range(1, 6):
                 ws.cell(row=row_idx, column=col).font = Font(color="999999")
 
     buf = io.BytesIO()
@@ -389,77 +409,60 @@ def export_scores(exam_id: str = Query(...), authorization: Optional[str] = Head
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _compute_progress_data(semester: str = "") -> dict:
-    """构建全班「学生 × 任务」二维完成状态矩阵 + 各任务完成率。
+    """构建全班「学生 × 考试」二维完成状态矩阵 + 各考试完成率。"""
+    with db() as cursor:
+        students = cursor.execute("""
+            SELECT u.id as student_id, u.full_name as name, s.class_name, u.student_no
+            FROM users u
+            JOIN students s ON u.id = s.user_id
+            WHERE u.role = 'student' AND u.is_active = 1
+            ORDER BY u.full_name
+        """).fetchall()
 
-    参数：
-    - semester: 可选学期筛选，如 "2024-2025-2"
-    """
-    where_clause = ""
-    params = []
-    if semester:
-        where_clause = " WHERE semester = ?"
-        params.append(semester)
+        exams = cursor.execute("""
+            SELECT id, title, start_at, end_at, exam_type
+            FROM exams
+            ORDER BY start_at, id
+        """).fetchall()
 
-    with db() as conn:
-        students = conn.execute(
-            "SELECT student_id, name, class_name FROM students ORDER BY name"
-        ).fetchall()
-        exams = conn.execute(
-            f"SELECT id, title, is_active, deadline, published_at, semester FROM exams{where_clause} ORDER BY published_at, id"
-            if where_clause else
-            f"SELECT id, title, is_active, deadline, published_at, semester FROM exams ORDER BY published_at, id",
-            params
-        ).fetchall()
+        exam_attempts = cursor.execute("""
+            SELECT ea.student_user_id, ea.exam_id, ea.total_score, ea.submitted_at, ea.status
+            FROM exam_attempts ea
+        """).fetchall()
 
-        # 一次查询获取所有提交记录
-        scores_rows = conn.execute(
-            "SELECT student_id, exam_id, score, total, submitted_at FROM scores"
-        ).fetchall()
-
-    # 构建快速查找: (student_id, exam_id) → submitted_at
-    score_map: dict = {}
-    for row in scores_rows:
-        score_map[(row["student_id"], row["exam_id"])] = {
-            "score": row["score"],
-            "total": row["total"],
+    sub_map: dict = {}
+    for row in exam_attempts:
+        sub_map[(row["student_user_id"], row["exam_id"])] = {
+            "total_score": row["total_score"],
             "submitted_at": row["submitted_at"],
+            "status": row["status"],
         }
 
     student_list = []
+    student_ids = []
     for s in students:
+        student_ids.append(s["student_id"])
         statuses = {}
         submitted_count = 0
-        active_exam_count = 0
+        total_exams = 0
         for e in exams:
+            total_exams += 1
             key = (s["student_id"], e["id"])
-            if not e["is_active"]:
-                statuses[e["id"]] = {"status": "not_published"}
-                continue
-            active_exam_count += 1
-            if key in score_map:
-                sub_at = score_map[key]["submitted_at"]
-                # 判断是否迟交
-                if e["deadline"] and sub_at:
-                    try:
-                        dl = datetime.fromisoformat(e["deadline"])
-                        actual = datetime.fromisoformat(sub_at)
-                        is_late = actual > dl
-                    except (ValueError, TypeError):
-                        is_late = False
-                else:
-                    is_late = False
+            if key in sub_map:
+                sub = sub_map[key]
                 statuses[e["id"]] = {
-                    "status": "late" if is_late else "submitted",
-                    "score": score_map[key]["score"],
-                    "total": score_map[key]["total"],
-                    "submitted_at": sub_at,
+                    "status": "submitted" if sub["status"] == "submitted" else "draft",
+                    "score": sub["total_score"],
+                    "submitted_at": sub["submitted_at"],
                 }
                 submitted_count += 1
             else:
                 statuses[e["id"]] = {"status": "unsubmitted"}
-        completion_rate = round(submitted_count / active_exam_count, 3) if active_exam_count > 0 else 0.0
+
+        completion_rate = round(submitted_count / total_exams, 3) if total_exams > 0 else 0.0
         student_list.append({
             "student_id": s["student_id"],
+            "student_no": s["student_no"],
             "name": s["name"],
             "class_name": s["class_name"],
             "completion_rate": completion_rate,
@@ -467,28 +470,23 @@ def _compute_progress_data(semester: str = "") -> dict:
         })
 
     exam_list = []
-    total_students = len(students)
     for e in exams:
-        if not e["is_active"]:
-            exam_list.append({
-                "id": e["id"], "title": e["title"], "is_active": False,
-                "published_at": e["published_at"], "deadline": e["deadline"],
-                "semester": e["semester"] or "",
-                "total_students": total_students, "submitted": 0,
-                "completion_rate": 0.0,
-            })
-            continue
+        now = datetime.now()
+        is_active = e["start_at"] <= now <= e["end_at"]
         submitted = sum(
-            1 for s in students
-            if (s["student_id"], e["id"]) in score_map
+            1 for sid in student_ids
+            if (sid, e["id"]) in sub_map
         )
         exam_list.append({
-            "id": e["id"], "title": e["title"], "is_active": True,
-            "published_at": e["published_at"], "deadline": e["deadline"],
-            "semester": e["semester"] or "",
-            "total_students": total_students,
+            "id": e["id"],
+            "title": e["title"],
+            "is_active": is_active,
+            "start_at": e["start_at"],
+            "end_at": e["end_at"],
+            "exam_type": e["exam_type"],
+            "total_students": len(student_ids),
             "submitted": submitted,
-            "completion_rate": round(submitted / total_students, 3) if total_students > 0 else 0.0,
+            "completion_rate": round(submitted / len(student_ids), 3) if len(student_ids) > 0 else 0.0,
         })
 
     return {"students": student_list, "exams": exam_list}
@@ -567,9 +565,9 @@ def progress_completion(
     if course:
         with db() as conn:
             total = conn.execute(
-                "SELECT COUNT(*) FROM students WHERE class_name LIKE ?",
+                "SELECT COUNT(*) AS cnt FROM students WHERE class_name LIKE %s",
                 (f"%{course}%",)
-            ).fetchone()[0]
+            ).fetchone()['cnt']
         for e in exams:
             if total > 0:
                 e["total_students"] = total
