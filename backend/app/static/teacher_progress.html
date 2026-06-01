@@ -245,8 +245,8 @@ var DEMO_DATA = {
     {"student_id":"20230013","name":"黄建平","class_name":"2023级机器人1班","completion_rate":0.8,"highlight":false,"statuses":{}},
     {"student_id":"20230014","name":"林诗涵","class_name":"2023级机器人2班","completion_rate":1.0,"highlight":false,"statuses":{}},
     {"student_id":"20230015","name":"杨瑞峰","class_name":"2023级机器人1班","completion_rate":0.6,"highlight":false,"statuses":{}}
-  ],
-  "exams": [
+    {"id":"hw04","title":"第四章 控制系统设计","is_active":true,"deadline":"2025-05-10T23:59","published_at":"2025-04-21T08:00","semester":"2024-2025-2","total_students":15,"submitted":8,"completion_rate":0.533},
+    {"id":"hw05","title":"第五章 传感器与感知","is_active":true,"deadline":"2025-05-30T23:59","published_at":"2025-05-11T08:00","semester":"2024-2025-2","total_students":15,"submitted":6,"completion_rate":0.4},
     {"id":"hw01","title":"第一章 机器人学基础","is_active":true,"deadline":"2025-03-15T23:59","published_at":"2025-03-01T08:00","semester":"2024-2025-2","total_students":15,"submitted":12,"completion_rate":0.8},
     {"id":"hw02","title":"第二章 运动学与动力学","is_active":true,"deadline":"2025-03-30T23:59","published_at":"2025-03-16T08:00","semester":"2024-2025-2","total_students":15,"submitted":10,"completion_rate":0.667},
     {"id":"hw03","title":"第三章 轨迹规划","is_active":true,"deadline":"2025-04-20T23:59","published_at":"2025-04-01T08:00","semester":"2024-2025-2","total_students":15,"submitted":9,"completion_rate":0.6},
@@ -254,14 +254,6 @@ var DEMO_DATA = {
     {"id":"hw05","title":"第五章 传感器与感知","is_active":true,"deadline":"2025-05-30T23:59","published_at":"2025-05-11T08:00","semester":"2024-2025-2","total_students":15,"submitted":6,"completion_rate":0.4},
     {"id":"hw06","title":"第六章 路径规划","is_active":true,"deadline":"2025-06-20T23:59","published_at":"2025-05-31T08:00","semester":"2024-2025-2","total_students":15,"submitted":3,"completion_rate":0.2},
     {"id":"hw07","title":"第七章 机器视觉入门","is_active":false,"deadline":"2025-07-05T23:59","published_at":"2025-06-21T08:00","semester":"2024-2025-2","total_students":15,"submitted":0,"completion_rate":0.0}
-  ]
-};
-
-// 为每个学生生成每个 task 的提交状态（模拟真实数据分布）
-(function fillDemoStatuses() {
-  var students = DEMO_DATA.students;
-  var exams = DEMO_DATA.exams;
-  // 按学生生成不同的完成进度：成绩好的学生大多已提交，落后的学生大量未提交
   var baseCompletion = [0.8,0.4,1.0,0.6,0.2,0.0,1.0,0.8,0.4,0.6,0.0,0.2,0.8,1.0,0.6];
   students.forEach(function(s, si){
     var prob = baseCompletion[si];
@@ -270,7 +262,7 @@ var DEMO_DATA = {
         s.statuses[e.id] = {status:'not_published'};
         return;
       }
-      var r = Math.random();
+  var baseCompletion = [0.8,0.4,1.0,0.6,0.2,0.0,1.0,0.8,0.4,0.6,0.0,0.2,0.8,1.0,0.6];
       if (r < prob * 0.7) {
         // 准时提交
         var dl = new Date(e.deadline.replace(' ','T'));
@@ -279,13 +271,13 @@ var DEMO_DATA = {
           status:'submitted',
           score: Math.round(60 + Math.random()*40),
           total: 100,
-          submitted_at: sub.toISOString().replace('T',' ').substring(0,19)
+      if (r < prob * 0.7) {
         };
       } else if (r < prob) {
         // 迟交
         var dl2 = new Date(e.deadline.replace(' ','T'));
         var sub2 = new Date(dl2.getTime() + (1+Math.random()*24)*3600*1000);
-        s.statuses[e.id] = {
+          score: Math.round(60 + Math.random()*40),
           status:'late',
           score: Math.round(40 + Math.random()*40),
           total: 100,
@@ -295,7 +287,7 @@ var DEMO_DATA = {
         // 未提交
         s.statuses[e.id] = {status:'unsubmitted'};
       }
-    });
+          score: Math.round(40 + Math.random()*40),
   });
 })();
 
