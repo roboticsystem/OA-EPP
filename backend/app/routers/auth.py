@@ -13,15 +13,11 @@ class VerifyRequest(BaseModel):
 
 @router.post("/api/auth/verify")
 def verify_identity(req: VerifyRequest):
-    """
-    核验学生身份并检查是否已提交成绩。
-    - 学号不存在 → 403
-    - 已提交 → {already_submitted: true, score, total, submitted_at}
-    - 未提交 → {already_submitted: false, token}
-    """
     with db() as conn:
         student = conn.execute(
-            "SELECT name, student_id, class_name FROM students WHERE student_id = ?",
+            "SELECT u.full_name AS name, u.student_no AS student_id, s.class_name "
+            "FROM users u JOIN students s ON u.id = s.user_id "
+            "WHERE u.student_no = %s AND u.role = 'student'",
             (req.student_id,)
         ).fetchone()
 
@@ -29,7 +25,9 @@ def verify_identity(req: VerifyRequest):
             raise HTTPException(status_code=403, detail="学号不在名单中，请联系老师确认")
 
         exam = conn.execute(
-            "SELECT id, title, is_active FROM exams WHERE id = ?",
+            "SELECT id, title, "
+            "CASE WHEN end_at IS NULL OR end_at > NOW() THEN 1 ELSE 0 END AS is_active "
+            "FROM exams WHERE id = CAST(%s AS UNSIGNED)",
             (req.exam_id,)
         ).fetchone()
 
@@ -40,7 +38,12 @@ def verify_identity(req: VerifyRequest):
             raise HTTPException(status_code=403, detail="本次考试已关闭，无法答题")
 
         existing = conn.execute(
-            "SELECT score, total, submitted_at FROM scores WHERE student_id = ? AND exam_id = ?",
+            "SELECT ea.total_score AS score, ea.submitted_at, "
+            "(SELECT COALESCE(SUM(eq.score), 0) FROM exam_questions eq WHERE eq.exam_id = ea.exam_id) AS total "
+            "FROM exam_attempts ea "
+            "JOIN users u ON ea.student_user_id = u.id "
+            "WHERE u.student_no = %s AND ea.exam_id = CAST(%s AS UNSIGNED) "
+            "AND ea.status IN ('submitted', 'graded')",
             (req.student_id, req.exam_id)
         ).fetchone()
 
@@ -48,9 +51,9 @@ def verify_identity(req: VerifyRequest):
             return {
                 "already_submitted": True,
                 "name": student["name"],
-                "score": existing["score"],
-                "total": existing["total"],
-                "submitted_at": existing["submitted_at"],
+                "score": float(existing["score"]) if existing["score"] else 0,
+                "total": float(existing["total"]) if existing["total"] else 0,
+                "submitted_at": str(existing["submitted_at"]) if existing["submitted_at"] else "",
             }
 
         token = create_token({

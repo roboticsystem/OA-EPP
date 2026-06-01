@@ -14,7 +14,6 @@ class SubmitRequest(BaseModel):
 
 @router.post("/api/exam/submit")
 def submit_score(req: SubmitRequest, authorization: Optional[str] = Header(None)):
-    """提交成绩，需要学生 JWT。每人每考试只能提交一次。"""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="未登录")
     token = authorization.removeprefix("Bearer ").strip()
@@ -31,17 +30,20 @@ def submit_score(req: SubmitRequest, authorization: Optional[str] = Header(None)
         raise HTTPException(status_code=422, detail="成绩数据无效")
 
     with db() as conn:
-        # 再次确认未提交（防止并发重复）
         existing = conn.execute(
-            "SELECT id FROM scores WHERE student_id = ? AND exam_id = ?",
+            "SELECT ea.id FROM exam_attempts ea "
+            "JOIN users u ON ea.student_user_id = u.id "
+            "WHERE u.student_no = %s AND ea.exam_id = CAST(%s AS UNSIGNED) "
+            "AND ea.status IN ('submitted', 'graded')",
             (student_id, exam_id)
         ).fetchone()
         if existing:
             raise HTTPException(status_code=409, detail="您已经提交过本次考试的成绩")
 
         conn.execute(
-            "INSERT INTO scores (student_id, exam_id, score, total) VALUES (?,?,?,?)",
-            (student_id, exam_id, req.score, req.total)
+            "INSERT INTO exam_attempts (exam_id, student_user_id, status, total_score, submitted_at) "
+            "VALUES (CAST(%s AS UNSIGNED), (SELECT id FROM users WHERE student_no = %s), 'submitted', %s, NOW())",
+            (exam_id, student_id, req.score)
         )
 
     return {"ok": True, "student_id": student_id, "exam_id": exam_id,
@@ -50,10 +52,11 @@ def submit_score(req: SubmitRequest, authorization: Optional[str] = Header(None)
 
 @router.get("/api/scores")
 def get_scores(student_id: str = Query(...)):
-    """查询某学生所有考试成绩（公开接口，凭学号查询）"""
     with db() as conn:
         student = conn.execute(
-            "SELECT name, student_id, class_name FROM students WHERE student_id = ?",
+            "SELECT u.full_name AS name, u.student_no AS student_id, s.class_name "
+            "FROM users u JOIN students s ON u.id = s.user_id "
+            "WHERE u.student_no = %s AND u.role = 'student'",
             (student_id,)
         ).fetchone()
         if not student:
@@ -63,7 +66,11 @@ def get_scores(student_id: str = Query(...)):
         scores_map = {
             row["exam_id"]: dict(row)
             for row in conn.execute(
-                "SELECT exam_id, score, total, submitted_at FROM scores WHERE student_id = ?",
+                "SELECT ea.exam_id, ea.total_score AS score, ea.submitted_at, "
+                "(SELECT COALESCE(SUM(eq.score),0) FROM exam_questions eq WHERE eq.exam_id = ea.exam_id) AS total "
+                "FROM exam_attempts ea "
+                "JOIN users u ON ea.student_user_id = u.id "
+                "WHERE u.student_no = %s AND ea.status IN ('submitted', 'graded')",
                 (student_id,)
             ).fetchall()
         }
@@ -74,12 +81,9 @@ def get_scores(student_id: str = Query(...)):
         result.append({
             "exam_id": exam["id"],
             "exam_title": exam["title"],
-            "score": s["score"] if s else None,
-            "total": s["total"] if s else None,
-            "submitted_at": s["submitted_at"] if s else None,
+            "score": float(s["score"]) if s else None,
+            "total": float(s["total"]) if s else None,
+            "submitted_at": str(s["submitted_at"]) if s else None,
         })
 
-    return {
-        "student": dict(student),
-        "scores": result,
-    }
+    return {"student": dict(student), "scores": result}

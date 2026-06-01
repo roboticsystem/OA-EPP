@@ -1,58 +1,67 @@
-import sqlite3
+import pymysql
+import pymysql.cursors
 import os
 from contextlib import contextmanager
+from urllib.parse import urlparse, unquote
 
-DB_PATH = os.environ.get("DB_PATH", "/app/data/exam.db")
+
+def _parse_db_url(url: str) -> dict:
+    """解析 DATABASE_URL 为 pymysql.connect 参数字典。格式: mysql+pymysql://user:pass@host:port/db"""
+    parsed = urlparse(url)
+    return {
+        "host": parsed.hostname or "127.0.0.1",
+        "port": parsed.port or 3306,
+        "user": parsed.username or "",
+        "password": unquote(parsed.password) if parsed.password else "",
+        "database": parsed.path.lstrip("/") or "",
+        "charset": "utf8mb4",
+        "cursorclass": pymysql.cursors.DictCursor,
+    }
+
+
+DB_CONFIG = _parse_db_url(os.environ["DATABASE_URL"])
+
+
+class _ConnectionWrapper:
+    def __init__(self, conn):
+        self.conn = conn
+
+    def execute(self, sql, params=None):
+        cursor = self.conn.cursor()
+        cursor.execute(sql, params)
+        return cursor
+
+    def executemany(self, sql, params_list):
+        cursor = self.conn.cursor()
+        cursor.executemany(sql, params_list)
+        return cursor
+
+    def commit(self):
+        self.conn.commit()
+
+    def rollback(self):
+        self.conn.rollback()
+
+    def close(self):
+        self.conn.close()
 
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+    return _ConnectionWrapper(pymysql.connect(**DB_CONFIG))
 
 
 @contextmanager
 def db():
-    conn = get_connection()
+    wrapper = get_connection()
     try:
-        yield conn
-        conn.commit()
+        yield wrapper
+        wrapper.commit()
     except Exception:
-        conn.rollback()
+        wrapper.rollback()
         raise
     finally:
-        conn.close()
+        wrapper.close()
 
 
 def init_db():
-    with db() as conn:
-        conn.executescript("""
-        CREATE TABLE IF NOT EXISTS students (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            name        TEXT NOT NULL,
-            student_id  TEXT UNIQUE NOT NULL,
-            class_name  TEXT DEFAULT '',
-            pinyin      TEXT DEFAULT '',
-            pinyin_abbr TEXT DEFAULT '',
-            created_at  TEXT DEFAULT (datetime('now','localtime'))
-        );
-
-        CREATE TABLE IF NOT EXISTS exams (
-            id         TEXT PRIMARY KEY,
-            title      TEXT NOT NULL,
-            is_active  INTEGER DEFAULT 1
-        );
-
-        CREATE TABLE IF NOT EXISTS scores (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id   TEXT NOT NULL,
-            exam_id      TEXT NOT NULL,
-            score        REAL NOT NULL,
-            total        REAL NOT NULL,
-            submitted_at TEXT DEFAULT (datetime('now','localtime')),
-            UNIQUE(student_id, exam_id)
-        );
-        """)
-        # 考试记录由 sync_exams() 根据 .md 文件动态维护，此处不再硬编码预置
+    print("[init_db] 无 DDL 权限，跳过建表，假定表已存在")

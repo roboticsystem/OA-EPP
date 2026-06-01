@@ -45,7 +45,7 @@ services:
     environment:
       - TEACHER_PASSWORD=${TEACHER_PASSWORD:-admin123}
       - JWT_SECRET=${JWT_SECRET:-please-change-this-secret}
-      - DB_PATH=/app/data/exam.db
+      - DATABASE_URL=${DATABASE_URL:-mysql+pymysql://user:change-me@oaepp-mysql:3306/oaepp_database}
       - DOCS_DIR=/app/docs
     networks:
       - coolify
