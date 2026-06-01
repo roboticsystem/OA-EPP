@@ -2,11 +2,43 @@ from fastapi import APIRouter, HTTPException, Header
 from typing import Optional
 from pydantic import BaseModel, field_validator
 import json
-from app.database import db
 from app.auth_utils import verify_teacher_token
-from app.github_client import push_files, check_token, get_repo_file_content, file_exists
+from app.github_client import push_files, check_token, file_exists
+from app.mysql_db import mysql_db, COMMITLINT_COURSE_ID, COMMITLINT_UPDATED_BY
+from app.failures_store import get_failures, add_failure
+from oaepp.states.commitlint_engine import build_commitlintrc, generate_workflow_yml
 
 router = APIRouter()
+
+
+def ensure_mysql_row():
+    """确保 commitlint_configs 表中存在当前 course_id 的配置行，不存在则自动创建。"""
+    try:
+        with mysql_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id FROM commitlint_configs WHERE course_id=%s",
+                    (COMMITLINT_COURSE_ID,)
+                )
+                if cur.fetchone():
+                    return
+                cur.execute("SET foreign_key_checks=0")
+                cur.execute(
+                    """INSERT INTO commitlint_configs
+                       (course_id, rule_set, header_max_len, subject_min_len,
+                        type_enum_json, enabled, config_version, updated_by)
+                       VALUES (%s, 'conventional', 100, 5,
+                        '["feat","fix","refactor","style","test","docs","chore"]', 1, 1, %s)""",
+                    (COMMITLINT_COURSE_ID, COMMITLINT_UPDATED_BY)
+                )
+                conn.commit()
+                cur.execute("SET foreign_key_checks=1")
+                print(f"[commitlint] 已自动创建默认配置行 (course_id={COMMITLINT_COURSE_ID})")
+    except Exception as e:
+        print(f"[commitlint] 初始化 MySQL 配置行失败: {e}")
+
+
+ensure_mysql_row()
 
 
 def _require_teacher(authorization: Optional[str]):
@@ -19,13 +51,51 @@ def _require_teacher(authorization: Optional[str]):
         raise HTTPException(status_code=401, detail=str(e))
 
 
-def _bump_version(current: str) -> str:
-    parts = current.split(".")
-    try:
-        parts[-1] = str(int(parts[-1]) + 1)
-    except (IndexError, ValueError):
-        return "1.0.0"
-    return ".".join(parts)
+# ─── 列名映射：前端字段名 → MySQL 列名 ──────────────────────────────────────
+
+_FRONTEND_TO_MYSQL = {
+    "rule_type": "rule_set",
+    "type_enum": "type_enum_json",
+    "header_max_length": "header_max_len",
+    "subject_min_length": "subject_min_len",
+    "rule_version": "config_version",
+    "enabled": "enabled",
+}
+
+_MYSQL_TO_FRONTEND = {v: k for k, v in _FRONTEND_TO_MYSQL.items()}
+
+
+def _row_to_frontend(row: dict) -> dict:
+    """将 MySQL 行数据转换为前端 API 的一致字段名"""
+    result = {}
+    for mysql_col, value in row.items():
+        frontend_col = _MYSQL_TO_FRONTEND.get(mysql_col, mysql_col)
+        result[frontend_col] = value
+    # 解析 JSON 字段
+    if result.get("type_enum") and isinstance(result["type_enum"], str):
+        try:
+            result["type_enum"] = json.loads(result["type_enum"])
+        except (json.JSONDecodeError, TypeError):
+            result["type_enum"] = ["feat", "fix", "refactor", "style", "test", "docs", "chore"]
+    return result
+
+
+def _frontend_to_mysql_for_update(data: dict) -> tuple[list[str], list]:
+    """将前端字段映射回 MySQL 列名，返回 (fields_list, values_list) 用于 UPDATE"""
+    mapping = {
+        "enabled": ("enabled", lambda v: 1 if v else 0),
+        "rule_type": ("rule_set", lambda v: v),
+        "type_enum": ("type_enum_json", lambda v: json.dumps(v, ensure_ascii=False)),
+        "header_max_length": ("header_max_len", lambda v: v),
+        "subject_min_length": ("subject_min_len", lambda v: v),
+    }
+    fields = []
+    values = []
+    for frontend_key, (mysql_col, transform) in mapping.items():
+        if frontend_key in data:
+            fields.append(f"{mysql_col}=%s")
+            values.append(transform(data[frontend_key]))
+    return fields, values
 
 
 # ─── 请求/响应模型 ───────────────────────────────────────────────────────────
@@ -68,16 +138,16 @@ class ToggleRequest(BaseModel):
 @router.get("/api/teacher/commitlint/config")
 def get_commitlint_config(authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
-    with db() as conn:
-        row = conn.execute("SELECT * FROM commitlint_config WHERE id=1").fetchone()
+    with mysql_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM commitlint_configs WHERE course_id=%s",
+                (COMMITLINT_COURSE_ID,)
+            )
+            row = cur.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="配置不存在")
-    result = dict(row)
-    try:
-        result["type_enum"] = json.loads(result["type_enum"])
-    except (json.JSONDecodeError, TypeError):
-        pass
-    return result
+    return _row_to_frontend(row)
 
 
 # ─── 更新配置 ────────────────────────────────────────────────────────────────
@@ -89,47 +159,32 @@ def update_commitlint_config(
 ):
     _require_teacher(authorization)
 
-    fields = []
-    values = []
-
-    if req.enabled is not None:
-        fields.append("enabled=?")
-        values.append(1 if req.enabled else 0)
-    if req.rule_type is not None:
-        fields.append("rule_type=?")
-        values.append(req.rule_type)
-    if req.type_enum is not None:
-        fields.append("type_enum=?")
-        values.append(json.dumps(req.type_enum, ensure_ascii=False))
-    if req.header_max_length is not None:
-        fields.append("header_max_length=?")
-        values.append(req.header_max_length)
-    if req.subject_min_length is not None:
-        fields.append("subject_min_length=?")
-        values.append(req.subject_min_length)
-
-    if not fields:
+    update_data = req.model_dump(exclude_none=True)
+    if not update_data:
         raise HTTPException(status_code=422, detail="未提供任何需要更新的字段")
 
-    with db() as conn:
-        old = conn.execute("SELECT rule_version FROM commitlint_config WHERE id=1").fetchone()
-        new_version = _bump_version(old["rule_version"]) if old else "1.0.0"
-        fields.append("rule_version=?")
-        values.append(new_version)
-        fields.append("updated_at=datetime('now','localtime')")
+    fields, values = _frontend_to_mysql_for_update(update_data)
+    fields.append("config_version=config_version+1")
+    fields.append("updated_by=%s")
+    values.append(COMMITLINT_UPDATED_BY)
 
-        conn.execute(
-            f"UPDATE commitlint_config SET {', '.join(fields)} WHERE id=1",
-            values
-        )
-        row = conn.execute("SELECT * FROM commitlint_config WHERE id=1").fetchone()
+    values.append(COMMITLINT_COURSE_ID)
 
-    result = dict(row)
-    try:
-        result["type_enum"] = json.loads(result["type_enum"])
-    except (json.JSONDecodeError, TypeError):
-        pass
-    return result
+    with mysql_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"UPDATE commitlint_configs SET {', '.join(fields)} WHERE course_id=%s",
+                values
+            )
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="配置记录不存在，请联系管理员初始化")
+            cur.execute(
+                "SELECT * FROM commitlint_configs WHERE course_id=%s",
+                (COMMITLINT_COURSE_ID,)
+            )
+            row = cur.fetchone()
+
+    return _row_to_frontend(row)
 
 
 # ─── 启用/禁用切换 ───────────────────────────────────────────────────────────
@@ -140,12 +195,18 @@ def toggle_commitlint(
     authorization: Optional[str] = Header(None)
 ):
     _require_teacher(authorization)
-    with db() as conn:
-        conn.execute(
-            "UPDATE commitlint_config SET enabled=?, rule_version=rule_version, updated_at=datetime('now','localtime') WHERE id=1",
-            (1 if req.enabled else 0,)
-        )
-        row = conn.execute("SELECT enabled FROM commitlint_config WHERE id=1").fetchone()
+    enabled_int = 1 if req.enabled else 0
+    with mysql_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE commitlint_configs SET enabled=%s, updated_by=%s WHERE course_id=%s",
+                (enabled_int, COMMITLINT_UPDATED_BY, COMMITLINT_COURSE_ID)
+            )
+            cur.execute(
+                "SELECT enabled FROM commitlint_configs WHERE course_id=%s",
+                (COMMITLINT_COURSE_ID,)
+            )
+            row = cur.fetchone()
     return {"enabled": bool(row["enabled"])}
 
 
@@ -154,19 +215,18 @@ def toggle_commitlint(
 @router.get("/api/teacher/commitlint/status")
 def get_commitlint_status(authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
-    with db() as conn:
-        config = conn.execute("SELECT * FROM commitlint_config WHERE id=1").fetchone()
-        failures = conn.execute(
-            "SELECT * FROM commitlint_failures ORDER BY failed_at DESC LIMIT 5"
-        ).fetchall()
+    with mysql_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM commitlint_configs WHERE course_id=%s",
+                (COMMITLINT_COURSE_ID,)
+            )
+            config = cur.fetchone()
     if not config:
         raise HTTPException(status_code=404, detail="配置不存在")
-    result = dict(config)
-    try:
-        result["type_enum"] = json.loads(result["type_enum"])
-    except (json.JSONDecodeError, TypeError):
-        pass
-    result["recent_failures"] = [dict(f) for f in failures]
+
+    result = _row_to_frontend(config)
+    result["recent_failures"] = get_failures()
     return result
 
 
@@ -175,50 +235,43 @@ def get_commitlint_status(authorization: Optional[str] = Header(None)):
 @router.get("/api/teacher/commitlint/failures")
 def get_commitlint_failures(authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
-    with db() as conn:
-        rows = conn.execute(
-            "SELECT * FROM commitlint_failures ORDER BY failed_at DESC LIMIT 5"
-        ).fetchall()
-    return [dict(r) for r in rows]
+    return get_failures()
 
 
 # ─── 生成 CI 配置文件内容（CI 联动：根据 enabled 状态决定规则级别）────────────
 
-def _build_commitlintrc(config: dict, force_enabled: Optional[bool] = None) -> str:
-    is_enabled = force_enabled if force_enabled is not None else (config["enabled"] in (1, True))
-    type_enum = config["type_enum"]
+def _load_config(row: dict) -> dict:
+    """将 MySQL 行转换为 build_commitlintrc 可接受的字典"""
+    type_enum = row.get("type_enum_json") or row.get("type_enum")
     if isinstance(type_enum, str):
         try:
             type_enum = json.loads(type_enum)
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, TypeError):
             type_enum = ["feat", "fix", "refactor", "style", "test", "docs", "chore"]
-
-    # 规则级别：enabled=2(error 导致CI失败), disabled=0(关闭)
-    level = 2 if is_enabled else 0
-
-    rules = {
-        "type-enum": [level, "always", type_enum],
-        "subject-min-length": [level, "always", config["subject_min_length"]],
-        "header-max-length": [level, "always", config["header_max_length"]]
+    return {
+        "type_enum": type_enum,
+        "header_max_length": row["header_max_len"],
+        "subject_min_length": row["subject_min_len"],
+        "is_enabled": bool(row["enabled"]),
     }
-
-    rc = {
-        "extends": ["@commitlint/config-conventional"],
-        "rules": rules
-    }
-    return json.dumps(rc, indent=2, ensure_ascii=False)
 
 
 @router.post("/api/teacher/commitlint/generate")
 def generate_commitlint_config(authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
-    with db() as conn:
-        config = conn.execute("SELECT * FROM commitlint_config WHERE id=1").fetchone()
+    with mysql_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM commitlint_configs WHERE course_id=%s",
+                (COMMITLINT_COURSE_ID,)
+            )
+            config = cur.fetchone()
     if not config:
         raise HTTPException(status_code=404, detail="请先保存配置")
 
-    workflow_yml = "name: Commit Message 检查\n\non: [pull_request]\n\njobs:\n  commitlint:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          fetch-depth: 0\n      - uses: wagoid/commitlint-github-action@v5\n        with:\n          configFile: .commitlintrc.json\n"
-    commitlintrc = _build_commitlintrc(config)
+    cfg = _load_config(config)
+    commitlintrc = build_commitlintrc(**cfg)
+    workflow_yml = generate_workflow_yml()
 
     return {
         "workflow": {
@@ -240,23 +293,25 @@ def generate_commitlint_config(authorization: Optional[str] = Header(None)):
 
 @router.post("/api/teacher/commitlint/push")
 def push_commitlint_config(authorization: Optional[str] = Header(None)):
-    """
-    将当前 commitlint 配置生成的文件一键提交至 GitHub 仓库，
-    纳入 Git 版本控制，自动触发 CI。
-    """
     _require_teacher(authorization)
 
-    with db() as conn:
-        config = conn.execute("SELECT * FROM commitlint_config WHERE id=1").fetchone()
+    with mysql_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM commitlint_configs WHERE course_id=%s",
+                (COMMITLINT_COURSE_ID,)
+            )
+            config = cur.fetchone()
     if not config:
         raise HTTPException(status_code=404, detail="请先保存配置")
 
-    workflow_yml = "name: Commit Message 检查\n\non: [pull_request]\n\njobs:\n  commitlint:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          fetch-depth: 0\n      - uses: wagoid/commitlint-github-action@v5\n        with:\n          configFile: .commitlintrc.json\n"
-    commitlintrc = _build_commitlintrc(config)
+    cfg = _load_config(config)
+    commitlintrc = build_commitlintrc(**cfg)
+    workflow_yml = generate_workflow_yml()
 
-    is_enabled = config["enabled"] in (1, True)
+    is_enabled = bool(config["enabled"])
     status_label = "启用" if is_enabled else "停用"
-    version = config["rule_version"]
+    version = config["config_version"]
 
     files = [
         {"path": ".github/workflows/commitlint.yml", "content": workflow_yml},
@@ -267,7 +322,7 @@ def push_commitlint_config(authorization: Optional[str] = Header(None)):
         f"chore(commitlint): {status_label}配置 v{version}\n\n"
         f"由 OA-EPP 平台自动提交。\n"
         f"规则版本: v{version}\n"
-        f"规则类型: {config['rule_type']}\n"
+        f"规则集: {config['rule_set']}\n"
         f"启用状态: {status_label}\n"
     )
 
@@ -280,7 +335,7 @@ def push_commitlint_config(authorization: Optional[str] = Header(None)):
         "ok": True,
         "commit_sha": result["commit_sha"],
         "commit_url": result["commit_url"],
-        "version": version,
+        "version": str(version),
         "enabled": is_enabled,
         "files": [
             {"path": ".github/workflows/commitlint.yml", "status": "已提交"},
@@ -303,48 +358,51 @@ def save_and_push_commitlint(
     req: SaveAndPushRequest,
     authorization: Optional[str] = Header(None)
 ):
-    """
-    保存配置到数据库，自动升级版本号，并将配置文件一键提交至 GitHub 仓库。
-    提交后自动触发 CI，版本变更纳入 Git 历史可回溯。
-    """
     _require_teacher(authorization)
 
-    with db() as conn:
-        old = conn.execute("SELECT rule_version, enabled FROM commitlint_config WHERE id=1").fetchone()
-        new_version = _bump_version(old["rule_version"]) if old else "1.0.0"
-        old_enabled = old["enabled"] in (1, True) if old else True
+    with mysql_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE commitlint_configs SET"
+                " rule_set=%s, type_enum_json=%s,"
+                " header_max_len=%s, subject_min_len=%s,"
+                " config_version=config_version+1, updated_by=%s"
+                " WHERE course_id=%s",
+                (
+                    req.rule_type,
+                    json.dumps(req.type_enum, ensure_ascii=False),
+                    req.header_max_length,
+                    req.subject_min_length,
+                    COMMITLINT_UPDATED_BY,
+                    COMMITLINT_COURSE_ID,
+                )
+            )
+            cur.execute(
+                "SELECT * FROM commitlint_configs WHERE course_id=%s",
+                (COMMITLINT_COURSE_ID,)
+            )
+            config = cur.fetchone()
 
-        conn.execute(
-            """UPDATE commitlint_config SET
-                rule_type=?, type_enum=?, header_max_length=?,
-                subject_min_length=?, rule_version=?,
-                updated_at=datetime('now','localtime')
-               WHERE id=1""",
-            (
-                req.rule_type,
-                json.dumps(req.type_enum, ensure_ascii=False),
-                req.header_max_length,
-                req.subject_min_length,
-                new_version,
-            ),
-        )
-        config = conn.execute("SELECT * FROM commitlint_config WHERE id=1").fetchone()
+    if not config:
+        raise HTTPException(status_code=404, detail="配置记录不存在")
 
-    is_enabled = config["enabled"] in (1, True)
-    commitlintrc = _build_commitlintrc(config, force_enabled=is_enabled)
-    workflow_yml = "name: Commit Message 检查\n\non: [pull_request]\n\njobs:\n  commitlint:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          fetch-depth: 0\n      - uses: wagoid/commitlint-github-action@v5\n        with:\n          configFile: .commitlintrc.json\n"
+    is_enabled = bool(config["enabled"])
+    cfg = _load_config(config)
+    commitlintrc = build_commitlintrc(**cfg)
+    workflow_yml = generate_workflow_yml()
 
     files = [
         {"path": ".github/workflows/commitlint.yml", "content": workflow_yml},
         {"path": ".commitlintrc.json", "content": commitlintrc},
     ]
 
+    new_version = config["config_version"]
     status_label = "启用" if is_enabled else "停用"
     commit_message = (
         f"chore(commitlint): {status_label}配置 v{new_version}\n\n"
         f"由 OA-EPP 平台自动提交。\n"
         f"规则版本: v{new_version}\n"
-        f"规则类型: {req.rule_type}\n"
+        f"规则集: {req.rule_type}\n"
         f"启用状态: {status_label}\n"
     )
 
@@ -353,14 +411,13 @@ def save_and_push_commitlint(
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"提交至仓库失败: {e}")
 
-    result = dict(config)
-    try:
-        result["type_enum"] = json.loads(result["type_enum"])
-    except (json.JSONDecodeError, TypeError):
-        pass
+    result = _row_to_frontend(config)
     result["commit_sha"] = push_result["commit_sha"]
     result["commit_url"] = push_result["commit_url"]
-    result["git_history_url"] = f"https://github.com/uwislab/robotics-systems-course/commits/main/.commitlintrc.json"
+    result["git_history_url"] = (
+        f"https://github.com/uwislab/robotics-systems-course/"
+        f"commits/main/.commitlintrc.json"
+    )
 
     return result
 
@@ -369,7 +426,6 @@ def save_and_push_commitlint(
 
 @router.get("/api/teacher/commitlint/repo-status")
 def check_repo_status(authorization: Optional[str] = Header(None)):
-    """检查 GitHub Token 有效性及仓库中 commitlint 配置文件是否存在。"""
     _require_teacher(authorization)
 
     token_ok = check_token()
