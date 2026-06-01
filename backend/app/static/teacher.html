@@ -156,6 +156,74 @@
       </div>
     </div>
 
+    <!-- GitHub 账号映射管理 -->
+    <div class="card">
+      <div class="card-title">
+        <span>🔗 学生-GitHub账号对应表</span>
+        <button class="btn btn-primary btn-sm" onclick="downloadGitHubBindings()">⬇ 导出 CSV</button>
+      </div>
+      <div class="card-body">
+        <div id="github-msg"></div>
+
+        <!-- CSV批量导入 -->
+        <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #eee">
+          <p style="font-size:.88rem;font-weight:bold;margin-bottom:8px;color:#555">📥 批量导入（CSV）</p>
+          <p style="font-size:.82rem;color:#888;margin-bottom:12px">
+            CSV 格式：<code>学号,姓名,GitHub用户名</code>（第一行为表头，编码 UTF-8 或 GBK，班级从学生名单自动获取）
+          </p>
+          <label class="upload-area" id="github-upload-area" style="max-width:400px">
+            <input type="file" id="github-csv-file" accept=".csv" onchange="handleGitHubFile(this)">
+            <div style="font-size:1.5rem">📂</div>
+            <div>点击选择 CSV 文件</div>
+            <div class="upload-hint" id="github-file-name">未选择文件</div>
+          </label>
+          <div style="margin-top:12px">
+            <button class="btn btn-success" onclick="uploadGitHubBindings()">上传绑定</button>
+          </div>
+        </div>
+
+        <!-- 筛选条件 -->
+        <div style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap">
+          <div>
+            <label class="form-label">班级筛选</label>
+            <select id="github-filter-class" onchange="loadGitHubBindings()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px">
+              <option value="">全部班级</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">课程筛选</label>
+            <select id="github-filter-course" onchange="loadGitHubBindings()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px">
+              <option value="">全部课程</option>
+            </select>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="clearGitHubFilters()" style="margin-top:20px">清除筛选</button>
+        </div>
+
+        <!-- 手动添加单个绑定 -->
+        <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #eee">
+          <p style="font-size:.88rem;font-weight:bold;margin-bottom:8px;color:#555">➕ 添加单个绑定</p>
+          <div class="add-form">
+            <div>
+              <label class="form-label">学号 *</label>
+              <input type="text" id="github-add-sid" placeholder="如：2024001">
+            </div>
+            <div>
+              <label class="form-label">姓名 *</label>
+              <input type="text" id="github-add-name" placeholder="如：张三">
+            </div>
+            <div>
+              <label class="form-label">GitHub 用户名 *</label>
+              <input type="text" id="github-add-github" placeholder="如：username">
+            </div>
+            <button class="btn btn-primary btn-sm" style="height:42px;white-space:nowrap" onclick="addGitHubBinding()">添加</button>
+          </div>
+        </div>
+
+        <!-- 映射列表 -->
+        <div id="github-bindings-list">加载中…</div>
+      </div>
+    </div>
+
     <!-- 考试管理 -->
     <div class="card">
       <div class="card-title">📝 考试管理 & 成绩查看</div>
@@ -458,6 +526,182 @@ function showConfirmDialog(title, message, onConfirm) {
   backdrop.querySelector('#confirm-ok').onclick = () => { backdrop.remove(); onConfirm(); };
 }
 
+// ───── GitHub 账号映射管理 ─────
+
+function handleGitHubFile(input) {
+  document.getElementById('github-file-name').textContent = input.files[0]?.name || '未选择文件';
+}
+
+async function uploadGitHubBindings() {
+  const file = document.getElementById('github-csv-file').files[0];
+  if (!file) { showMsg('github-msg', '请先选择 CSV 文件', 'error'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const r = await fetch(`${API}/api/teacher/github/bindings`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`},
+      body: fd
+    });
+    const d = await r.json();
+    if (!r.ok) { showMsg('github-msg', d.detail || '上传失败', 'error'); return; }
+    showMsg('github-msg', d.message, 'success');
+    if (d.conflicts && d.conflicts.length > 0) {
+      showMsg('github-msg', `⚠️ 冲突提示：${d.conflicts.join('; ')}`, 'error');
+    }
+    // 显示成绩重算结果
+    if (d.recalculated && d.recalculated > 0) {
+      showMsg('github-msg', `🔄 已自动关联 ${d.recalculated} 条提交记录，相关成绩已更新`, 'success');
+    }
+    loadGitHubBindings();
+  } catch(e) { showMsg('github-msg', '网络错误：' + e, 'error'); }
+}
+
+async function loadGitHubBindings() {
+  const class_name = document.getElementById('github-filter-class').value;
+  const course_name = document.getElementById('github-filter-course').value;
+  const params = new URLSearchParams();
+  if (class_name) params.append('class_name', class_name);
+  if (course_name) params.append('course_name', course_name);
+  
+  const r = await fetch(`${API}/api/teacher/github/bindings?${params}`, {
+    headers: {'Authorization': `Bearer ${TOKEN}`}
+  });
+  if (!r.ok) { document.getElementById('github-bindings-list').innerHTML = '<p style="color:#c62828">加载失败</p>'; return; }
+  const bindings = await r.json();
+  
+  await loadGitHubFilters();
+  
+  if (!bindings.length) {
+    document.getElementById('github-bindings-list').innerHTML = '<p style="color:#888;font-size:.9rem">暂无绑定记录</p>';
+    return;
+  }
+  
+  const rows = bindings.map(b => `
+    <tr>
+      <td>${b.name || '-'}</td>
+      <td>${b.student_user_id}</td>
+      <td><input type="text" value="${b.github_username}" class="github-username-input" data-sid="${b.student_user_id}" style="width:140px;padding:4px 6px;border:1px solid #ddd;border-radius:4px"/></td>
+      <td>${b.class_name || '-'}</td>
+      <td>${b.course_name || '-'}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="updateGitHubBinding('${b.student_user_id}')">✓ 保存</button>
+        <button class="btn btn-outline-danger btn-sm" onclick="deleteGitHubBinding('${b.student_user_id}','${b.name || b.student_user_id}')">删除</button>
+      </td>
+    </tr>
+  `).join('');
+  
+  document.getElementById('github-bindings-list').innerHTML = `
+    <p style="font-size:.85rem;color:#888;margin-bottom:8px">共 ${bindings.length} 条绑定记录</p>
+    <table>
+      <thead><tr><th>姓名</th><th>学号</th><th>GitHub用户名</th><th>班级</th><th>课程</th><th>操作</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+async function loadGitHubFilters() {
+  const [classes, courses] = await Promise.all([
+    fetch(`${API}/api/teacher/github/classes`, { headers: {'Authorization': `Bearer ${TOKEN}`} }).then(r => r.json()),
+    fetch(`${API}/api/teacher/github/courses`, { headers: {'Authorization': `Bearer ${TOKEN}`} }).then(r => r.json())
+  ]);
+  
+  const classSelect = document.getElementById('github-filter-class');
+  const currentClass = classSelect.value;
+  classSelect.innerHTML = '<option value="">全部班级</option>' + 
+    classes.map(c => `<option value="${c}" ${c===currentClass?'selected':''}>${c}</option>`).join('');
+  
+  const courseSelect = document.getElementById('github-filter-course');
+  const currentCourse = courseSelect.value;
+  courseSelect.innerHTML = '<option value="">全部课程</option>' + 
+    courses.map(c => `<option value="${c}" ${c===currentCourse?'selected':''}>${c}</option>`).join('');
+}
+
+function clearGitHubFilters() {
+  document.getElementById('github-filter-class').value = '';
+  document.getElementById('github-filter-course').value = '';
+  loadGitHubBindings();
+}
+
+async function addGitHubBinding() {
+  const sid = document.getElementById('github-add-sid').value.trim();
+  const name = document.getElementById('github-add-name').value.trim();
+  const github = document.getElementById('github-add-github').value.trim();
+  if (!sid || !name || !github) { showMsg('github-msg', '学号、姓名和 GitHub 用户名不能为空', 'error'); return; }
+  try {
+    const r = await fetch(`${API}/api/teacher/github/bindings/add`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify({student_user_id: sid, name: name, github_username: github})
+    });
+    const d = await r.json();
+    if (!r.ok) { showMsg('github-msg', d.detail || '添加失败', 'error'); return; }
+    showMsg('github-msg', d.message, 'success');
+    document.getElementById('github-add-sid').value = '';
+    document.getElementById('github-add-name').value = '';
+    document.getElementById('github-add-github').value = '';
+    loadGitHubBindings();
+  } catch(e) { showMsg('github-msg', '网络错误：' + e, 'error'); }
+}
+
+async function updateGitHubBinding(studentId) {
+  const input = document.querySelector(`.github-username-input[data-sid="${studentId}"]`);
+  const githubUsername = input.value.trim();
+  if (!githubUsername) { showMsg('github-msg', 'GitHub 用户名不能为空', 'error'); return; }
+  try {
+    const r = await fetch(`${API}/api/teacher/github/bindings/${studentId}?github_username=${encodeURIComponent(githubUsername)}`, {
+      method: 'PUT',
+      headers: {'Authorization': `Bearer ${TOKEN}`}
+    });
+    const text = await r.text();
+    let d;
+    try {
+      d = JSON.parse(text);
+    } catch (parseErr) {
+      showMsg('github-msg', '服务器返回错误：' + text.substring(0, 100), 'error');
+      return;
+    }
+    if (!r.ok) { showMsg('github-msg', d.detail || '更新失败', 'error'); return; }
+    showMsg('github-msg', d.message || '更新成功', 'success');
+    loadGitHubBindings();
+  } catch(e) { showMsg('github-msg', '网络错误：' + e, 'error'); }
+}
+
+async function deleteGitHubBinding(studentId, name) {
+  showConfirmDialog(
+    '删除绑定',
+    `确认解除 <strong>${name}</strong> 的 GitHub 账号绑定？`,
+    async () => {
+      const r = await fetch(`${API}/api/teacher/github/bindings/${studentId}`, {
+        method: 'DELETE',
+        headers: {'Authorization': `Bearer ${TOKEN}`}
+      });
+      const d = await r.json();
+      if (!r.ok) { showMsg('github-msg', d.detail || '删除失败', 'error'); return; }
+      showMsg('github-msg', d.message, 'success');
+      loadGitHubBindings();
+    }
+  );
+}
+
+async function downloadGitHubBindings() {
+  const class_name = document.getElementById('github-filter-class').value;
+  const course_name = document.getElementById('github-filter-course').value;
+  const params = new URLSearchParams();
+  if (class_name) params.append('class_name', class_name);
+  if (course_name) params.append('course_name', course_name);
+  
+  const url = `${API}/api/teacher/github/bindings/export?${params}`;
+  const r = await fetch(url, { headers: {'Authorization': `Bearer ${TOKEN}`} });
+  if (!r.ok) { alert('导出失败'); return; }
+  const blob = await r.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  a.download = `GitHub绑定_${date}.csv`;
+  a.click();
+}
+
 // ───── 初始化：检查已有 token ─────
 if (TOKEN) {
   fetch(`${API}/api/teacher/exams`, { headers: {'Authorization': `Bearer ${TOKEN}`} })
@@ -467,6 +711,7 @@ if (TOKEN) {
         document.getElementById('app').style.display = 'block';
         loadExams();
         loadStudentList();
+        loadGitHubBindings();
       } else {
         TOKEN = ''; sessionStorage.removeItem('teacher_token');
       }
