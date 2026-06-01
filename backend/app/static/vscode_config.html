@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VS Code & Copilot 配置 — 教师端</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; background: #f5f5f5; color: #333; }
+  .header { background: #1565c0; color: #fff; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-size: 1.1rem; }
+  .header a { color: #fff; text-decoration: none; font-size: .9rem; padding: 6px 14px; background: rgba(255,255,255,.15); border-radius: 4px; }
+  .header a:hover { background: rgba(255,255,255,.3); }
+  .container { max-width: 1100px; margin: 20px auto; padding: 0 16px; }
+  .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.1); margin-bottom: 20px; overflow: hidden; }
+  .card-title { background: #e3f2fd; padding: 12px 18px; font-weight: bold; font-size: .95rem; border-bottom: 1px solid #bbdefb; display: flex; align-items: center; justify-content: space-between; }
+  .card-body { padding: 18px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .btn { display: inline-block; padding: 8px 18px; border: none; border-radius: 5px; cursor: pointer; font-size: .88rem; font-weight: bold; }
+  .btn-primary { background: #1565c0; color: #fff; }
+  .btn-primary:hover { background: #0d47a1; }
+  .btn-success { background: #2e7d32; color: #fff; }
+  .btn-success:hover { background: #1b5e20; }
+  .btn-danger { background: #c62828; color: #fff; }
+  .btn-danger:hover { background: #b71c1c; }
+  .btn-outline { background: transparent; color: #1565c0; border: 1px solid #1565c0; }
+  .btn-outline:hover { background: #e3f2fd; }
+  .btn-outline-danger { background: transparent; color: #c62828; border: 1px solid #c62828; }
+  .btn-outline-danger:hover { background: #ffebee; }
+  .btn-sm { padding: 5px 12px; font-size: .8rem; }
+  .ext-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 6px; margin-bottom: 6px; font-size: .85rem; }
+  .ext-rec { background: #e8f0fe; border: 1px solid #c5d9f0; }
+  .ext-ban { background: #fdecea; border: 1px solid #f5c6cb; }
+  .ext-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: .75rem; color: #fff; font-weight: bold; flex-shrink: 0; }
+  .ext-info { flex: 1; }
+  .ext-name { font-weight: 600; color: #333; }
+  .ext-desc { color: #888; font-size: .78rem; margin-top: 2px; }
+  .ext-del { color: #c62828; cursor: pointer; font-size: 1.1rem; background: none; border: none; }
+  .ext-del:hover { color: #b71c1c; }
+  .add-row { display: flex; gap: 6px; margin-top: 10px; }
+  .add-row input { flex: 1; padding: 7px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: .85rem; }
+  .add-row input:focus { outline: none; border-color: #1565c0; }
+  .preset-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; }
+  .preset-btn { padding: 4px 12px; border: 1px solid #ccc; border-radius: 14px; background: #fff; cursor: pointer; font-size: .8rem; }
+  .preset-btn:hover { background: #e3f2fd; border-color: #1565c0; color: #1565c0; }
+  pre.json-preview { background: #1e1e1e; color: #a5d6a7; padding: 14px; border-radius: 6px; font-size: .8rem; overflow-x: auto; margin-bottom: 10px; max-height: 300px; overflow-y: auto; }
+  textarea.code-editor { width: 100%; min-height: 260px; border: 1px solid #ddd; border-radius: 6px; padding: 12px; font-family: "Consolas", "Courier New", monospace; font-size: .85rem; resize: vertical; }
+  textarea.code-editor:focus { outline: none; border-color: #1565c0; }
+  .alert { padding: 10px 14px; border-radius: 5px; margin-bottom: 10px; font-size: .85rem; }
+  .alert-success { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+  .alert-error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+  .alert-info { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+  .status-bar { display: flex; align-items: center; gap: 16px; padding: 12px 16px; background: #f8f9fa; border-radius: 6px; font-size: .85rem; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .status-clean { background: #4caf50; }
+  .status-dirty { background: #ff9800; }
+  .tab-bar { display: flex; gap: 2px; margin-bottom: 12px; border-bottom: 2px solid #e0e0e0; }
+  .tab-btn { padding: 8px 16px; border: none; background: none; cursor: pointer; font-size: .85rem; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+  .tab-btn.active { color: #1565c0; border-bottom-color: #1565c0; font-weight: 600; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<div id="not-logged-in" style="text-align:center;padding:80px 20px;">
+  <h2 style="color:#888;">正在验证身份...</h2>
+</div>
+
+<div id="app" class="hidden">
+  <div class="header">
+    <h1>VS Code & Copilot 配置管理</h1>
+    <a href="/teacher">← 返回教师管理</a>
+  </div>
+  <div class="container">
+
+    <div id="msg"></div>
+
+    <!-- 卡片1: 扩展管理 -->
+    <div class="card">
+      <div class="card-title"><span>🔌 VS Code 扩展管理</span></div>
+      <div class="card-body">
+        <div class="grid-2">
+          <div>
+            <h4 style="margin-bottom:8px;color:#1565c0;">必装 / 建议 <span style="font-weight:400;font-size:.8rem;color:#888;">recommendations</span></h4>
+            <div id="ext-recommendations"></div>
+            <div class="add-row">
+              <input id="ext-id" placeholder="扩展 ID（如 ms-python.python）">
+              <input id="ext-name" placeholder="名称">
+              <button class="btn btn-primary btn-sm" onclick="addExtension('recommendations')">+ 添加</button>
+            </div>
+          </div>
+          <div>
+            <h4 style="margin-bottom:8px;color:#c62828;">禁止安装 <span style="font-weight:400;font-size:.8rem;color:#888;">unwantedRecommendations</span></h4>
+            <div id="ext-banned"></div>
+            <div class="add-row">
+              <input id="ext-id-ban" placeholder="扩展 ID">
+              <input id="ext-name-ban" placeholder="名称">
+              <button class="btn btn-outline-danger btn-sm" onclick="addExtension('unwantedRecommendations')">+ 添加</button>
+            </div>
+          </div>
+        </div>
+        <div class="preset-btns">
+          <span style="font-size:.8rem;color:#888;">预置模板：</span>
+          <button class="preset-btn" onclick="applyPreset('python-dev')">Python开发套件</button>
+          <button class="preset-btn" onclick="applyPreset('copilot-suite')">Copilot全家桶</button>
+          <button class="preset-btn" onclick="applyPreset('reflex-dev')">Reflex开发</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 卡片2: JSON 预览 -->
+    <div class="card">
+      <div class="card-title"><span>📄 生成预览 <code style="font-weight:400;font-size:.8rem;">.vscode/extensions.json</code></span></div>
+      <div class="card-body">
+        <pre class="json-preview" id="json-preview">加载中...</pre>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline btn-sm" onclick="copyJSON()">复制 JSON</button>
+          <button class="btn btn-primary btn-sm" onclick="generateJSON()">生成文件</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 卡片3: Copilot 指令编辑器 -->
+    <div class="card">
+      <div class="card-title"><span>🤖 Copilot 指令文件编辑</span></div>
+      <div class="card-body">
+        <div class="tab-bar" id="file-tabs"></div>
+        <textarea class="code-editor" id="editor" placeholder="选择文件后在此编辑..."></textarea>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="btn btn-outline btn-sm" onclick="loadCurrentFile()">加载文件</button>
+          <button class="btn btn-success btn-sm" onclick="saveCurrentFile()">保存文件</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 操作栏 -->
+    <div class="card">
+      <div class="card-body">
+        <div class="status-bar" style="margin-bottom:10px;">
+          <span class="status-dot" id="git-dot"></span>
+          <span id="git-info">Git 状态加载中...</span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary" onclick="commitAndPush()">📤 提交到仓库</button>
+          <button class="btn btn-outline btn-sm" onclick="checkGitStatus()">刷新状态</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const TOKEN = sessionStorage.getItem('teacher_token') || '';
+const API = '';
+
+let currentFile = '';
+let extensionsData = {};
+
+(async function init() {
+  if (!TOKEN) { window.location.href = '/teacher'; return; }
+  const resp = await fetch(`${API}/api/teacher/exams`, {
+    headers: {'Authorization': `Bearer ${TOKEN}`}
+  });
+  if (!resp.ok) { window.location.href = '/teacher'; return; }
+  document.getElementById('not-logged-in').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  await loadExtensions();
+  await loadInstructionFiles();
+  await checkGitStatus();
+})();
+
+function api(method, url, body) {
+  return fetch(`${API}${url}`, {
+    method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, body: body ? JSON.stringify(body) : undefined
+  });
+}
+
+function showMsg(text, cls) {
+  const el = document.getElementById('msg');
+  el.innerHTML = `<div class="alert alert-${cls}">${text}</div>`;
+  setTimeout(() => el.innerHTML = '', 4000);
+}
+
+// ─── 扩展管理 ───
+async function loadExtensions() {
+  const r = await api('GET', '/api/teacher/vscode/extensions');
+  if (!r.ok) return;
+  extensionsData = await r.json();
+  renderExtensions();
+  updatePreview();
+}
+
+function renderExtensions() {
+  const renderList = (containerId, group, cls) => {
+    const el = document.getElementById(containerId);
+    const list = extensionsData[group] || [];
+    el.innerHTML = list.map(e => `
+      <div class="ext-item ${cls}">
+        <div class="ext-icon" style="background:${group==='recommendations'?'#1565c0':'#c62828'}">${e.id[0].toUpperCase()}</div>
+        <div class="ext-info"><div class="ext-name">${e.id}</div><div class="ext-desc">${e.description || e.name}</div></div>
+        <button class="ext-del" onclick="removeExtension('${group}','${e.id}')">&times;</button>
+      </div>
+    `).join('');
+  };
+  renderList('ext-recommendations', 'recommendations', 'ext-rec');
+  renderList('ext-banned', 'unwantedRecommendations', 'ext-ban');
+}
+
+async function addExtension(group) {
+  const idEl = group === 'recommendations' ? document.getElementById('ext-id') : document.getElementById('ext-id-ban');
+  const nameEl = group === 'recommendations' ? document.getElementById('ext-name') : document.getElementById('ext-name-ban');
+  const ext_id = idEl.value.trim();
+  const ext_name = nameEl.value.trim() || ext_id;
+  if (!ext_id) return;
+  const r = await api('POST', '/api/teacher/vscode/extensions', { action: 'add', group, ext_id, ext_name, ext_desc: '' });
+  if (r.ok) { idEl.value = ''; nameEl.value = ''; loadExtensions(); showMsg(`已添加 ${ext_id}`, 'success'); }
+  else { showMsg('添加失败', 'error'); }
+}
+
+async function removeExtension(group, ext_id) {
+  const r = await api('POST', '/api/teacher/vscode/extensions', { action: 'remove', group, ext_id, ext_name: '', ext_desc: '' });
+  if (r.ok) { loadExtensions(); showMsg(`已移除 ${ext_id}`, 'success'); }
+}
+
+async function applyPreset(presetId) {
+  const r = await api('GET', '/api/teacher/vscode/extensions/presets');
+  if (!r.ok) return;
+  const preset = (await r.json()).presets[presetId];
+  if (!preset) return;
+  await api('POST', '/api/teacher/vscode/extensions/replace', {
+    recommendations: preset.recommendations || [],
+    unwantedRecommendations: preset.unwantedRecommendations || []
+  });
+  await loadExtensions();
+  showMsg(`已应用模板：${preset.name}`, 'success');
+}
+
+function updatePreview() {
+  const recs = (extensionsData.recommendations || []).map(e => e.id);
+  const bans = (extensionsData.unwantedRecommendations || []).map(e => e.id);
+  const json = { recommendations: recs, unwantedRecommendations: bans };
+  document.getElementById('json-preview').textContent = JSON.stringify(json, null, 2);
+}
+
+function copyJSON() {
+  navigator.clipboard.writeText(document.getElementById('json-preview').textContent);
+  showMsg('已复制到剪贴板', 'success');
+}
+
+async function generateJSON() {
+  const r = await api('POST', '/api/teacher/vscode/extensions/generate');
+  if (r.ok) { showMsg('extensions.json 已生成', 'success'); checkGitStatus(); }
+  else { showMsg('生成失败', 'error'); }
+}
+
+// ─── Copilot 指令 ───
+async function loadInstructionFiles() {
+  const r = await api('GET', '/api/teacher/copilot/instructions');
+  if (!r.ok) return;
+  const data = await r.json();
+  const tabs = document.getElementById('file-tabs');
+  tabs.innerHTML = data.files.map((f, i) =>
+    `<button class="tab-btn${i===0?' active':''}" onclick="selectFile('${f.path}')" data-path="${f.path}">${f.name}</button>`
+  ).join('');
+  if (data.files.length > 0) selectFile(data.files[0].path);
+}
+
+function selectFile(path) {
+  currentFile = path;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.path === path));
+  loadCurrentFile();
+}
+
+async function loadCurrentFile() {
+  if (!currentFile) return;
+  const r = await api('GET', `/api/teacher/copilot/instructions/${encodeURIComponent(currentFile)}`);
+  if (r.ok) {
+    const d = await r.json();
+    document.getElementById('editor').value = d.content || '';
+  }
+}
+
+async function saveCurrentFile() {
+  if (!currentFile) return;
+  const content = document.getElementById('editor').value;
+  const r = await api('POST', `/api/teacher/copilot/instructions/${encodeURIComponent(currentFile)}`, { content });
+  if (r.ok) { showMsg('已保存', 'success'); checkGitStatus(); }
+  else { showMsg('保存失败', 'error'); }
+}
+
+// ─── Git ───
+async function checkGitStatus() {
+  const r = await api('GET', '/api/teacher/config/git-status');
+  if (!r.ok) { document.getElementById('git-info').textContent = '无法获取 Git 状态'; return; }
+  const s = await r.json();
+  const dot = document.getElementById('git-dot');
+  dot.className = 'status-dot ' + (s.dirty ? 'status-dirty' : 'status-clean');
+  document.getElementById('git-info').innerHTML = s.dirty
+    ? `有 ${s.changed_files.length} 个文件待提交 — 分支: ${s.branch}`
+    : `工作区干净 — 分支: ${s.branch}`;
+}
+
+async function commitAndPush() {
+  showMsg('正在提交到仓库...', 'info');
+  const r = await api('POST', '/api/teacher/config/commit');
+  if (r.ok) { const d = await r.json(); showMsg(d.sha ? `提交成功: ${d.sha}` : '无变更需要提交', 'success'); checkGitStatus(); }
+  else { showMsg('提交失败', 'error'); }
+}
+</script>
+</body>
+</html>

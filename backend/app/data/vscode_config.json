@@ -1,0 +1,41 @@
+{
+  "recommendations": [
+    {
+      "id": "GitHub.copilot",
+      "name": "GitHub Copilot",
+      "description": "AI 代码补全"
+    },
+    {
+      "id": "GitHub.copilot-chat",
+      "name": "GitHub Copilot Chat",
+      "description": "AI 对话助手"
+    },
+    {
+      "id": "ms-python.python",
+      "name": "Python",
+      "description": "Python 开发环境"
+    },
+    {
+      "id": "ms-python.vscode-pylance",
+      "name": "Pylance",
+      "description": "Python 语言服务器"
+    },
+    {
+      "id": "charliermarsh.ruff",
+      "name": "Ruff",
+      "description": "代码风格检查"
+    },
+    {
+      "id": "ms-python.debugpy",
+      "name": "Python Debugger",
+      "description": "Python 调试器"
+    }
+  ],
+  "unwantedRecommendations": [
+    {
+      "id": "ms-python.pylint",
+      "name": "Pylint",
+      "description": "与 Ruff 冲突，禁止使用"
+    }
+  ]
+}
