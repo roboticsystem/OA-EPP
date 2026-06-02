@@ -1,0 +1,14 @@
+# Reflex 框架及前端依赖
+reflex>=0.3.0,<0.4.0
+
+# 数据库驱动
+sqlalchemy>=2.0,<3.0
+pymysql>=1.1.0,<2.0
+cryptography>=42.0.0
+
+# 异步支持
+asyncio-contextmanager>=1.0.0
+httpx>=0.24.0
+
+# 其他依赖
+python-dotenv>=1.0.0
