@@ -164,6 +164,55 @@
       </div>
     </div>
 
+    <!-- 作业管理 -->
+    <div class="card">
+      <div class="card-title">
+        <span>📄 作业管理</span>
+        <button class="btn btn-primary btn-sm" onclick="showCreateAssignment()">➕ 新建作业</button>
+      </div>
+      <div class="card-body">
+        <div id="assignments-msg"></div>
+
+        <!-- 新建作业表单（默认隐藏） -->
+        <div id="create-assignment-form" style="display:none;margin-bottom:16px;padding:16px;background:#f8f9fa;border-radius:8px;border:1px solid #e0e0e0">
+          <p style="font-size:.88rem;font-weight:bold;margin-bottom:12px;color:#555">新建作业</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label class="form-label">作业ID *</label>
+              <input type="text" id="asmt-id" placeholder="如：hw7-srs">
+            </div>
+            <div>
+              <label class="form-label">标题 *</label>
+              <input type="text" id="asmt-title" placeholder="如：第7章 软件需求规格说明书">
+            </div>
+            <div style="grid-column:span 2">
+              <label class="form-label">描述</label>
+              <input type="text" id="asmt-desc" placeholder="作业描述（可选）">
+            </div>
+            <div>
+              <label class="form-label">截止时间 *</label>
+              <input type="datetime-local" id="asmt-deadline">
+            </div>
+            <div>
+              <label class="form-label">允许格式</label>
+              <input type="text" id="asmt-formats" value="pdf,docx,zip,py,c,cpp,txt" placeholder="用逗号分隔">
+            </div>
+            <div>
+              <label class="form-label">最大文件大小（字节）</label>
+              <input type="number" id="asmt-maxsize" value="52428800">
+            </div>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:8px">
+            <button class="btn btn-success btn-sm" onclick="createAssignment()">创建</button>
+            <button class="btn btn-outline btn-sm" onclick="hideCreateAssignment()">取消</button>
+          </div>
+        </div>
+
+        <!-- 作业列表 -->
+        <div id="assignments-list">加载中…</div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -458,6 +507,143 @@ function showConfirmDialog(title, message, onConfirm) {
   backdrop.querySelector('#confirm-ok').onclick = () => { backdrop.remove(); onConfirm(); };
 }
 
+// ───── 作业管理 ─────
+
+function showCreateAssignment() {
+  const form = document.getElementById('create-assignment-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  if (form.style.display === 'block') {
+    const now = new Date();
+    now.setDate(now.getDate() + 14);
+    document.getElementById('asmt-deadline').value = now.toISOString().slice(0, 16);
+  }
+}
+
+function hideCreateAssignment() {
+  document.getElementById('create-assignment-form').style.display = 'none';
+}
+
+async function createAssignment() {
+  const id = document.getElementById('asmt-id').value.trim();
+  const title = document.getElementById('asmt-title').value.trim();
+  const desc = document.getElementById('asmt-desc').value.trim();
+  const deadline = document.getElementById('asmt-deadline').value;
+  const formats = document.getElementById('asmt-formats').value.trim();
+  const maxSize = parseInt(document.getElementById('asmt-maxsize').value) || 52428800;
+
+  if (!id || !title || !deadline) {
+    showMsg('assignments-msg', '作业ID、标题和截止时间不能为空', 'error');
+    return;
+  }
+
+  const deadlineStr = deadline.replace('T', ' ');
+
+  try {
+    const r = await fetch(`${API}/api/teacher/assignments`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify({id, title, description: desc, deadline: deadlineStr, allowed_formats: formats, max_file_size: maxSize})
+    });
+    const d = await r.json();
+    if (!r.ok) { showMsg('assignments-msg', d.detail || '创建失败', 'error'); return; }
+    showMsg('assignments-msg', `✅ 作业已创建：${title}`);
+    hideCreateAssignment();
+    document.getElementById('asmt-id').value = '';
+    document.getElementById('asmt-title').value = '';
+    document.getElementById('asmt-desc').value = '';
+    loadAssignmentsTeacher();
+  } catch(e) { showMsg('assignments-msg', '网络错误：' + e, 'error'); }
+}
+
+async function loadAssignmentsTeacher() {
+  const r = await fetch(`${API}/api/teacher/assignments`, {
+    headers: {'Authorization': `Bearer ${TOKEN}`}
+  });
+  if (r.status === 401) return;
+  const list = await r.json();
+  renderAssignmentsTeacher(list);
+}
+
+function renderAssignmentsTeacher(list) {
+  const container = document.getElementById('assignments-list');
+  if (!list.length) {
+    container.innerHTML = '<p style="color:#888;font-size:.9rem">暂无作业，点击上方「新建作业」创建</p>';
+    return;
+  }
+
+  const rows = list.map(a => {
+    const isActive = a.is_active === 1;
+    return `
+      <div style="border:1px solid #e0e0e0;border-radius:8px;padding:14px 16px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <strong style="font-size:.95rem">${a.title}</strong>
+              <span class="badge ${isActive ? 'badge-green' : 'badge-gray'}">${isActive ? '开放中' : '已关闭'}</span>
+            </div>
+            <div style="font-size:.82rem;color:#888">
+              ID: ${a.id} · 截止：${a.deadline} · 已提交：${a.submitted_count} 人
+            </div>
+            <div style="font-size:.82rem;color:#888;margin-top:2px">
+              格式：${a.allowed_formats} · 大小限制：${formatBytes(a.max_file_size)}
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <label class="switch" title="${isActive ? '点击关闭' : '点击开启'}">
+              <input type="checkbox" ${isActive ? 'checked' : ''} onchange="toggleAssignment('${a.id}', this.checked)">
+              <span class="slider"></span>
+            </label>
+            <button class="btn btn-outline-danger btn-sm" onclick="deleteAssignment('${a.id}','${a.title}')">删除</button>
+          </div>
+        </div>
+        <div id="submissions-${a.id}" style="margin-top:10px;display:none">
+          <div style="font-size:.85rem;color:#888;padding:8px 0">加载中…</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <p style="font-size:.85rem;color:#888;margin-bottom:10px">共 ${list.length} 个作业</p>
+    ${rows}
+  `;
+}
+
+async function toggleAssignment(id, active) {
+  try {
+    await fetch(`${API}/api/teacher/assignments/${id}`, {
+      method: 'PUT',
+      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify({is_active: active ? 1 : 0})
+    });
+    loadAssignmentsTeacher();
+  } catch(e) { showMsg('assignments-msg', '操作失败：' + e, 'error'); }
+}
+
+function deleteAssignment(id, title) {
+  showConfirmDialog(
+    '删除作业',
+    `确认删除作业 <strong>${title}（${id}）</strong>？<br>该作业的所有提交记录也将一并删除。`,
+    async () => {
+      const r = await fetch(`${API}/api/teacher/assignments/${id}`, {
+        method: 'DELETE',
+        headers: {'Authorization': `Bearer ${TOKEN}`}
+      });
+      const d = await r.json();
+      if (!r.ok) { showMsg('assignments-msg', d.detail || '删除失败', 'error'); return; }
+      showMsg('assignments-msg', `✅ 已删除作业：${title}`);
+      loadAssignmentsTeacher();
+    }
+  );
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return '0B';
+  if (bytes < 1024) return bytes + 'B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + 'KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + 'MB';
+}
+
 // ───── 初始化：检查已有 token ─────
 if (TOKEN) {
   fetch(`${API}/api/teacher/exams`, { headers: {'Authorization': `Bearer ${TOKEN}`} })
@@ -467,6 +653,7 @@ if (TOKEN) {
         document.getElementById('app').style.display = 'block';
         loadExams();
         loadStudentList();
+        loadAssignmentsTeacher();
       } else {
         TOKEN = ''; sessionStorage.removeItem('teacher_token');
       }
