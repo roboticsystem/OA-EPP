@@ -1,5 +1,9 @@
 from dotenv import load_dotenv
-load_dotenv()
+from pathlib import Path
+
+# 从项目根目录加载 .env 文件
+_env_file = Path(__file__).resolve().parent.parent.parent / ".env"
+load_dotenv(_env_file)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

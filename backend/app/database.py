@@ -2,6 +2,18 @@ import pymysql
 import os
 from contextlib import contextmanager
 from urllib.parse import urlparse, unquote
+from pathlib import Path
+
+# 加载 .env 文件（从项目根目录）
+_env_file = Path(__file__).resolve().parent.parent.parent / ".env"
+if _env_file.exists():
+    with open(_env_file, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
+                if key not in os.environ:  # 不覆盖已存在的环境变量
+                    os.environ[key] = value
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
@@ -96,28 +108,40 @@ def db():
 
 def _migrate_chapters(conn):
     """幂等地为旧 chapters 表补充 F-S-011 字段（MySQL 版）"""
-    conn.execute("SHOW COLUMNS FROM chapters")
-    existing = {row["Field"] for row in conn.fetchall()}
-    for col, ddl in {
-        "chapter_type":     "ALTER TABLE chapters ADD COLUMN chapter_type     VARCHAR(50) DEFAULT '作业'",
-        "deadline":         "ALTER TABLE chapters ADD COLUMN deadline         VARCHAR(50) DEFAULT ''",
-        "status":           "ALTER TABLE chapters ADD COLUMN status           VARCHAR(50) DEFAULT '待开始'",
-        "grading_criteria": "ALTER TABLE chapters ADD COLUMN grading_criteria TEXT",
-    }.items():
-        if col not in existing:
-            conn.execute(ddl)
+    try:
+        conn.execute("SHOW COLUMNS FROM chapters")
+        existing = {row["Field"] for row in conn.fetchall()}
+        for col, ddl in {
+            "chapter_type":     "ALTER TABLE chapters ADD COLUMN chapter_type     VARCHAR(50) DEFAULT '作业'",
+            "deadline":         "ALTER TABLE chapters ADD COLUMN deadline         VARCHAR(50) DEFAULT ''",
+            "status":           "ALTER TABLE chapters ADD COLUMN status           VARCHAR(50) DEFAULT '待开始'",
+            "grading_criteria": "ALTER TABLE chapters ADD COLUMN grading_criteria TEXT",
+        }.items():
+            if col not in existing:
+                try:
+                    conn.execute(ddl)
+                except Exception as e:
+                    print(f"[_migrate_chapters] ALTER denied, skipping {col}: {e}")
+    except Exception as e:
+        print(f"[_migrate_chapters] SHOW COLUMNS denied, skipping: {e}")
 
 
 def _migrate_courses(conn):
     """幂等地为旧 courses 表补充总分/截止提醒字段（MySQL 版）"""
-    conn.execute("SHOW COLUMNS FROM courses")
-    existing = {row["Field"] for row in conn.fetchall()}
-    for col, ddl in {
-        "total_score":       "ALTER TABLE courses ADD COLUMN total_score       INT DEFAULT 100",
-        "deadline_reminder": "ALTER TABLE courses ADD COLUMN deadline_reminder VARCHAR(255) DEFAULT ''",
-    }.items():
-        if col not in existing:
-            conn.execute(ddl)
+    try:
+        conn.execute("SHOW COLUMNS FROM courses")
+        existing = {row["Field"] for row in conn.fetchall()}
+        for col, ddl in {
+            "total_score":       "ALTER TABLE courses ADD COLUMN total_score       INT DEFAULT 100",
+            "deadline_reminder": "ALTER TABLE courses ADD COLUMN deadline_reminder VARCHAR(255) DEFAULT ''",
+        }.items():
+            if col not in existing:
+                try:
+                    conn.execute(ddl)
+                except Exception as e:
+                    print(f"[_migrate_courses] ALTER denied, skipping {col}: {e}")
+    except Exception as e:
+        print(f"[_migrate_courses] SHOW COLUMNS denied, skipping: {e}")
 
 
 def init_db():

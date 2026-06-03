@@ -117,10 +117,27 @@ def sync_exams() -> dict:
     updated = []
     deleted = []
     with db() as conn:
-        existing = {r["id"]: r["title"] for r in conn.execute("SELECT id, title FROM exams")}
+        existing = {r["id"]: r["title"] for r in conn.execute("SELECT id, title FROM exams").fetchall()}
+        
+        # 获取有效的教师ID和课程ID
+        teachers = conn.execute("SELECT user_id FROM teachers LIMIT 1").fetchall()
+        courses = conn.execute("SELECT id FROM courses LIMIT 1").fetchall()
+        
+        if not teachers:
+            print("[sync_exams] ⚠️  未找到教师记录，跳过数据库写入")
+            return {"found": len(found), "injected": len(injected), "added": 0, "updated": 0, "deleted": 0}
+        
+        if not courses:
+            print("[sync_exams] ⚠️  未找到课程记录，跳过数据库写入")
+            return {"found": len(found), "injected": len(injected), "added": 0, "updated": 0, "deleted": 0}
+        
+        teacher_id = teachers[0]["user_id"]
+        course_id = courses[0]["id"]
+        
         for eid, etitle in found.items():
             if eid not in existing:
-                conn.execute("INSERT INTO exams (id, title, is_active) VALUES (%s,%s,1)", (eid, etitle))
+                conn.execute("INSERT INTO exams (title, exam_type, start_at, end_at, course_id, created_by) VALUES (%s, %s, %s, %s, %s, %s)", 
+                            (etitle, 'quiz', '2026-06-01 09:00:00', '2026-12-31 23:59:59', course_id, teacher_id))
                 added.append(eid)
                 print(f"[sync_exams] 数据库新增考试：{eid} - {etitle}")
             else:
@@ -133,9 +150,16 @@ def sync_exams() -> dict:
         if found:
             for eid in list(existing):
                 if eid not in found:
-                    conn.execute("DELETE FROM exams WHERE id=%s", (eid,))
-                    deleted.append(eid)
-                    print(f"[sync_exams] 数据库删除孤立考试：{eid}")
+                    # 检查是否有关联的考试提交记录
+                    attempt_count = conn.execute(
+                        "SELECT COUNT(*) AS cnt FROM exam_attempts WHERE exam_id=%s", (eid,)
+                    ).fetchone()["cnt"]
+                    if attempt_count > 0:
+                        print(f"[sync_exams] ⚠️  跳过删除考试 {eid}（存在 {attempt_count} 条提交记录）")
+                    else:
+                        conn.execute("DELETE FROM exams WHERE id=%s", (eid,))
+                        deleted.append(eid)
+                        print(f"[sync_exams] 数据库删除孤立考试：{eid}")
         elif existing:
             print(f"[sync_exams] ⚠️  文档扫描结果为空，跳过孤立记录清理（保留 {len(existing)} 条现有记录）")
 
