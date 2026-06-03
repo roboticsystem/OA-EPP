@@ -1,34 +1,53 @@
 import reflex as rx
+from oaepp.theme import c, FONT
+
+COLOR_MAP = {
+    "blue": c("blue.600"),
+    "green": c("green.600"),
+    "purple": c("purple.600"),
+    "orange": c("orange.500"),
+}
 
 
 def stat_card(title: str, value: str, subtitle: str, color: str = "blue") -> rx.Component:
-    color_map = {
-        "blue": "blue.600",
-        "green": "green.600",
-        "purple": "purple.600",
-        "orange": "orange.500",
-    }
     return rx.box(
-        rx.text(
+        rx.el.p(
             title,
-            font_size="xs",
-            color="gray.400",
-            font_weight="medium",
-            text_transform="uppercase",
-            letter_spacing="wide",
+            style={
+                "font_size": "12px",
+                "color": c("gray.400"),
+                "font_weight": "500",
+                "text_transform": "uppercase",
+                "letter_spacing": "0.05em",
+                "margin": "0",
+                "font_family": FONT,
+            },
         ),
-        rx.text(
+        rx.el.p(
             value,
-            font_size="3xl",
-            font_weight="bold",
-            color=color_map.get(color, "blue.600"),
-            margin_top="4px",
+            style={
+                "font_size": "30px",
+                "font_weight": "700",
+                "color": COLOR_MAP.get(color, c("blue.600")),
+                "margin": "4px 0 0 0",
+                "font_family": FONT,
+                "line_height": "1.2",
+            },
         ),
-        rx.text(subtitle, font_size="xs", color="gray.400", margin_top="4px"),
-        bg="white",
-        border_radius="xl",
-        border="1px solid",
-        border_color="gray.100",
-        shadow="sm",
-        padding="20px",
+        rx.el.p(
+            subtitle,
+            style={
+                "font_size": "12px",
+                "color": c("gray.400"),
+                "margin": "4px 0 0 0",
+                "font_family": FONT,
+            },
+        ),
+        style={
+            "background": "white",
+            "border_radius": "12px",
+            "border": f"1px solid {c('gray.100')}",
+            "box_shadow": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+            "padding": "20px",
+        },
     )
