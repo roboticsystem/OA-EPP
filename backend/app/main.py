@@ -4,9 +4,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
 
-from app.database import init_db
+from app.database import init_db, seed_timeline_events
 from app.sync_exams import sync_exams
-from app.routers import students, auth, exam, teacher
+from app.routers import students, auth, exam, teacher, timeline
 
 app = FastAPI(title="研究生课程《机器人系统》考试系统", docs_url="/api/docs")
 
@@ -21,6 +21,7 @@ app.include_router(students.router)
 app.include_router(auth.router)
 app.include_router(exam.router)
 app.include_router(teacher.router)
+app.include_router(timeline.router)
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
@@ -39,3 +40,4 @@ def score_page():
 def startup():
     init_db()
     sync_exams()
+    seed_timeline_events()
