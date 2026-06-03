@@ -6,7 +6,7 @@ number headings: first-level 2, start-at 1
 
 ```plantuml
 @startmindmap
-* 第2章\nCubeMX编程指南
+* 第 2 章\nCubeMX 编程指南
 
 ** 安装与界面
 *** 独立版 / CubeIDE 集成版 
@@ -17,7 +17,7 @@ number headings: first-level 2, start-at 1
 **** 工程管理器（Project Manager）
 **** 中间件（Middleware）
 
-** 创建工程\n完整流程
+** 创建工程\n 完整流程
 *** ①  选择目标芯片
 *** ②  系统配置（SYS / RCC）
 *** ③  引脚功能分配
@@ -51,14 +51,14 @@ number headings: first-level 2, start-at 1
 **** 单次 / 连续转换
 **** HAL_ADC_Start / GetValue
 
-** 生成代码\n结构与规范
+** 生成代码\n 结构与规范
 *** 工程目录结构
 **** Core / Drivers / Middleware
 *** USER CODE BEGIN/END 机制
 *** main.h 引脚宏定义
 *** 回调函数重写规范
 
-** FreeRTOS\n多任务配置
+** FreeRTOS\n 多任务配置
 *** 启用 FreeRTOS（CMSIS-RTOS v2）
 *** 创建任务（Task）
 *** 任务间通信
@@ -66,7 +66,7 @@ number headings: first-level 2, start-at 1
 **** 消息队列（Queue）
 *** osDelay 与 HAL_Delay 的区别
 
-** 重新配置\n与迭代开发
+** 重新配置\n 与迭代开发
 *** 修改 .ioc 文件
 *** 重新生成代码
 *** 用户代码保护机制
@@ -121,7 +121,7 @@ CubeMX 提供两种使用方式，功能完全相同：
   方式二：STM32CubeMX 独立版
   ┌──────────────────┐      ┌────────────┐
   │   CubeMX 独立版  │ 生成  │  Keil MDK   │
-  │  （仅图形配置）   ├─────► │  或其他IDE │
+  │  （仅图形配置）   ├─────► │  或其他 IDE │
   └──────────────────┘      └────────────┘
  "下载：https://www.st.com/stm32cubemx"
 ```
@@ -156,7 +156,7 @@ STM32CubeMX（或 CubeIDE 的 .ioc 编辑界面）分为五个主要区域：
   │     HSE ──► PLL ──► SYSCLK ──► AHB"/"APB1"/"APB2                    │
   ├─────────────────────────────────────────────────────────────────┤
   │  ⑤ 工程管理器（Project Manager 标签页）                             │
-  │     工程名称"/"路径"/"IDE选择"/"HAL库版本                           │
+  │     工程名称"/"路径"/"IDE 选择"/"HAL 库版本                           │
   └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -634,7 +634,7 @@ HAL_ADC_Start(&hadc1);                /* 启动 ADC 转换 */
 
 /* 读取 ADC 值（阻塞轮询）*/
 HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-uint32_t adc_val = HAL_ADC_GetValue(&hadc1);   /* 12位，0 ~ 4095 */
+uint32_t adc_val = HAL_ADC_GetValue(&hadc1);   /* 12 位，0 ~ 4095 */
 
 /* 换算为电压（参考电压 3.3V）*/
 float voltage = adc_val * 3.3f / 4095.0f;
