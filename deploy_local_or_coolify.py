@@ -286,6 +286,7 @@ def serve_local():
     try:
         env = os.environ.copy()
         env.setdefault("NO_MKDOCS_2_WARNING", "1")
+        env["PYTHONUTF8"] = "1"
         subprocess.run(
             ["mkdocs", "serve", "-a", f"{HOST}:{MKDOCS_PORT}", "--open", "--watch-theme"],
             env=env, check=True, cwd=str(REPO_ROOT),

@@ -116,28 +116,30 @@ def sync_exams() -> dict:
     added   = []
     updated = []
     deleted = []
-    print(f"[sync_exams] 注意：exams 表 id 为自增整数，跳过数据库同步（仅扫描文档注入元数据）")
-    # with db() as conn:
-    #     existing = {r["id"]: r["title"] for r in conn.execute("SELECT id, title FROM exams")}
-    #     for eid, etitle in found.items():
-    #         if eid not in existing:
-    #             conn.execute("INSERT INTO exams (id, title, exam_type) VALUES (%s,%s,'quiz')", (eid, etitle))
-    #             added.append(eid)
-    #             print(f"[sync_exams] 数据库新增考试：{eid} - {etitle}")
-    #         else:
-    #             if existing.get(eid) != etitle:
-    #                 conn.execute("UPDATE exams SET title=%s WHERE id=%s", (etitle, eid))
-    #                 updated.append(eid)
-    #                 print(f"[sync_exams] 数据库更新考试标题：{eid} - {etitle}")
-    #     if found:
-    #         for eid in list(existing):
-    #             if eid not in found:
-    #                 conn.execute("DELETE FROM exams WHERE id=%s", (eid,))
-    #                 deleted.append(eid)
-    #                 print(f"[sync_exams] 数据库删除孤立考试：{eid}")
-    #     elif existing:
-    #         print(f"[sync_exams] ⚠️  文档扫描结果为空，跳过孤立记录清理（保留 {len(existing)} 条现有记录）")
+    with db() as conn:
+        existing = {r["id"]: r["title"] for r in conn.execute("SELECT id, title FROM exams")}
+        for eid, etitle in found.items():
+            if eid not in existing:
+                conn.execute("INSERT INTO exams (id, title, is_active) VALUES (%s,%s,1)", (eid, etitle))
+                added.append(eid)
+                print(f"[sync_exams] 数据库新增考试：{eid} - {etitle}")
+            else:
+                # 如果文档中 exam-title 与数据库中不一致，更新数据库中的标题
+                if existing.get(eid) != etitle:
+                    conn.execute("UPDATE exams SET title=%s WHERE id=%s", (etitle, eid))
+                    updated.append(eid)
+                    print(f"[sync_exams] 数据库更新考试标题：{eid} - {etitle}")
+        # 只有在确实扫描到考试文档时才清理孤立记录，防止挂载目录为空时误删所有考试
+        if found:
+            for eid in list(existing):
+                if eid not in found:
+                    conn.execute("DELETE FROM exams WHERE id=%s", (eid,))
+                    deleted.append(eid)
+                    print(f"[sync_exams] 数据库删除孤立考试：{eid}")
+        elif existing:
+            print(f"[sync_exams] ⚠️  文档扫描结果为空，跳过孤立记录清理（保留 {len(existing)} 条现有记录）")
 
-    print(f"[sync_exams] 完成：发现 {len(found)} 个考试，注入 {len(injected)} 个文件")
-    return {"injected_meta": injected, "db_added": [], "db_updated": [], "db_deleted": [],
+    print(f"[sync_exams] 完成：发现 {len(found)} 个考试，"
+          f"注入 {len(injected)} 个文件，DB 新增 {len(added)}，更新 {len(updated)}，删除 {len(deleted)}")
+    return {"injected_meta": injected, "db_added": added, "db_updated": updated, "db_deleted": deleted,
             "exams": list(found.keys())}

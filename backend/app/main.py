@@ -1,14 +1,17 @@
-import os
+from dotenv import load_dotenv
+load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+import os
 
-from app.database import init_db
+from app.database import init_db, seed_timeline_events
 from app.sync_exams import sync_exams
-from app.routers import students, auth, exam, teacher
+from app.sync_chapters import sync_chapters
+from app.routers import students, auth, exam, teacher, chapters, timeline
 
-# 使用 FileResponse 直接服务静态页面（含学期筛选 + 进度看板）
 app = FastAPI(title="研究生课程《机器人系统》考试系统", docs_url="/api/docs")
 
 app.add_middleware(
@@ -22,14 +25,10 @@ app.include_router(students.router)
 app.include_router(auth.router)
 app.include_router(exam.router)
 app.include_router(teacher.router)
+app.include_router(chapters.router)
+app.include_router(timeline.router)
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
-
-
-@app.get("/")
-def index_page():
-    """首页 — 导航入口"""
-    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 
 @app.get("/teacher")
@@ -37,17 +36,34 @@ def teacher_page():
     return FileResponse(os.path.join(STATIC_DIR, "teacher.html"))
 
 
-@app.get("/teacher/progress")
-def teacher_progress_page():
-    return FileResponse(os.path.join(STATIC_DIR, "teacher_progress.html"))
-
-
 @app.get("/score")
 def score_page():
     return FileResponse(os.path.join(STATIC_DIR, "score.html"))
 
 
+@app.get("/profile")
+def profile_page():
+    return FileResponse(os.path.join(STATIC_DIR, "profile.html"))
+
+
+@app.get("/courses")
+def courses_page():
+    return FileResponse(os.path.join(STATIC_DIR, "courses.html"))
+
+
+@app.get("/course")
+def course_detail_page():
+    return FileResponse(os.path.join(STATIC_DIR, "course.html"))
+
+
+@app.get("/chapter")
+def chapter_page():
+    return FileResponse(os.path.join(STATIC_DIR, "chapter.html"))
+
+
 @app.on_event("startup")
 def startup():
     init_db()
+    sync_chapters()
     sync_exams()
+    seed_timeline_events()
