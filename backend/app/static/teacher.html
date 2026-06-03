@@ -156,6 +156,48 @@
       </div>
     </div>
 
+    <!-- GitHub 账号绑定状态看板 (F-T-004) -->
+    <div class="card">
+      <div class="card-title">
+        <span>🔗 GitHub 账号绑定状态看板</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline-danger btn-sm" id="btn-batch-approve" onclick="batchApproveBindings()" style="display:none">✅ 批量通过待审核</button>
+          <button class="btn btn-warning btn-sm" id="btn-send-reminder" onclick="sendBindingReminder()" style="display:none">📢 向未绑定发提醒</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="binding-msg"></div>
+        <!-- 统计卡片 -->
+        <div class="stats-grid" id="binding-stats">
+          <div class="stat-item"><div class="stat-value" id="stat-total">—</div><div class="stat-label">全班人数</div></div>
+          <div class="stat-item"><div class="stat-value" id="stat-bound" style="color:#2e7d32">—</div><div class="stat-label">已绑定</div></div>
+          <div class="stat-item"><div class="stat-value" id="stat-pending" style="color:#e65100">—</div><div class="stat-label">待审核</div></div>
+          <div class="stat-item"><div class="stat-value" id="stat-unbound" style="color:#c62828">—</div><div class="stat-label">未绑定</div></div>
+        </div>
+        <!-- 筛选栏 -->
+        <div class="flex-row" style="margin-bottom:12px">
+          <input type="text" id="binding-search" placeholder="搜索学号/姓名/GitHub用户名..." style="flex:1;max-width:320px;margin-bottom:0" oninput="filterBindingList()">
+          <select id="binding-status-filter" onchange="filterBindingList()" style="padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:1rem">
+            <option value="all">全部状态</option>
+            <option value="unbound">未绑定</option>
+            <option value="pending">待审核</option>
+            <option value="bound">已绑定</option>
+          </select>
+        </div>
+        <!-- GitHub 快捷链接 -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:8px 12px;background:#f8f9fa;border-radius:6px">
+          <span style="font-size:.85rem;color:#555;font-weight:bold;line-height:28px">🔗 快捷链接：</span>
+          <a href="https://github.com/roboticsystem/OA-EPP" target="_blank" style="font-size:.85rem;color:#1565c0;text-decoration:none;padding:4px 10px;border:1px solid #bbdefb;border-radius:4px;background:#fff">仓库主页</a>
+          <a href="https://github.com/roboticsystem/OA-EPP/pulls" target="_blank" style="font-size:.85rem;color:#1565c0;text-decoration:none;padding:4px 10px;border:1px solid #bbdefb;border-radius:4px;background:#fff">Pull Requests</a>
+          <a href="https://github.com/roboticsystem/OA-EPP/issues" target="_blank" style="font-size:.85rem;color:#1565c0;text-decoration:none;padding:4px 10px;border:1px solid #bbdefb;border-radius:4px;background:#fff">Issues</a>
+          <a href="https://github.com/roboticsystem/OA-EPP/actions" target="_blank" style="font-size:.85rem;color:#1565c0;text-decoration:none;padding:4px 10px;border:1px solid #bbdefb;border-radius:4px;background:#fff">Actions</a>
+          <a href="https://github.com/roboticsystem/OA-EPP/branches" target="_blank" style="font-size:.85rem;color:#1565c0;text-decoration:none;padding:4px 10px;border:1px solid #bbdefb;border-radius:4px;background:#fff">分支管理</a>
+        </div>
+        <!-- 表格 -->
+        <div id="binding-table">加载中…</div>
+      </div>
+    </div>
+
     <!-- 考试管理 -->
     <div class="card">
       <div class="card-title">📝 考试管理 & 成绩查看</div>
@@ -193,6 +235,7 @@ async function doLogin() {
     document.getElementById('app').style.display = 'block';
     loadExams();
     loadStudentList();
+    loadBindingDashboard();
   } catch(e) { showMsg('login-msg', '网络错误：' + e, 'error'); }
 }
 
@@ -222,6 +265,7 @@ async function uploadStudents() {
     showMsg('upload-msg', `✅ 成功导入 ${d.count} 名学生`, 'success');
     loadExams();
     loadStudentList();
+    loadBindingDashboard();
   } catch(e) { showMsg('upload-msg', '网络错误：' + e, 'error'); }
 }
 
@@ -378,6 +422,7 @@ async function addStudent() {
     document.getElementById('add-sid').value = '';
     document.getElementById('add-class').value = '';
     loadStudentList();
+    loadBindingDashboard();
     loadExams();
   } catch(e) { showMsg('student-msg', '网络错误：' + e, 'error'); }
 }
@@ -395,6 +440,7 @@ async function deleteStudent(sid, name) {
       if (!r.ok) { showMsg('student-msg', d.detail || '删除失败', 'error'); return; }
       showMsg('student-msg', `✅ 已删除学生：${name}`);
       loadStudentList();
+      loadBindingDashboard();
       loadExams();
     }
   );
@@ -413,6 +459,7 @@ function confirmClearStudents() {
       if (!r.ok) { showMsg('student-msg', d.detail || '操作失败', 'error'); return; }
       showMsg('student-msg', '✅ 已清空全部学生名单');
       loadStudentList();
+      loadBindingDashboard();
       loadExams();
     }
   );
@@ -433,6 +480,7 @@ function confirmNewSemester() {
       currentExamId = null;
       examsData = [];
       loadStudentList();
+      loadBindingDashboard();
       loadExams();
     }
   );
@@ -458,6 +506,255 @@ function showConfirmDialog(title, message, onConfirm) {
   backdrop.querySelector('#confirm-ok').onclick = () => { backdrop.remove(); onConfirm(); };
 }
 
+// ───── GitHub 绑定状态看板 (F-T-004) ─────
+
+let allBindings = [];
+let selectedBindingIds = new Set();
+let bindingPage = 1;
+const bindingPageSize = 8;
+
+async function loadBindingDashboard() {
+  try {
+    const [summaryR, listR] = await Promise.all([
+      fetch(`${API}/api/teacher/github-bindings/summary`, { headers: {'Authorization': `Bearer ${TOKEN}`} }),
+      fetch(`${API}/api/teacher/github-bindings/list?sort_by_status=true`, { headers: {'Authorization': `Bearer ${TOKEN}`} })
+    ]);
+    if (summaryR.status === 401) { logout(); return; }
+    const summary = await summaryR.json();
+    document.getElementById('stat-total').textContent = summary.total;
+    document.getElementById('stat-bound').textContent = summary.bound;
+    document.getElementById('stat-pending').textContent = summary.pending;
+    document.getElementById('stat-unbound').textContent = summary.unbound;
+
+    allBindings = await listR.json();
+    selectedBindingIds.clear();
+    renderBindingTable();
+  } catch(e) {}
+}
+
+function renderBindingTable() {
+  const statusFilter = document.getElementById('binding-status-filter').value;
+  const searchText = document.getElementById('binding-search').value.toLowerCase();
+
+  let rows = allBindings;
+  if (statusFilter !== 'all') {
+    rows = rows.filter(r => r.binding_status === statusFilter);
+  }
+  if (searchText) {
+    rows = rows.filter(r =>
+      r.name.toLowerCase().includes(searchText) ||
+      r.student_id.toLowerCase().includes(searchText) ||
+      r.github_username.toLowerCase().includes(searchText)
+    );
+  }
+
+  // Update batch buttons
+  const hasPending = rows.some(r => r.binding_status === 'pending');
+  const hasUnbound = rows.some(r => r.binding_status === 'unbound');
+  document.getElementById('btn-batch-approve').style.display = hasPending ? '' : 'none';
+  document.getElementById('btn-send-reminder').style.display = hasUnbound ? '' : 'none';
+
+  if (!rows.length) {
+    document.getElementById('binding-table').innerHTML = '<p style="color:#888;font-size:.9rem;margin-top:8px">无匹配记录</p>';
+    return;
+  }
+
+  const totalPages = Math.ceil(rows.length / bindingPageSize);
+  if (bindingPage > totalPages) bindingPage = 1;
+  const start = (bindingPage - 1) * bindingPageSize;
+  const pageRows = rows.slice(start, start + bindingPageSize);
+
+  const allSelected = pageRows.every(r => selectedBindingIds.has(r.student_id));
+
+  const tbody = pageRows.map(r => {
+    const isUnbound = r.binding_status === 'unbound';
+    const isPending = r.binding_status === 'pending';
+    let rowClass = '';
+    if (isUnbound) rowClass = 'style="background:#fff5f5"';
+    else if (isPending) rowClass = 'style="background:#fffbf0"';
+
+    let statusBadge = '';
+    if (r.binding_status === 'bound') statusBadge = '<span class="badge badge-green">已绑定</span>';
+    else if (r.binding_status === 'pending') statusBadge = '<span class="badge" style="background:#fff3e0;color:#e65100">待审核</span>';
+    else statusBadge = '<span class="badge" style="background:#ffebee;color:#c62828">未绑定</span>';
+
+    let actions = '';
+    if (r.binding_status === 'pending') {
+      actions = `<button class="btn btn-outline btn-sm" onclick="approveSingle('${r.student_id}')">通过</button>
+                 <button class="btn btn-outline-danger btn-sm" onclick="rejectSingle('${r.student_id}')">拒绝</button>`;
+    } else if (r.binding_status === 'unbound') {
+      actions = `<button class="btn btn-warning btn-sm" onclick="remindSingle('${r.student_id}')">发提醒</button>`;
+    } else {
+      actions = '<span style="color:#888;font-size:.85rem">—</span>';
+    }
+
+    const checked = selectedBindingIds.has(r.student_id) ? 'checked' : '';
+
+    return `<tr ${rowClass}>
+      <td><input type="checkbox" ${checked} onchange="toggleBindingSelect('${r.student_id}', this.checked)"></td>
+      <td>${r.student_id}</td>
+      <td><strong>${r.name}</strong></td>
+      <td>${r.github_username || '<span style="color:#ccc">—</span>'}</td>
+      <td>${statusBadge}</td>
+      <td>${r.github_name || '<span style="color:#ccc">—</span>'}</td>
+      <td style="font-size:.85rem;color:#888">${r.verified_at || '—'}</td>
+      <td>${actions}</td>
+    </tr>`;
+  }).join('');
+
+  const allChecked = allSelected ? 'checked' : '';
+
+  // Build pagination
+  let paginationHtml = '';
+  if (totalPages > 1) {
+    const pages = [];
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= bindingPage - 2 && i <= bindingPage + 2)) {
+        pages.push(i);
+      } else if (pages[pages.length - 1] !== '...') {
+        pages.push('...');
+      }
+    }
+    paginationHtml = `<div style="display:flex;align-items:center;gap:4px;justify-content:center;margin-top:8px">
+      <button class="btn btn-outline btn-sm" onclick="goBindingPage(${bindingPage - 1})" ${bindingPage === 1 ? 'disabled style="opacity:.4"' : ''}>‹</button>
+      ${pages.map(p => p === '...'
+        ? '<span style="padding:0 4px;color:#888">…</span>'
+        : `<button class="btn btn-sm ${p === bindingPage ? 'btn-primary' : 'btn-outline'}" onclick="goBindingPage(${p})">${p}</button>`
+      ).join('')}
+      <button class="btn btn-outline btn-sm" onclick="goBindingPage(${bindingPage + 1})" ${bindingPage === totalPages ? 'disabled style="opacity:.4"' : ''}>›</button>
+    </div>`;
+  }
+
+  document.getElementById('binding-table').innerHTML = `
+    <table>
+      <thead><tr>
+        <th><input type="checkbox" ${allChecked} onchange="selectAllBindings(this.checked)"></th>
+        <th>学号</th><th>姓名</th><th>GitHub 用户名</th><th>绑定状态</th><th>GitHub 实名</th><th>最近核查</th><th>操作</th>
+      </tr></thead>
+      <tbody>${tbody}</tbody>
+    </table>
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:.85rem;color:#888;margin-top:8px">
+      <span>共 ${rows.length} 条，第 ${start + 1}–${Math.min(start + bindingPageSize, rows.length)} 条</span>
+      ${paginationHtml}
+    </div>
+  `;
+}
+
+function filterBindingList() {
+  selectedBindingIds.clear();
+  bindingPage = 1;
+  renderBindingTable();
+}
+
+function goBindingPage(p) {
+  const totalPages = Math.ceil(
+    (() => { const s = document.getElementById('binding-status-filter').value;
+      const q = document.getElementById('binding-search').value.toLowerCase();
+      let r = allBindings;
+      if (s !== 'all') r = r.filter(x => x.binding_status === s);
+      if (q) r = r.filter(x => x.name.toLowerCase().includes(q) || x.student_id.toLowerCase().includes(q) || x.github_username.toLowerCase().includes(q));
+      return r.length;
+    })() / bindingPageSize
+  );
+  if (p < 1 || p > totalPages) return;
+  bindingPage = p;
+  renderBindingTable();
+}
+
+function toggleBindingSelect(sid, checked) {
+  if (checked) selectedBindingIds.add(sid);
+  else selectedBindingIds.delete(sid);
+  renderBindingTable();
+}
+
+function selectAllBindings(checked) {
+  const statusFilter = document.getElementById('binding-status-filter').value;
+  const searchText = document.getElementById('binding-search').value.toLowerCase();
+  let rows = allBindings;
+  if (statusFilter !== 'all') rows = rows.filter(r => r.binding_status === statusFilter);
+  if (searchText) rows = rows.filter(r =>
+    r.name.toLowerCase().includes(searchText) ||
+    r.student_id.toLowerCase().includes(searchText) ||
+    r.github_username.toLowerCase().includes(searchText)
+  );
+  // Only toggle visible page
+  const start = (bindingPage - 1) * bindingPageSize;
+  const pageRows = rows.slice(start, start + bindingPageSize);
+  pageRows.forEach(r => {
+    if (checked) selectedBindingIds.add(r.student_id);
+    else selectedBindingIds.delete(r.student_id);
+  });
+  renderBindingTable();
+}
+
+async function batchApproveBindings() {
+  const ids = [...selectedBindingIds].filter(id => {
+    const r = allBindings.find(b => b.student_id === id);
+    return r && r.binding_status === 'pending';
+  });
+  if (!ids.length) { showMsg('binding-msg', '请先勾选待审核的学生', 'error'); return; }
+  try {
+    const r = await fetch(`${API}/api/teacher/github-bindings/batch-approve`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify({student_ids: ids})
+    });
+    const d = await r.json();
+    if (!r.ok) { showMsg('binding-msg', d.detail || '操作失败', 'error'); return; }
+    showMsg('binding-msg', `✅ 已通过 ${d.approved} 条绑定申请`, 'success');
+    loadBindingDashboard();
+  } catch(e) { showMsg('binding-msg', '网络错误：' + e, 'error'); }
+}
+
+async function approveSingle(sid) {
+  selectedBindingIds.clear();
+  selectedBindingIds.add(sid);
+  await batchApproveBindings();
+}
+
+async function rejectSingle(sid) {
+  try {
+    const r = await fetch(`${API}/api/teacher/github-bindings/batch-approve`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify({student_ids: [sid]})
+    });
+    if (!r.ok) return;
+    // Reject: set status back to unbound
+    await fetch(`${API}/api/teacher/github-bindings/reject`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify({student_ids: [sid]})
+    });
+    showMsg('binding-msg', '已拒绝该绑定申请', 'success');
+    loadBindingDashboard();
+  } catch(e) { showMsg('binding-msg', '网络错误：' + e, 'error'); }
+}
+
+async function sendBindingReminder() {
+  const ids = [...selectedBindingIds].filter(id => {
+    const r = allBindings.find(b => b.student_id === id);
+    return r && r.binding_status === 'unbound';
+  });
+  if (!ids.length) { showMsg('binding-msg', '请先勾选未绑定的学生', 'error'); return; }
+  try {
+    const r = await fetch(`${API}/api/teacher/github-bindings/send-reminder`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify({student_ids: ids})
+    });
+    const d = await r.json();
+    if (!r.ok) { showMsg('binding-msg', d.detail || '操作失败', 'error'); return; }
+    showMsg('binding-msg', `📢 已向 ${d.reminded} 名学生发送提醒：${d.students.join('、')}`, 'success');
+  } catch(e) { showMsg('binding-msg', '网络错误：' + e, 'error'); }
+}
+
+async function remindSingle(sid) {
+  selectedBindingIds.clear();
+  selectedBindingIds.add(sid);
+  await sendBindingReminder();
+}
+
 // ───── 初始化：检查已有 token ─────
 if (TOKEN) {
   fetch(`${API}/api/teacher/exams`, { headers: {'Authorization': `Bearer ${TOKEN}`} })
@@ -467,6 +764,7 @@ if (TOKEN) {
         document.getElementById('app').style.display = 'block';
         loadExams();
         loadStudentList();
+        loadBindingDashboard();
       } else {
         TOKEN = ''; sessionStorage.removeItem('teacher_token');
       }

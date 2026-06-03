@@ -147,7 +147,7 @@ def sync_chapters() -> dict:
             sem = 4 if cid == EP4_COURSE_ID else next(
                 (o for _, (pcid, _, o, _) in COURSE_MAP.items() if cid == pcid), 1)
             conn.execute(
-                "INSERT OR REPLACE INTO courses (id,title,semester,total_score,deadline_reminder,is_active) VALUES (?,?,?,?,?,1)",
+                "REPLACE INTO courses (id,title,semester,total_score,deadline_reminder,is_active) VALUES (%s,%s,%s,%s,%s,1)",
                 (cid, cdata["title"], f"EP{sem}", cdata["total_score"], _get_course_deadline_reminder(cid)))
 
         existing = {r["id"] for r in conn.execute("SELECT id FROM chapters").fetchall()}
@@ -155,13 +155,13 @@ def sync_chapters() -> dict:
         for ch in chapters_found:
             if ch["id"] not in existing:
                 conn.execute(
-                    "INSERT INTO chapters (id,course_id,chapter_no,title,filename,file_path,chapter_type,deadline,status,grading_criteria) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    "INSERT INTO chapters (id,course_id,chapter_no,title,filename,file_path,chapter_type,deadline,status,grading_criteria) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (ch["id"], ch["course_id"], ch["chapter_no"], ch["title"], ch["filename"],
                      ch["file_path"], ch["chapter_type"], ch["deadline"], ch["status"], ch["grading_criteria"]))
                 added.append(ch["id"])
             else:
                 conn.execute(
-                    "UPDATE chapters SET title=?,chapter_type=?,status=?,deadline=?,grading_criteria=? WHERE id=?",
+                    "UPDATE chapters SET title=%s,chapter_type=%s,status=%s,deadline=%s,grading_criteria=%s WHERE id=%s",
                     (ch["title"], ch["chapter_type"],
                      "进行中" if ch["course_id"] == EP4_COURSE_ID else "已完成",
                      ch["deadline"], ch["grading_criteria"], ch["id"]))
