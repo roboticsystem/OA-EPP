@@ -140,6 +140,23 @@ def init_db():
 
         try:
             conn.execute("""
+                CREATE TABLE IF NOT EXISTS timeline_events (
+                    id           INT AUTO_INCREMENT PRIMARY KEY,
+                    student_id   VARCHAR(100) NOT NULL,
+                    event_type   VARCHAR(50) NOT NULL,
+                    title        VARCHAR(255) NOT NULL,
+                    description  TEXT,
+                    course       VARCHAR(255) DEFAULT '',
+                    related_id   VARCHAR(100) DEFAULT '',
+                    event_time   VARCHAR(50) NOT NULL,
+                    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+        except Exception as e:
+            print(f"[init_db] timeline_events table skipped: {e}")
+
+        try:
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS github_bindings (
                     id              INT AUTO_INCREMENT PRIMARY KEY,
                     student_id      VARCHAR(100) UNIQUE NOT NULL,
@@ -153,3 +170,39 @@ def init_db():
             """)
         except Exception as e:
             print(f"[init_db] github_bindings table skipped: {e}")
+
+
+def seed_timeline_events():
+    """如果 timeline_events 为空，插入演示数据。无权限或表不存在时跳过。"""
+    try:
+        with db() as conn:
+            count = conn.execute("SELECT COUNT(*) FROM timeline_events").fetchone()[0]
+            if count > 0:
+                return
+
+            students = conn.execute(
+                "SELECT student_id FROM students LIMIT 1"
+            ).fetchall()
+            if not students:
+                return
+
+            sid = students[0]["student_id"]
+            demo_events = [
+                (sid, "publish", "第3章作业发布", "机器人运动学基础作业", "机器人学", "exam-03", "2026-03-01 08:00"),
+                (sid, "submit", "第3章作业已提交", "提交文件：运动学分析报告.pdf", "机器人学", "exam-03", "2026-03-05 14:30"),
+                (sid, "grade", "第3章作业已批改", "得分：85/100", "机器人学", "exam-03", "2026-03-08 10:00"),
+                (sid, "feedback", "收到第3章批改反馈", "教师评语：分析部分做得很好，计算过程需更详细", "机器人学", "exam-03", "2026-03-08 10:30"),
+                (sid, "publish", "期中考试发布", "机器人系统期中考试", "机器人学", "exam-mid", "2026-04-01 08:00"),
+                (sid, "submit", "期中考试已提交", "提交用时：45分钟", "机器人学", "exam-mid", "2026-04-10 11:20"),
+                (sid, "grade", "期中考试成绩公布", "得分：92/100", "机器人学", "exam-mid", "2026-04-12 14:00"),
+                (sid, "publish", "课程设计任务发布", "基于ROS的机器人导航仿真", "工程实践", "project-01", "2026-04-15 08:00"),
+                (sid, "submit", "课程设计初稿已提交", "提交文件：导航仿真源码.zip", "工程实践", "project-01", "2026-04-28 23:15"),
+                (sid, "feedback", "收到课程设计反馈", "建议优化路径规划算法", "工程实践", "project-01", "2026-05-02 09:00"),
+            ]
+
+            conn.executemany(
+                "INSERT INTO timeline_events (student_id, event_type, title, description, course, related_id, event_time) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                demo_events,
+            )
+    except Exception as e:
+        print(f"[seed_timeline_events] skipped: {e}")

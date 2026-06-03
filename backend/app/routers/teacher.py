@@ -341,7 +341,7 @@ def get_binding_summary(authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
     with db() as conn:
         total = conn.execute(
-            "SELECT COUNT(*) FROM students s JOIN users u ON s.user_id=u.id WHERE u.role='student'"
+            "SELECT COUNT(*) FROM users WHERE role='student'"
         ).fetchone()[0]
         bound = conn.execute(
             "SELECT COUNT(*) FROM github_bindings WHERE verify_status='approved'"
@@ -371,9 +371,9 @@ def get_binding_list(
                    COALESCE(g.verify_status, 'unbound') AS binding_status,
                    COALESCE(g.github_name, '') AS github_name,
                    g.verified_at
-            FROM students s
-            JOIN users u ON s.user_id = u.id
-            LEFT JOIN github_bindings g ON s.user_id = g.student_user_id
+            FROM users u
+            LEFT JOIN students s ON s.user_id = u.id
+            LEFT JOIN github_bindings g ON u.id = g.student_user_id
             WHERE u.role = 'student'
         """
         conditions = []
@@ -463,9 +463,9 @@ def send_binding_reminder(req: BatchStudentIds, authorization: Optional[str] = H
     with db() as conn:
         rows = conn.execute(
             f"SELECT u.full_name AS name FROM users u "
-            f"JOIN students s ON s.user_id=u.id "
             f"LEFT JOIN github_bindings g ON g.student_user_id=u.id "
             f"WHERE u.student_no IN ({placeholders}) "
+            f"AND u.role='student' "
             f"AND (g.verify_status IS NULL OR g.verify_status NOT IN ('approved','pending'))",
             req.student_ids
         ).fetchall()
