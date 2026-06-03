@@ -45,6 +45,12 @@ services:
       - JWT_SECRET=${JWT_SECRET:-please-change-this-secret}
       - DB_PATH=/app/data/exam.db
       - DOCS_DIR=/app/docs
+      # MySQL 数据库连接（设置 MYSQL_HOST 后将自动切换为 MySQL）
+      - MYSQL_HOST=${MYSQL_HOST:-}
+      - MYSQL_PORT=${MYSQL_PORT:-13306}
+      - MYSQL_USER=${MYSQL_USER:-student_dev}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-OaEpp@Dev2026}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-oaepp_dev}
     networks:
       - coolify
 

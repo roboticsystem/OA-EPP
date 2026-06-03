@@ -43,3 +43,7 @@ secrets.yml
 *.sqlite
 *.sqlite3
 .local_exam_data/
+
+# 微信小程序配置（不属于本项目）
+project.config.json
+project.private.config.json
