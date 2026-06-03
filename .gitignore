@@ -1,3 +1,6 @@
+.states
+.web
+assets/external/
 # MkDocs 构建输出（由 Coolify 在容器内构建，不提交到 git）
 site/
 site_build/
