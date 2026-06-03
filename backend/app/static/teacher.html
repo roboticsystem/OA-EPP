@@ -75,6 +75,35 @@
   .confirm-dialog h3 { margin-bottom: 10px; }
   .confirm-dialog p { color: #666; font-size: .9rem; margin-bottom: 20px; line-height: 1.6; }
   .confirm-dialog .btn-row { display: flex; gap: 10px; justify-content: center; }
+  /* 通知模块样式 */
+  .notif-form-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 16px; }
+  .notif-form-row .field { display: flex; flex-direction: column; gap: 4px; }
+  .notif-form-row .field input, .notif-form-row .field select, .notif-form-row .field textarea { padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: .95rem; }
+  .notif-form-row .field input:focus, .notif-form-row .field select:focus, .notif-form-row .field textarea:focus { outline: none; border-color: #1565c0; }
+  .notif-form-row .field textarea { resize: vertical; min-height: 60px; }
+  .notif-item { border-bottom: 1px solid #f0f0f0; overflow: hidden; }
+  .notif-item:last-child { border-bottom: none; }
+  .notif-item .notif-summary { padding: 12px 0; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .notif-item .notif-summary:hover { background: #fafafa; }
+  .notif-item .notif-info { flex: 1; min-width: 0; }
+  .notif-item .notif-title { font-weight: bold; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .notif-item .notif-meta { font-size: .8rem; color: #888; margin-top: 2px; }
+  .notif-item .notif-arrow { font-size: .8rem; color: #bbb; transition: transform .2s; flex-shrink: 0; }
+  .notif-item.expanded .notif-arrow { transform: rotate(180deg); }
+  .notif-item .notif-detail { display: none; padding: 0 0 14px 0; border-top: 1px solid #f0f0f0; }
+  .notif-item.expanded .notif-detail { display: block; }
+  .notif-item .notif-body { font-size: .88rem; color: #555; line-height: 1.7; padding: 10px 0; white-space: pre-wrap; }
+  .notif-item .notif-actions { display: flex; gap: 8px; }
+  .notif-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .notif-tab { padding: 5px 14px; border-radius: 16px; border: 1px solid #1565c0; color: #1565c0; cursor: pointer; font-size: .82rem; background: #fff; transition: all .2s; }
+  .notif-tab:hover { background: #e3f2fd; }
+  .notif-tab.active { background: #1565c0; color: #fff; }
+  .notif-category { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: .75rem; font-weight: bold; }
+  .notif-cat-announcement { background: #e3f2fd; color: #1565c0; }
+  .notif-cat-deadline { background: #fff3e0; color: #e65100; }
+  .notif-cat-grade { background: #e8f5e9; color: #2e7d32; }
+  .notif-cat-system { background: #f3e5f5; color: #7b1fa2; }
+  .notif-cat-graded { background: #e8f5e9; color: #2e7d32; }
   #app { display: none; }
 </style>
 </head>
@@ -159,11 +188,144 @@
       </div>
     </div>
 
+    <!-- GitHub 账号绑定状态看板 (F-T-004) -->
+    <div class="card">
+      <div class="card-title">
+        <span>🔗 GitHub 账号绑定状态看板</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline-danger btn-sm" id="btn-batch-approve" onclick="batchApproveBindings()" style="display:none">✅ 批量通过待审核</button>
+          <button class="btn btn-warning btn-sm" id="btn-send-reminder" onclick="sendBindingReminder()" style="display:none">📢 向未绑定发提醒</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="binding-msg"></div>
+        <!-- 统计卡片 -->
+        <div class="stats-grid" id="binding-stats">
+          <div class="stat-item"><div class="stat-value" id="stat-total">—</div><div class="stat-label">全班人数</div></div>
+          <div class="stat-item"><div class="stat-value" id="stat-bound" style="color:#2e7d32">—</div><div class="stat-label">已绑定</div></div>
+          <div class="stat-item"><div class="stat-value" id="stat-pending" style="color:#e65100">—</div><div class="stat-label">待审核</div></div>
+          <div class="stat-item"><div class="stat-value" id="stat-unbound" style="color:#c62828">—</div><div class="stat-label">未绑定</div></div>
+        </div>
+        <!-- 筛选栏 -->
+        <div class="flex-row" style="margin-bottom:12px">
+          <input type="text" id="binding-search" placeholder="搜索学号/姓名/GitHub用户名..." style="flex:1;max-width:320px;margin-bottom:0" oninput="filterBindingList()">
+          <select id="binding-status-filter" onchange="filterBindingList()" style="padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:1rem">
+            <option value="all">全部状态</option>
+            <option value="unbound">未绑定</option>
+            <option value="pending">待审核</option>
+            <option value="bound">已绑定</option>
+          </select>
+        </div>
+        <!-- GitHub 快捷链接 -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:8px 12px;background:#f8f9fa;border-radius:6px">
+          <span style="font-size:.85rem;color:#555;font-weight:bold;line-height:28px">🔗 快捷链接：</span>
+          <a href="https://github.com/roboticsystem/OA-EPP" target="_blank" style="font-size:.85rem;color:#1565c0;text-decoration:none;padding:4px 10px;border:1px solid #bbdefb;border-radius:4px;background:#fff">仓库主页</a>
+          <a href="https://github.com/roboticsystem/OA-EPP/pulls" target="_blank" style="font-size:.85rem;color:#1565c0;text-decoration:none;padding:4px 10px;border:1px solid #bbdefb;border-radius:4px;background:#fff">Pull Requests</a>
+          <a href="https://github.com/roboticsystem/OA-EPP/issues" target="_blank" style="font-size:.85rem;color:#1565c0;text-decoration:none;padding:4px 10px;border:1px solid #bbdefb;border-radius:4px;background:#fff">Issues</a>
+          <a href="https://github.com/roboticsystem/OA-EPP/actions" target="_blank" style="font-size:.85rem;color:#1565c0;text-decoration:none;padding:4px 10px;border:1px solid #bbdefb;border-radius:4px;background:#fff">Actions</a>
+          <a href="https://github.com/roboticsystem/OA-EPP/branches" target="_blank" style="font-size:.85rem;color:#1565c0;text-decoration:none;padding:4px 10px;border:1px solid #bbdefb;border-radius:4px;background:#fff">分支管理</a>
+        </div>
+        <!-- 表格 -->
+        <div id="binding-table">加载中…</div>
+      </div>
+    </div>
+
     <!-- 考试管理 -->
     <div class="card">
       <div class="card-title">📝 考试管理 & 成绩查看</div>
       <div class="card-body">
         <div id="exams-content">加载中…</div>
+      </div>
+    </div>
+
+    <!-- 公告与通知管理 -->
+    <div class="card">
+      <div class="card-title">📢 公告与通知管理</div>
+      <div class="card-body">
+        <div id="notif-msg"></div>
+
+        <!-- 发送通知表单 -->
+        <div id="notif-form" style="margin-bottom:20px;padding:16px;background:#f8f9fa;border-radius:8px;">
+          <p style="font-size:.9rem;font-weight:bold;margin-bottom:12px;color:#555">✉️ 发送新通知</p>
+          <div class="notif-form-row">
+            <div class="field" style="flex:2;min-width:200px;">
+              <label class="form-label">标题 *</label>
+              <input type="text" id="notif-title" placeholder="如：期末考试成绩已公布" maxlength="200" onkeydown="if(event.key==='Enter' && event.ctrlKey)sendNotification()">
+            </div>
+            <div class="field" style="min-width:140px;">
+              <label class="form-label">分类</label>
+              <select id="notif-category">
+                <option value="announcement">📋 公告</option>
+                <option value="deadline">⏰ 截止提醒</option>
+                <option value="grade">📊 成绩通知</option>
+              </select>
+            </div>
+            <button class="btn btn-primary btn-sm" style="height:42px;align-self:flex-end;white-space:nowrap" onclick="sendNotification()">发送通知</button>
+          </div>
+          <div class="field" style="margin-top:8px;">
+            <label class="form-label">通知内容 *</label>
+            <textarea id="notif-content" rows="3" placeholder="输入通知正文…（Ctrl+Enter 快速发送）"></textarea>
+          </div>
+          <p style="font-size:.78rem;color:#888;margin-top:6px">通知将发送给所有已注册的学生 · Ctrl+Enter 快速发送</p>
+        </div>
+
+        <!-- 已发通知列表 -->
+        <div>
+          <p style="font-size:.9rem;font-weight:bold;margin-bottom:8px;color:#555">📋 已发送的通知</p>
+          <div class="notif-tabs" id="tnotif-tabs">
+            <button class="notif-tab active" data-cat="all" onclick="switchTeacherNotifCat('all')">全部</button>
+            <button class="notif-tab" data-cat="announcement" onclick="switchTeacherNotifCat('announcement')">📋 公告</button>
+            <button class="notif-tab" data-cat="deadline" onclick="switchTeacherNotifCat('deadline')">⏰ 截止提醒</button>
+            <button class="notif-tab" data-cat="grade" onclick="switchTeacherNotifCat('grade')">📊 成绩通知</button>
+          </div>
+          <div id="notif-list" style="max-height:400px;overflow-y:auto;">加载中…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 进度看板（可展开） -->
+    <div class="card" id="progress-board-card">
+      <div class="card-title" style="cursor:pointer;background:linear-gradient(135deg, #e3f2fd, #bbdefb);" onclick="toggleProgressBoard()">
+        <span>📊 进度看板 — 全班任务完成状态总览</span>
+        <span id="progress-toggle-icon" style="font-size:1.2rem;">▼</span>
+      </div>
+      <div class="card-body" id="progress-board-body" style="display:none;padding:0;">
+        <!-- 控制面板 -->
+        <div style="padding:16px 20px;border-bottom:1px solid #e0e0e0;background:#fafafa;">
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
+            <label style="font-size:.85rem;font-weight:bold;color:#555;">📋 排序：</label>
+            <select id="pb-sort-order" onchange="refreshProgressBoard()" style="padding:6px 10px;border:1px solid #d0d0d0;border-radius:6px;font-size:.85rem;">
+              <option value="completion_asc">按完成率升序（落后置顶）</option>
+              <option value="name_asc">按姓名升序</option>
+            </select>
+            <span style="width:1px;height:20px;background:#e0e0e0;"></span>
+            <label style="font-size:.85rem;font-weight:bold;color:#555;">🔴 置顶倒数前</label>
+            <input type="number" id="pb-bottom-n" value="5" min="0" max="50" onchange="refreshProgressBoard()" style="width:60px;text-align:center;padding:6px;border:1px solid #d0d0d0;border-radius:6px;font-size:.85rem;">
+            <span style="font-size:.83rem;color:#888;">名</span>
+          </div>
+          <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:.83rem;align-items:center;">
+            <span style="font-weight:bold;color:#555;">图例：</span>
+            <div style="display:flex;align-items:center;gap:6px;"><span style="width:16px;height:16px;border-radius:3px;background:#4caf50;border:1px solid rgba(0,0,0,.1);"></span>已提交（准时）</div>
+            <div style="display:flex;align-items:center;gap:6px;"><span style="width:16px;height:16px;border-radius:3px;background:#ff9800;border:1px solid rgba(0,0,0,.1);"></span>迟交</div>
+            <div style="display:flex;align-items:center;gap:6px;"><span style="width:16px;height:16px;border-radius:3px;background:#ef5350;border:1px solid rgba(0,0,0,.1);"></span>未提交</div>
+            <div style="display:flex;align-items:center;gap:6px;"><span style="width:16px;height:16px;border-radius:3px;background:#cfd8dc;border:1px solid rgba(0,0,0,.1);"></span>任务未发布</div>
+            <span style="font-size:.78rem;color:#bbb;margin-left:6px;">（点击单元格查看提交详情）</span>
+          </div>
+        </div>
+        <!-- 热力图 -->
+        <div style="padding:16px 20px;border-bottom:1px solid #e0e0e0;">
+          <div style="font-weight:bold;font-size:.95rem;margin-bottom:12px;color:#333;">🔥 学生 × 任务 完成状态热力图</div>
+          <div id="pb-heatmap-container">
+            <div style="text-align:center;padding:30px;color:#888;">加载中…</div>
+          </div>
+        </div>
+        <!-- 柱状图 -->
+        <div style="padding:16px 20px;">
+          <div style="font-weight:bold;font-size:.95rem;margin-bottom:12px;color:#333;">📊 各任务完成率趋势</div>
+          <div id="pb-barchart-container">
+            <canvas id="pb-barChart" style="display:block;width:100%;max-height:320px;"></canvas>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -196,6 +358,8 @@ async function doLogin() {
     document.getElementById('app').style.display = 'block';
     loadExams();
     loadStudentList();
+    loadNotificationList();
+    loadBindingDashboard();
   } catch(e) { showMsg('login-msg', '网络错误：' + e, 'error'); }
 }
 
@@ -225,6 +389,7 @@ async function uploadStudents() {
     showMsg('upload-msg', `✅ 成功导入 ${d.count} 名学生`, 'success');
     loadExams();
     loadStudentList();
+    loadBindingDashboard();
   } catch(e) { showMsg('upload-msg', '网络错误：' + e, 'error'); }
 }
 
@@ -398,6 +563,7 @@ async function addStudent() {
     document.getElementById('add-sid').value = '';
     document.getElementById('add-class').value = '';
     loadStudentList();
+    loadBindingDashboard();
     loadExams();
   } catch(e) { showMsg('student-msg', '网络错误：' + e, 'error'); }
 }
@@ -415,6 +581,7 @@ async function deleteStudent(sid, name) {
       if (!r.ok) { showMsg('student-msg', d.detail || '删除失败', 'error'); return; }
       showMsg('student-msg', `✅ 已删除学生：${name}`);
       loadStudentList();
+      loadBindingDashboard();
       loadExams();
     }
   );
@@ -433,6 +600,7 @@ function confirmClearStudents() {
       if (!r.ok) { showMsg('student-msg', d.detail || '操作失败', 'error'); return; }
       showMsg('student-msg', '✅ 已清空全部学生名单');
       loadStudentList();
+      loadBindingDashboard();
       loadExams();
     }
   );
@@ -453,6 +621,7 @@ function confirmNewSemester() {
       currentExamId = null;
       examsData = [];
       loadStudentList();
+      loadBindingDashboard();
       loadExams();
     }
   );
@@ -478,6 +647,498 @@ function showConfirmDialog(title, message, onConfirm) {
   backdrop.querySelector('#confirm-ok').onclick = () => { backdrop.remove(); onConfirm(); };
 }
 
+// ───── 公告与通知管理 ─────
+
+const CATEGORY_LABELS = {
+  announcement: '公告', deadline: '截止提醒', grade: '成绩通知',
+  system: '系统', graded: '已批改'
+};
+
+let isSendingNotification = false;
+
+async function sendNotification() {
+  // 防重复点击
+  if (isSendingNotification) return;
+
+  const title = document.getElementById('notif-title').value.trim();
+  const content = document.getElementById('notif-content').value.trim();
+  const category = document.getElementById('notif-category').value;
+  if (!title) { showMsg('notif-msg', '请输入通知标题', 'error'); return; }
+  if (!content) { showMsg('notif-msg', '请输入通知内容', 'error'); return; }
+
+  // 字符长度校验
+  if (title.length > 200) { showMsg('notif-msg', '标题不能超过 200 个字符', 'error'); return; }
+  if (content.length > 5000) { showMsg('notif-msg', '内容不能超过 5000 个字符', 'error'); return; }
+
+  // 设置 loading 状态
+  isSendingNotification = true;
+  const sendBtn = document.querySelector('#notif-form button.btn-primary');
+  const originalText = sendBtn.textContent;
+  sendBtn.textContent = '发送中…';
+  sendBtn.disabled = true;
+  sendBtn.style.opacity = '0.6';
+  sendBtn.style.cursor = 'not-allowed';
+
+  try {
+    const r = await fetch(`${API}/api/teacher/notifications`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify({ title, content, category })
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      if (r.status === 409) {
+        showMsg('notif-msg', d.detail || '请勿重复提交相同通知', 'error');
+      } else {
+        showMsg('notif-msg', d.detail || '发送失败', 'error');
+      }
+      return;
+    }
+    showMsg('notif-msg', `✅ 通知已发送，覆盖 ${d.sent_count} 名学生`);
+    document.getElementById('notif-title').value = '';
+    document.getElementById('notif-content').value = '';
+    loadNotificationList();
+  } catch(e) {
+    showMsg('notif-msg', '网络错误：' + e, 'error');
+  } finally {
+    // 恢复按钮状态
+    isSendingNotification = false;
+    sendBtn.textContent = originalText;
+    sendBtn.disabled = false;
+    sendBtn.style.opacity = '1';
+    sendBtn.style.cursor = 'pointer';
+  }
+}
+
+let tnotifCurrentCat = 'all';
+let tnotifAllItems = [];
+
+async function loadNotificationList() {
+  try {
+    const r = await fetch(`${API}/api/teacher/notifications?page_size=50`, {
+      headers: {'Authorization': `Bearer ${TOKEN}`}
+    });
+    const d = await r.json();
+    tnotifAllItems = d.items || [];
+    tnotifCurrentCat = 'all';
+    // 重置标签
+    document.querySelectorAll('#tnotif-tabs .notif-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.cat === 'all');
+    });
+    renderTeacherNotifList();
+  } catch(e) { document.getElementById('notif-list').innerHTML = '<p style="color:#c62828">加载失败</p>'; }
+}
+
+function renderTeacherNotifList() {
+  const items = tnotifCurrentCat === 'all'
+    ? tnotifAllItems
+    : tnotifAllItems.filter(n => n.category === tnotifCurrentCat);
+
+  if (!items.length) {
+    document.getElementById('notif-list').innerHTML = '<p style="color:#888;font-size:.9rem">暂无已发送的通知</p>';
+    return;
+  }
+  const html = items.map(n => {
+    const readPct = n.total_students > 0
+      ? Math.round((n.read_count / n.total_students) * 100)
+      : 0;
+    return `
+    <div class="notif-item" id="tnotif-${n.id}">
+      <div class="notif-summary" onclick="toggleTeacherNotif(${n.id})">
+        <div class="notif-info">
+          <div class="notif-title">${escHtml(n.title)}</div>
+          <div class="notif-meta">
+            <span class="notif-category notif-cat-${n.category}">${CATEGORY_LABELS[n.category] || n.category}</span>
+            · 共 <strong>${n.total_students}</strong> 人
+            · 已读 <strong>${n.read_count || 0}</strong> 人（${readPct}%）
+            · ${n.created_at}
+          </div>
+        </div>
+        <span class="notif-arrow">▼</span>
+      </div>
+      <div class="notif-detail">
+        <div class="notif-body">${escHtml(n.body || '')}</div>
+        <div class="notif-actions">
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();editAndResend(${n.id}, '${escHtml(n.title).replace(/'/g, "\\'")}', '${escHtml(n.body || '').replace(/'/g, "\\'").replace(/\n/g, '\\n')}', '${n.category}')">✏️ 修改重发</button>
+          <button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();deleteNotification(${n.id})">🗑 删除</button>
+        </div>
+      </div>
+    </div>
+  `;
+  }).join('');
+  document.getElementById('notif-list').innerHTML = html;
+}
+
+function switchTeacherNotifCat(cat) {
+  tnotifCurrentCat = cat;
+  document.querySelectorAll('#tnotif-tabs .notif-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.cat === cat);
+  });
+  renderTeacherNotifList();
+}
+
+function toggleTeacherNotif(nid) {
+  const el = document.getElementById('tnotif-' + nid);
+  if (!el) return;
+  el.classList.toggle('expanded');
+}
+
+async function deleteNotification(nid) {
+  showConfirmDialog(
+    '删除通知',
+    '确认删除该通知？所有学生收到的该通知将被一并移除。',
+    async () => {
+      const r = await fetch(`${API}/api/teacher/notifications/${nid}`, {
+        method: 'DELETE',
+        headers: {'Authorization': `Bearer ${TOKEN}`}
+      });
+      const d = await r.json();
+      if (!r.ok) { showMsg('notif-msg', d.detail || '删除失败', 'error'); return; }
+      showMsg('notif-msg', `✅ 已删除 ${d.deleted_count || 0} 条通知`);
+      loadNotificationList();
+    }
+  );
+}
+
+function editAndResend(nid, title, body, category) {
+  // 创建编辑弹窗
+  const backdrop = document.createElement('div');
+  backdrop.className = 'confirm-dialog-backdrop';
+  backdrop.innerHTML = `
+    <div class="confirm-dialog" style="max-width:520px;text-align:left;">
+      <h3 style="text-align:center;">✏️ 修改并重发通知</h3>
+      <div style="margin-bottom:10px;">
+        <label class="form-label">标题</label>
+        <input type="text" id="edit-title" value="${title}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:.95rem;">
+      </div>
+      <div style="margin-bottom:10px;">
+        <label class="form-label">分类</label>
+        <select id="edit-category" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:.95rem;">
+          <option value="announcement" ${category==='announcement'?'selected':''}>📋 公告</option>
+          <option value="deadline" ${category==='deadline'?'selected':''}>⏰ 截止提醒</option>
+          <option value="grade" ${category==='grade'?'selected':''}>📊 成绩通知</option>
+        </select>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label class="form-label">通知内容</label>
+        <textarea id="edit-content" rows="5" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:.95rem;resize:vertical;">${body}</textarea>
+      </div>
+      <p style="font-size:.8rem;color:#888;margin-bottom:16px;">修改后将重新发送给所有学生（先删除旧通知，再发送新通知）</p>
+      <div class="btn-row">
+        <button class="btn btn-outline btn-sm" id="edit-cancel">取消</button>
+        <button class="btn btn-primary btn-sm" id="edit-confirm">确认重发</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+
+  let isResending = false;
+
+  backdrop.querySelector('#edit-cancel').onclick = () => backdrop.remove();
+  backdrop.querySelector('#edit-confirm').onclick = async () => {
+    if (isResending) return;
+    const newTitle = backdrop.querySelector('#edit-title').value.trim();
+    const newContent = backdrop.querySelector('#edit-content').value.trim();
+    const newCategory = backdrop.querySelector('#edit-category').value;
+    if (!newTitle) { alert('请输入标题'); return; }
+    if (!newContent) { alert('请输入内容'); return; }
+    if (newTitle.length > 200) { alert('标题不能超过 200 个字符'); return; }
+
+    isResending = true;
+    const confirmBtn = backdrop.querySelector('#edit-confirm');
+    confirmBtn.textContent = '处理中…';
+    confirmBtn.disabled = true;
+    confirmBtn.style.opacity = '0.6';
+
+    try {
+      // 先删除旧通知（按 title+category 批量删除）
+      await fetch(`${API}/api/teacher/notifications/${nid}`, {
+        method: 'DELETE',
+        headers: {'Authorization': `Bearer ${TOKEN}`}
+      });
+      // 再发送新通知
+      const r = await fetch(`${API}/api/teacher/notifications`, {
+        method: 'POST',
+        headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+        body: JSON.stringify({ title: newTitle, content: newContent, category: newCategory })
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        if (r.status === 409) {
+          showMsg('notif-msg', d.detail || '请勿重复提交', 'error');
+        } else {
+          showMsg('notif-msg', d.detail || '发送失败', 'error');
+        }
+        return;
+      }
+      showMsg('notif-msg', `✅ 通知已修改并重发，覆盖 ${d.sent_count} 名学生`);
+      backdrop.remove();
+      loadNotificationList();
+    } catch(e) {
+      showMsg('notif-msg', '网络错误：' + e, 'error');
+    } finally {
+      isResending = false;
+    }
+  };
+  // 点击遮罩关闭
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+// ───── GitHub 绑定状态看板 (F-T-004) ─────
+
+let allBindings = [];
+let selectedBindingIds = new Set();
+let bindingPage = 1;
+const bindingPageSize = 8;
+
+async function loadBindingDashboard() {
+  try {
+    const [summaryR, listR] = await Promise.all([
+      fetch(`${API}/api/teacher/github-bindings/summary`, { headers: {'Authorization': `Bearer ${TOKEN}`} }),
+      fetch(`${API}/api/teacher/github-bindings/list?sort_by_status=true`, { headers: {'Authorization': `Bearer ${TOKEN}`} })
+    ]);
+    if (summaryR.status === 401) { logout(); return; }
+    const summary = await summaryR.json();
+    document.getElementById('stat-total').textContent = summary.total;
+    document.getElementById('stat-bound').textContent = summary.bound;
+    document.getElementById('stat-pending').textContent = summary.pending;
+    document.getElementById('stat-unbound').textContent = summary.unbound;
+
+    allBindings = await listR.json();
+    selectedBindingIds.clear();
+    renderBindingTable();
+  } catch(e) {}
+}
+
+function renderBindingTable() {
+  const statusFilter = document.getElementById('binding-status-filter').value;
+  const searchText = document.getElementById('binding-search').value.toLowerCase();
+
+  let rows = allBindings;
+  if (statusFilter !== 'all') {
+    rows = rows.filter(r => r.binding_status === statusFilter);
+  }
+  if (searchText) {
+    rows = rows.filter(r =>
+      r.name.toLowerCase().includes(searchText) ||
+      r.student_id.toLowerCase().includes(searchText) ||
+      r.github_username.toLowerCase().includes(searchText)
+    );
+  }
+
+  // Update batch buttons
+  const hasPending = rows.some(r => r.binding_status === 'pending');
+  const hasUnbound = rows.some(r => r.binding_status === 'unbound');
+  document.getElementById('btn-batch-approve').style.display = hasPending ? '' : 'none';
+  document.getElementById('btn-send-reminder').style.display = hasUnbound ? '' : 'none';
+
+  if (!rows.length) {
+    document.getElementById('binding-table').innerHTML = '<p style="color:#888;font-size:.9rem;margin-top:8px">无匹配记录</p>';
+    return;
+  }
+
+  const totalPages = Math.ceil(rows.length / bindingPageSize);
+  if (bindingPage > totalPages) bindingPage = 1;
+  const start = (bindingPage - 1) * bindingPageSize;
+  const pageRows = rows.slice(start, start + bindingPageSize);
+
+  const allSelected = pageRows.every(r => selectedBindingIds.has(r.student_id));
+
+  const tbody = pageRows.map(r => {
+    const isUnbound = r.binding_status === 'unbound';
+    const isPending = r.binding_status === 'pending';
+    let rowClass = '';
+    if (isUnbound) rowClass = 'style="background:#fff5f5"';
+    else if (isPending) rowClass = 'style="background:#fffbf0"';
+
+    let statusBadge = '';
+    if (r.binding_status === 'bound') statusBadge = '<span class="badge badge-green">已绑定</span>';
+    else if (r.binding_status === 'pending') statusBadge = '<span class="badge" style="background:#fff3e0;color:#e65100">待审核</span>';
+    else statusBadge = '<span class="badge" style="background:#ffebee;color:#c62828">未绑定</span>';
+
+    let actions = '';
+    if (r.binding_status === 'pending') {
+      actions = `<button class="btn btn-outline btn-sm" onclick="approveSingle('${r.student_id}')">通过</button>
+                 <button class="btn btn-outline-danger btn-sm" onclick="rejectSingle('${r.student_id}')">拒绝</button>`;
+    } else if (r.binding_status === 'unbound') {
+      actions = `<button class="btn btn-warning btn-sm" onclick="remindSingle('${r.student_id}')">发提醒</button>`;
+    } else {
+      actions = '<span style="color:#888;font-size:.85rem">—</span>';
+    }
+
+    const checked = selectedBindingIds.has(r.student_id) ? 'checked' : '';
+
+    return `<tr ${rowClass}>
+      <td><input type="checkbox" ${checked} onchange="toggleBindingSelect('${r.student_id}', this.checked)"></td>
+      <td>${r.student_id}</td>
+      <td><strong>${r.name}</strong></td>
+      <td>${r.github_username || '<span style="color:#ccc">—</span>'}</td>
+      <td>${statusBadge}</td>
+      <td>${r.github_name || '<span style="color:#ccc">—</span>'}</td>
+      <td style="font-size:.85rem;color:#888">${r.verified_at || '—'}</td>
+      <td>${actions}</td>
+    </tr>`;
+  }).join('');
+
+  const allChecked = allSelected ? 'checked' : '';
+
+  // Build pagination
+  let paginationHtml = '';
+  if (totalPages > 1) {
+    const pages = [];
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= bindingPage - 2 && i <= bindingPage + 2)) {
+        pages.push(i);
+      } else if (pages[pages.length - 1] !== '...') {
+        pages.push('...');
+      }
+    }
+    paginationHtml = `<div style="display:flex;align-items:center;gap:4px;justify-content:center;margin-top:8px">
+      <button class="btn btn-outline btn-sm" onclick="goBindingPage(${bindingPage - 1})" ${bindingPage === 1 ? 'disabled style="opacity:.4"' : ''}>‹</button>
+      ${pages.map(p => p === '...'
+        ? '<span style="padding:0 4px;color:#888">…</span>'
+        : `<button class="btn btn-sm ${p === bindingPage ? 'btn-primary' : 'btn-outline'}" onclick="goBindingPage(${p})">${p}</button>`
+      ).join('')}
+      <button class="btn btn-outline btn-sm" onclick="goBindingPage(${bindingPage + 1})" ${bindingPage === totalPages ? 'disabled style="opacity:.4"' : ''}>›</button>
+    </div>`;
+  }
+
+  document.getElementById('binding-table').innerHTML = `
+    <table>
+      <thead><tr>
+        <th><input type="checkbox" ${allChecked} onchange="selectAllBindings(this.checked)"></th>
+        <th>学号</th><th>姓名</th><th>GitHub 用户名</th><th>绑定状态</th><th>GitHub 实名</th><th>最近核查</th><th>操作</th>
+      </tr></thead>
+      <tbody>${tbody}</tbody>
+    </table>
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:.85rem;color:#888;margin-top:8px">
+      <span>共 ${rows.length} 条，第 ${start + 1}–${Math.min(start + bindingPageSize, rows.length)} 条</span>
+      ${paginationHtml}
+    </div>
+  `;
+}
+
+function filterBindingList() {
+  selectedBindingIds.clear();
+  bindingPage = 1;
+  renderBindingTable();
+}
+
+function goBindingPage(p) {
+  const totalPages = Math.ceil(
+    (() => { const s = document.getElementById('binding-status-filter').value;
+      const q = document.getElementById('binding-search').value.toLowerCase();
+      let r = allBindings;
+      if (s !== 'all') r = r.filter(x => x.binding_status === s);
+      if (q) r = r.filter(x => x.name.toLowerCase().includes(q) || x.student_id.toLowerCase().includes(q) || x.github_username.toLowerCase().includes(q));
+      return r.length;
+    })() / bindingPageSize
+  );
+  if (p < 1 || p > totalPages) return;
+  bindingPage = p;
+  renderBindingTable();
+}
+
+function toggleBindingSelect(sid, checked) {
+  if (checked) selectedBindingIds.add(sid);
+  else selectedBindingIds.delete(sid);
+  renderBindingTable();
+}
+
+function selectAllBindings(checked) {
+  const statusFilter = document.getElementById('binding-status-filter').value;
+  const searchText = document.getElementById('binding-search').value.toLowerCase();
+  let rows = allBindings;
+  if (statusFilter !== 'all') rows = rows.filter(r => r.binding_status === statusFilter);
+  if (searchText) rows = rows.filter(r =>
+    r.name.toLowerCase().includes(searchText) ||
+    r.student_id.toLowerCase().includes(searchText) ||
+    r.github_username.toLowerCase().includes(searchText)
+  );
+  // Only toggle visible page
+  const start = (bindingPage - 1) * bindingPageSize;
+  const pageRows = rows.slice(start, start + bindingPageSize);
+  pageRows.forEach(r => {
+    if (checked) selectedBindingIds.add(r.student_id);
+    else selectedBindingIds.delete(r.student_id);
+  });
+  renderBindingTable();
+}
+
+async function batchApproveBindings() {
+  const ids = [...selectedBindingIds].filter(id => {
+    const r = allBindings.find(b => b.student_id === id);
+    return r && r.binding_status === 'pending';
+  });
+  if (!ids.length) { showMsg('binding-msg', '请先勾选待审核的学生', 'error'); return; }
+  try {
+    const r = await fetch(`${API}/api/teacher/github-bindings/batch-approve`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify({student_ids: ids})
+    });
+    const d = await r.json();
+    if (!r.ok) { showMsg('binding-msg', d.detail || '操作失败', 'error'); return; }
+    showMsg('binding-msg', `✅ 已通过 ${d.approved} 条绑定申请`, 'success');
+    loadBindingDashboard();
+  } catch(e) { showMsg('binding-msg', '网络错误：' + e, 'error'); }
+}
+
+async function approveSingle(sid) {
+  selectedBindingIds.clear();
+  selectedBindingIds.add(sid);
+  await batchApproveBindings();
+}
+
+async function rejectSingle(sid) {
+  try {
+    const r = await fetch(`${API}/api/teacher/github-bindings/batch-approve`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify({student_ids: [sid]})
+    });
+    if (!r.ok) return;
+    // Reject: set status back to unbound
+    await fetch(`${API}/api/teacher/github-bindings/reject`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify({student_ids: [sid]})
+    });
+    showMsg('binding-msg', '已拒绝该绑定申请', 'success');
+    loadBindingDashboard();
+  } catch(e) { showMsg('binding-msg', '网络错误：' + e, 'error'); }
+}
+
+async function sendBindingReminder() {
+  const ids = [...selectedBindingIds].filter(id => {
+    const r = allBindings.find(b => b.student_id === id);
+    return r && r.binding_status === 'unbound';
+  });
+  if (!ids.length) { showMsg('binding-msg', '请先勾选未绑定的学生', 'error'); return; }
+  try {
+    const r = await fetch(`${API}/api/teacher/github-bindings/send-reminder`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify({student_ids: ids})
+    });
+    const d = await r.json();
+    if (!r.ok) { showMsg('binding-msg', d.detail || '操作失败', 'error'); return; }
+    showMsg('binding-msg', `📢 已向 ${d.reminded} 名学生发送提醒：${d.students.join('、')}`, 'success');
+  } catch(e) { showMsg('binding-msg', '网络错误：' + e, 'error'); }
+}
+
+async function remindSingle(sid) {
+  selectedBindingIds.clear();
+  selectedBindingIds.add(sid);
+  await sendBindingReminder();
+}
+
 // ───── 初始化：检查已有 token ─────
 if (TOKEN) {
   fetch(`${API}/api/teacher/exams`, { headers: {'Authorization': `Bearer ${TOKEN}`} })
@@ -487,11 +1148,447 @@ if (TOKEN) {
         document.getElementById('app').style.display = 'block';
         loadExams();
         loadStudentList();
+        loadNotificationList();
+        loadBindingDashboard();
       } else {
         TOKEN = ''; sessionStorage.removeItem('teacher_token');
       }
     }).catch(() => {});
 }
+
+// Ctrl+Enter 快捷发送通知
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey && e.key === 'Enter' && document.activeElement.id === 'notif-content') {
+    e.preventDefault();
+    sendNotification();
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  进度看板功能（后端API版本）
+// ═══════════════════════════════════════════════════════════════════════════
+
+let pbData = null;
+let pbExpanded = false;
+let pbEventSource = null;
+
+// 获取进度看板数据（调用后端API）
+async function fetchProgressData() {
+  const sortOrder = document.getElementById('pb-sort-order').value;
+  const bottomN = parseInt(document.getElementById('pb-bottom-n').value) || 5;
+  
+  try {
+    const params = new URLSearchParams({
+      sort_order: sortOrder,
+      bottom_n: bottomN
+    });
+    
+    const resp = await fetch(`${API}/api/teacher/progress/matrix?${params}`, {
+      headers: { 'Authorization': `Bearer ${TOKEN}` }
+    });
+    
+    if (!resp.ok) {
+      throw new Error('获取进度数据失败');
+    }
+    
+    pbData = await resp.json();
+    renderPBHeatmap(pbData);
+    renderPBBarChart(pbData);
+    
+  } catch (e) {
+    console.error('获取进度数据失败:', e);
+    // 如果API调用失败，显示静态演示数据
+    loadStaticDemoData();
+  }
+}
+
+// 加载静态演示数据（作为降级方案）
+function loadStaticDemoData() {
+  const students = [
+    {student_id:"20230001",name:"张明远",class_name:"2023级机器人1班",completion_rate:0.8,statuses:{}},
+    {student_id:"20230002",name:"李雪晴",class_name:"2023级机器人1班",completion_rate:0.4,statuses:{}},
+    {student_id:"20230003",name:"王浩然",class_name:"2023级机器人1班",completion_rate:1.0,statuses:{}},
+    {student_id:"20230004",name:"陈思雨",class_name:"2023级机器人2班",completion_rate:0.6,statuses:{}},
+    {student_id:"20230005",name:"刘宇航",class_name:"2023级机器人2班",completion_rate:0.2,statuses:{}},
+    {student_id:"20230006",name:"赵晓琳",class_name:"2023级机器人2班",completion_rate:0.0,statuses:{}},
+    {student_id:"20230007",name:"孙志强",class_name:"2023级机器人1班",completion_rate:1.0,statuses:{}},
+    {student_id:"20230008",name:"周雅文",class_name:"2023级机器人1班",completion_rate:0.8,statuses:{}},
+    {student_id:"20230009",name:"吴昊天",class_name:"2023级机器人2班",completion_rate:0.4,statuses:{}},
+    {student_id:"20230010",name:"郑佳怡",class_name:"2023级机器人2班",completion_rate:0.6,statuses:{}},
+    {student_id:"20230011",name:"钱伟明",class_name:"2023级机器人1班",completion_rate:0.0,statuses:{}},
+    {student_id:"20230012",name:"马晓燕",class_name:"2023级机器人2班",completion_rate:0.2,statuses:{}},
+    {student_id:"20230013",name:"黄建平",class_name:"2023级机器人1班",completion_rate:0.8,statuses:{}},
+    {student_id:"20230014",name:"林诗涵",class_name:"2023级机器人2班",completion_rate:1.0,statuses:{}},
+    {student_id:"20230015",name:"杨瑞峰",class_name:"2023级机器人1班",completion_rate:0.6,statuses:{}}
+  ];
+  
+  const exams = [
+    {id:"hw01",title:"第一章 机器人学基础",is_active:true,deadline:"2025-03-15T23:59",published_at:"2025-03-01T08:00",semester:"2024-2025-2"},
+    {id:"hw02",title:"第二章 运动学与动力学",is_active:true,deadline:"2025-03-30T23:59",published_at:"2025-03-16T08:00",semester:"2024-2025-2"},
+    {id:"hw03",title:"第三章 轨迹规划",is_active:true,deadline:"2025-04-20T23:59",published_at:"2025-04-01T08:00",semester:"2024-2025-2"},
+    {id:"hw04",title:"第四章 控制系统设计",is_active:true,deadline:"2025-05-10T23:59",published_at:"2025-04-21T08:00",semester:"2024-2025-2"},
+    {id:"hw05",title:"第五章 传感器与感知",is_active:true,deadline:"2025-05-30T23:59",published_at:"2025-05-11T08:00",semester:"2024-2025-2"},
+    {id:"hw06",title:"第六章 路径规划",is_active:true,deadline:"2025-06-20T23:59",published_at:"2025-05-31T08:00",semester:"2024-2025-2"},
+    {id:"hw07",title:"第七章 机器视觉入门",is_active:false,deadline:"2025-07-05T23:59",published_at:"2025-06-21T08:00",semester:"2024-2025-2"}
+  ];
+  
+  // 生成随机提交状态
+  const baseCompletion = [0.8,0.4,1.0,0.6,0.2,0.0,1.0,0.8,0.4,0.6,0.0,0.2,0.8,1.0,0.6];
+  
+  students.forEach((s, si) => {
+    const prob = baseCompletion[si];
+    exams.forEach(e => {
+      if (!e.is_active) {
+        s.statuses[e.id] = {status:'not_published'};
+        return;
+      }
+      const r = Math.random();
+      if (r < prob * 0.7) {
+        const dl = new Date(e.deadline);
+        const sub = new Date(dl.getTime() - Math.random()*72*3600*1000);
+        s.statuses[e.id] = {
+          status:'submitted',
+          score: Math.round(60 + Math.random()*40),
+          total: 100,
+          submitted_at: sub.toISOString().replace('T',' ').substring(0,19)
+        };
+      } else if (r < prob) {
+        const dl2 = new Date(e.deadline);
+        const sub2 = new Date(dl2.getTime() + (1+Math.random()*24)*3600*1000);
+        s.statuses[e.id] = {
+          status:'late',
+          score: Math.round(40 + Math.random()*40),
+          total: 100,
+          submitted_at: sub2.toISOString().replace('T',' ').substring(0,19)
+        };
+      } else {
+        s.statuses[e.id] = {status:'unsubmitted'};
+      }
+    });
+  });
+  
+  // 计算考试完成率
+  exams.forEach(e => {
+    if (!e.is_active) {
+      e.submitted = 0;
+      e.completion_rate = 0;
+      return;
+    }
+    let sub = 0;
+    students.forEach(s => {
+      const st = s.statuses[e.id];
+      if (st && (st.status === 'submitted' || st.status === 'late')) sub++;
+    });
+    e.submitted = sub;
+    e.total_students = students.length;
+    e.completion_rate = students.length > 0 ? Math.round(sub / students.length * 1000) / 1000 : 0;
+  });
+  
+  // 排序和置顶标记
+  const sortOrder = document.getElementById('pb-sort-order').value;
+  const bottomN = parseInt(document.getElementById('pb-bottom-n').value) || 5;
+  
+  if (sortOrder === 'completion_asc') {
+    students.sort((a,b) => a.completion_rate - b.completion_rate);
+    students.forEach((s, idx) => { s.highlight = (idx < bottomN && s.completion_rate < 1); });
+  } else {
+    students.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  }
+  
+  pbData = {students, exams};
+  renderPBHeatmap(pbData);
+  renderPBBarChart(pbData);
+}
+
+// 启动 SSE 实时更新
+function startPBEventSource() {
+  if (pbEventSource) return;
+  
+  try {
+    const url = `${API}/api/teacher/progress/events?token=${encodeURIComponent(TOKEN)}`;
+    pbEventSource = new EventSource(url);
+    
+    pbEventSource.onmessage = function(event) {
+      try {
+        const data = JSON.parse(event.data);
+        pbData = data;
+        refreshProgressBoard();
+      } catch (e) {
+        console.error('解析 SSE 数据失败:', e);
+      }
+    };
+    
+    pbEventSource.onerror = function(error) {
+      console.error('SSE 连接错误:', error);
+      pbEventSource.close();
+      pbEventSource = null;
+    };
+    
+  } catch (e) {
+    console.warn('SSE 不可用，将使用轮询方式');
+  }
+}
+
+// 停止 SSE 连接
+function stopPBEventSource() {
+  if (pbEventSource) {
+    pbEventSource.close();
+    pbEventSource = null;
+  }
+}
+
+// 展开/收起看板
+function toggleProgressBoard() {
+  const body = document.getElementById('progress-board-body');
+  const icon = document.getElementById('progress-toggle-icon');
+  pbExpanded = !pbExpanded;
+  
+  if (pbExpanded) {
+    body.style.display = 'block';
+    icon.textContent = '▲';
+    if (!pbData) {
+      fetchProgressData();
+    } else {
+      refreshProgressBoard();
+    }
+    startPBEventSource(); // 启动实时更新
+  } else {
+    body.style.display = 'none';
+    icon.textContent = '▼';
+    // stopPBEventSource(); // 可选：收起时停止实时更新
+  }
+}
+
+// 刷新看板数据
+function refreshProgressBoard() {
+  if (!pbData) return;
+  
+  const sortOrder = document.getElementById('pb-sort-order').value;
+  const bottomN = parseInt(document.getElementById('pb-bottom-n').value) || 5;
+  
+  // 复制数据
+  let students = JSON.parse(JSON.stringify(pbData.students));
+  let exams = JSON.parse(JSON.stringify(pbData.exams));
+  
+  // 排序和置顶标记
+  if (sortOrder === 'completion_asc') {
+    students.sort((a,b) => a.completion_rate - b.completion_rate);
+    students.forEach((s, idx) => { s.highlight = (idx < bottomN && s.completion_rate < 1); });
+  } else {
+    students.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+    students.forEach(s => { s.highlight = false; });
+  }
+  
+  // 更新考试完成率（如果后端没有提供）
+  const activeExams = exams.filter(e => e.is_active);
+  activeExams.forEach(e => {
+    if (e.completion_rate === undefined || e.submitted === undefined) {
+      let sub = 0;
+      students.forEach(s => {
+        const st = (s.statuses||{})[e.id];
+        if (st && (st.status === 'submitted' || st.status === 'late')) sub++;
+      });
+      e.total_students = students.length;
+      e.submitted = sub;
+      e.completion_rate = students.length > 0 ? Math.round(sub / students.length * 1000) / 1000 : 0;
+    }
+  });
+  
+  const filteredData = {students, exams: activeExams};
+  renderPBHeatmap(filteredData);
+  renderPBBarChart(filteredData);
+}
+
+// 渲染热力图
+function renderPBHeatmap(data) {
+  const container = document.getElementById('pb-heatmap-container');
+  const students = data.students || [];
+  const exams = data.exams || [];
+  
+  if (!students.length || !exams.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:#888;">暂无数据</div>';
+    return;
+  }
+  
+  const statusClass = {submitted:'submitted',late:'late',unsubmitted:'unsubmitted',not_published:'not_published'};
+  const statusLabel = {submitted:'✓',late:'!',unsubmitted:'✗',not_published:'·'};
+  
+  let thead = '<tr><th style="position:sticky;left:0;z-index:3;background:#e3f2fd;min-width:70px;">姓名</th><th style="position:sticky;left:70px;z-index:3;background:#e3f2fd;min-width:60px;">完成率</th>';
+  exams.forEach(e => { thead += '<th>' + e.id.replace('hw','') + '</th>'; });
+  thead += '</tr>';
+  
+  let tbody = '';
+  students.forEach(s => {
+    const highlightClass = s.highlight ? ' style="background:#fff3e0;"' : '';
+    tbody += '<tr><td style="position:sticky;left:0;background:#fff;z-index:1;font-weight:bold;text-align:left;' + (s.highlight?'background:#fff3e0;':'') + '">' + s.name + '</td>';
+    tbody += '<td style="position:sticky;left:70px;background:#fff;z-index:1;' + (s.highlight?'background:#fff3e0;':'') + '"><span style="font-size:.78rem;color:#666;font-weight:bold;">' + Math.round(s.completion_rate*100) + '%</span></td>';
+    exams.forEach(e => {
+      const st = (s.statuses||{})[e.id] || {status:'not_published'};
+      const title = s.name + ' — ' + e.title + '\n' + 
+        {submitted:'✅ 已提交',late:'⚠️ 迟交',unsubmitted:'❌ 未提交',not_published:'🔒 未发布'}[st.status] +
+        (st.submitted_at ? '\n提交: ' + st.submitted_at : '') +
+        (st.score !== undefined ? '\n得分: ' + st.score + '/' + st.total : '');
+      tbody += '<td><span class="pb-cell ' + statusClass[st.status] + '" title="' + title + '" onclick="showPBDetail(\'' + s.student_id + '\',\'' + e.id + '\')">' + statusLabel[st.status] + '</span></td>';
+    });
+    tbody += '</tr>';
+  });
+  
+  container.innerHTML = 
+    '<div style="overflow:auto;max-height:480px;border:1px solid #e0e0e0;border-radius:8px;">'+
+    '<table style="border-collapse:collapse;font-size:.82rem;min-width:100%;">'+
+    '<thead style="position:sticky;top:0;z-index:2;">' + thead + '</thead>'+
+    '<tbody>' + tbody + '</tbody>'+
+    '</table></div>';
+}
+
+// 渲染柱状图
+function renderPBBarChart(data) {
+  const canvas = document.getElementById('pb-barChart');
+  const wrapper = document.getElementById('pb-barchart-container');
+  const exams = (data.exams || []).filter(e => e.is_active);
+  
+  exams.sort((a,b) => (a.published_at||'').localeCompare(b.published_at||''));
+  
+  if (!exams.length) {
+    wrapper.innerHTML = '<div style="text-align:center;padding:40px;color:#888;">暂无活跃任务</div>';
+    return;
+  }
+  
+  // 恢复 canvas
+  if (!wrapper.querySelector('canvas')) {
+    wrapper.innerHTML = '<canvas id="pb-barChart" style="display:block;width:100%;max-height:320px;"></canvas>';
+  }
+  const ctxCanvas = document.getElementById('pb-barChart');
+  
+  const dpr = window.devicePixelRatio || 1;
+  const W = Math.max(300, wrapper.clientWidth - 20);
+  const H = 300;
+  ctxCanvas.width = W * dpr;
+  ctxCanvas.height = H * dpr;
+  ctxCanvas.style.width = W + 'px';
+  ctxCanvas.style.height = H + 'px';
+  const ctx = ctxCanvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  
+  const pad = {top:30,right:30,bottom:70,left:50};
+  const plotW = W - pad.left - pad.right;
+  const plotH = H - pad.top - pad.bottom;
+  
+  ctx.clearRect(0,0,W,H);
+  
+  // 网格
+  ctx.strokeStyle = '#e8e8e8';
+  ctx.lineWidth = 1;
+  for (let i=0;i<=4;i++) {
+    const y = pad.top + (plotH/4)*i;
+    ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(W-pad.right,y);ctx.stroke();
+    ctx.fillStyle = '#888';
+    ctx.font = '11px "Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText((100-i*25)+'%',pad.left-8,y+4);
+  }
+  
+  // 轴线
+  ctx.strokeStyle = '#bbb';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();ctx.moveTo(pad.left,pad.top);ctx.lineTo(pad.left,H-pad.bottom);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(pad.left,H-pad.bottom);ctx.lineTo(W-pad.right,H-pad.bottom);ctx.stroke();
+  
+  // 柱状条
+  const barCount = exams.length;
+  const barGap = Math.max(10,plotW/(barCount*3));
+  const barW = Math.max(20,(plotW-barGap*(barCount+1))/barCount);
+  
+  exams.forEach((e,idx) => {
+    const x = pad.left + barGap + idx*(barW+barGap);
+    const bh = Math.max(2,e.completion_rate*plotH);
+    const y = H - pad.bottom - bh;
+    
+    const grad = ctx.createLinearGradient(x,y,x,H-pad.bottom);
+    if (e.completion_rate >= 0.8) { grad.addColorStop(0,'#4caf50');grad.addColorStop(1,'#66bb6a'); }
+    else if (e.completion_rate >= 0.5) { grad.addColorStop(0,'#ff9800');grad.addColorStop(1,'#ffb74d'); }
+    else { grad.addColorStop(0,'#ef5350');grad.addColorStop(1,'#e57373'); }
+    ctx.fillStyle = grad;
+    ctx.fillRect(x,y,barW,bh);
+    
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 11px "Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(Math.round(e.completion_rate*100)+'%',x+barW/2,y-8);
+    
+    ctx.fillStyle = '#666';
+    ctx.font = '9px "Microsoft YaHei",sans-serif';
+    ctx.fillText(e.submitted+'/'+e.total_students,x+barW/2,H-pad.bottom+14);
+    
+    ctx.save();
+    ctx.fillStyle = '#555';
+    ctx.font = '10px "Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'right';
+    ctx.translate(x+barW/2,H-pad.bottom+30);
+    ctx.rotate(-Math.PI/6);
+    const label = (e.id||'').replace('hw','作业');
+    ctx.fillText(label,0,0);
+    ctx.restore();
+  });
+  
+  ctx.fillStyle = '#999';
+  ctx.font = '10px "Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('共 '+exams[0].total_students+' 名学生 · '+exams.length+' 个活跃任务',W/2,H-4);
+}
+
+// 显示详情弹窗
+function showPBDetail(studentId, examId) {
+  if (!pbData) return;
+  const student = pbData.students.find(s => s.student_id === studentId);
+  const exam = pbData.exams.find(e => e.id === examId);
+  if (!student || !exam) return;
+  
+  const st = student.statuses[examId] || {status:'not_published'};
+  const badgeMap = {
+    submitted:{text:'✅ 已提交（准时）',color:'#fff',bg:'#4caf50'},
+    late:{text:'⚠️ 迟交',color:'#fff',bg:'#ff9800'},
+    unsubmitted:{text:'❌ 未提交',color:'#fff',bg:'#ef5350'},
+    not_published:{text:'🔒 任务未发布',color:'#666',bg:'#cfd8dc'}
+  };
+  const badge = badgeMap[st.status];
+  
+  let details = '<dt>学生姓名</dt><dd>' + student.name + '</dd>';
+  details += '<dt>学号</dt><dd>' + student.student_id + '</dd>';
+  details += '<dt>班级</dt><dd>' + (student.class_name||'—') + '</dd>';
+  details += '<dt>任务名称</dt><dd>' + exam.title + '</dd>';
+  details += '<dt>状态</dt><dd><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:.8rem;font-weight:bold;background:'+badge.bg+';color:'+badge.color+'">'+badge.text+'</span></dd>';
+  
+  if (st.submitted_at) {
+    details += '<dt>提交时间</dt><dd>' + st.submitted_at + '</dd>';
+    if (st.score !== undefined) details += '<dt>得分</dt><dd><b>' + st.score + '</b> / ' + st.total + '</dd>';
+  }
+  if (exam.deadline) details += '<dt>截止时间</dt><dd>' + exam.deadline.replace('T',' ') + '</dd>';
+  
+  const backdrop = document.createElement('div');
+  backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  backdrop.innerHTML = 
+    '<div style="background:#fff;border-radius:12px;padding:28px;max-width:480px;width:90%;box-shadow:0 12px 40px rgba(0,0,0,.25);">'+
+    '<h3 style="margin-bottom:4px;color:#1565c0;">📋 提交详情</h3>'+
+    '<p style="color:#888;font-size:.84rem;margin-bottom:16px;">' + student.name + ' — ' + exam.title + '</p>'+
+    '<dl style="display:grid;grid-template-columns:90px 1fr;gap:10px 14px;font-size:.88rem;margin-bottom:20px;">' + details + '</dl>'+
+    '<div style="display:flex;justify-content:flex-end;">'+
+    '<button onclick="this.closest(\'.confirm-dialog-backdrop\').remove()" style="padding:8px 20px;border:none;border-radius:6px;background:#1565c0;color:#fff;cursor:pointer;font-size:.88rem;">关闭</button>'+
+    '</div></div>';
+  backdrop.className = 'confirm-dialog-backdrop';
+  document.body.appendChild(backdrop);
+  
+  backdrop.onclick = e => { if (e.target === backdrop) backdrop.remove(); };
+}
 </script>
+<style>
+/* 进度看板热力图样式 */
+.pb-cell { display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:5px;cursor:pointer;transition:transform .15s,box-shadow .15s;font-size:.72rem;color:#fff;font-weight:bold;user-select:none; }
+.pb-cell:hover { transform:scale(1.25);z-index:5;box-shadow:0 3px 12px rgba(0,0,0,.3); }
+.pb-cell.submitted { background:#4caf50; }
+.pb-cell.late { background:#ff9800; }
+.pb-cell.unsubmitted { background:#ef5350; }
+.pb-cell.not_published { background:#cfd8dc;color:#90a4ae; }
+</style>
 </body>
 </html>

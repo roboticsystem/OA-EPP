@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>进度看板 — 教师管理后台</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei","Noto Sans SC",sans-serif; background: #f0f2f5; color: #333; }
+
+  .header { background: linear-gradient(135deg, #1565c0, #0d47a1); color: #fff; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .header h1 { font-size: 1.2rem; display: flex; align-items: center; gap: 8px; }
+  .header a, .header button { background: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.4); padding: 7px 18px; border-radius: 6px; cursor: pointer; text-decoration: none; font-size: .85rem; transition: background .2s; }
+  .header a:hover, .header button:hover { background: rgba(255,255,255,.3); }
+
+  .container { max-width: 1480px; margin: 24px auto; padding: 0 24px; }
+
+  .card { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); margin-bottom: 20px; overflow: hidden; }
+  .card-title { background: #e8f0fe; padding: 13px 24px; font-weight: bold; font-size: .95rem; border-bottom: 1px solid #c5d9f1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .card-body { padding: 20px 24px; }
+
+  .controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .controls label { font-size: .85rem; font-weight: bold; color: #555; white-space: nowrap; }
+  .controls select, .controls input { padding: 7px 12px; border: 1px solid #d0d0d0; border-radius: 6px; font-size: .88rem; background: #fafafa; transition: border-color .2s; }
+  .controls select:focus, .controls input:focus { outline: none; border-color: #1565c0; background: #fff; }
+  .controls .n-input { width: 70px; text-align: center; }
+  .controls .divider { width: 1px; height: 24px; background: #e0e0e0; }
+
+  .stat-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+  .stat-chip { flex: 1; min-width: 130px; background: #fafafa; border: 1px solid #e8e8e8; border-radius: 8px; padding: 14px 16px; text-align: center; }
+  .stat-chip .stat-num { font-size: 1.6rem; font-weight: bold; color: #1565c0; }
+  .stat-chip .stat-label { font-size: .78rem; color: #888; margin-top: 4px; }
+  .stat-chip.warn .stat-num { color: #ef5350; }
+
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 4px; font-size: .83rem; align-items: center; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-swatch { width: 16px; height: 16px; border-radius: 3px; border: 1px solid rgba(0,0,0,.1); }
+  .legend-swatch.green  { background: #4caf50; }
+  .legend-swatch.yellow { background: #ff9800; }
+  .legend-swatch.red    { background: #ef5350; }
+  .legend-swatch.gray   { background: #cfd8dc; }
+
+  .heatmap-wrap { overflow: auto; max-height: 560px; border: 1px solid #e0e0e0; border-radius: 8px; position: relative; }
+  .heatmap-table { border-collapse: collapse; font-size: .82rem; min-width: 100%; }
+  .heatmap-table th, .heatmap-table td { padding: 6px 10px; border: 1px solid #ececec; text-align: center; white-space: nowrap; }
+  .heatmap-table thead th { background: #e8f0fe; position: sticky; top: 0; z-index: 2; font-weight: bold; font-size: .78rem; }
+  .heatmap-table thead th:first-child { position: sticky; left: 0; z-index: 3; min-width: 70px; }
+  .heatmap-table thead th:nth-child(2) { position: sticky; left: 70px; z-index: 3; min-width: 60px; }
+  .heatmap-table tbody td:first-child { position: sticky; left: 0; background: #fff; z-index: 1; font-weight: bold; text-align: left; }
+  .heatmap-table tbody td:nth-child(2) { position: sticky; left: 70px; background: #fff; z-index: 1; }
+  .heatmap-table tbody tr:hover td { filter: brightness(.93); }
+  .heatmap-table tbody tr.highlight-row td:first-child { background: #fff3e0; }
+  .heatmap-table tbody tr.highlight-row td:nth-child(2) { background: #fff3e0; }
+  .heatmap-table tbody tr.highlight-row:hover td:first-child,
+  .heatmap-table tbody tr.highlight-row:hover td:nth-child(2) { background: #ffe0b2; }
+
+  .cell { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 5px; cursor: pointer; transition: transform .15s, box-shadow .15s; font-size: .72rem; color: #fff; font-weight: bold; user-select: none; }
+  .cell:hover { transform: scale(1.3); z-index: 5; box-shadow: 0 3px 12px rgba(0,0,0,.3); }
+  .cell.submitted     { background: #4caf50; }
+  .cell.late          { background: #ff9800; }
+  .cell.unsubmitted   { background: #ef5350; }
+  .cell.not_published { background: #cfd8dc; color: #90a4ae; }
+
+  .completion-rate-cell { font-size: .78rem; color: #666; font-weight: bold; }
+  .rate-bar { display: inline-block; height: 4px; border-radius: 2px; vertical-align: middle; margin-left: 4px; }
+
+  #barChart { display: block; width: 100%; max-height: 380px; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 9999; display: flex; align-items: center; justify-content: center; animation: fadeIn .2s; }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  .modal { background: #fff; border-radius: 12px; padding: 32px 28px; max-width: 520px; width: 94%; box-shadow: 0 12px 40px rgba(0,0,0,.25); animation: slideUp .25s; }
+  @keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+  .modal h3 { margin-bottom: 4px; font-size: 1.1rem; color: #1565c0; }
+  .modal .subtitle { color: #888; font-size: .84rem; margin-bottom: 20px; }
+  .modal .detail-grid { display: grid; grid-template-columns: 100px 1fr; gap: 10px 16px; font-size: .88rem; margin-bottom: 22px; }
+  .modal .detail-grid dt { color: #999; font-weight: normal; }
+  .modal .detail-grid dd { color: #333; word-break: break-all; }
+  .modal .btn-row { display: flex; gap: 10px; justify-content: flex-end; }
+  .status-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: .8rem; font-weight: bold; }
+
+  .btn { display: inline-block; padding: 9px 22px; border: none; border-radius: 6px; cursor: pointer; font-size: .88rem; font-weight: bold; transition: background .2s; }
+  .btn-primary { background: #1565c0; color: #fff; }
+  .btn-primary:hover { background: #0d47a1; }
+  .btn-outline { background: transparent; color: #1565c0; border: 1px solid #1565c0; }
+  .btn-outline:hover { background: #e3f2fd; }
+  .btn-sm { padding: 5px 14px; font-size: .8rem; }
+
+  .status-bar { display: flex; align-items: center; gap: 8px; font-size: .83rem; }
+  .status-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .status-dot.live { background: #4caf50; animation: pulse 1.5s infinite; }
+  .status-dot.stale { background: #ff9800; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #e8f0fe 0%, #f0f2f5 100%); }
+  .login-box { background: #fff; padding: 44px 40px; border-radius: 14px; box-shadow: 0 6px 30px rgba(0,0,0,.12); width: 370px; text-align: center; }
+  .login-box h2 { margin-bottom: 6px; color: #1565c0; }
+  .login-box p { color: #999; margin-bottom: 28px; font-size: .88rem; }
+  input[type=password] { width: 100%; padding: 11px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; margin-bottom: 14px; transition: border-color .2s; }
+  input[type=password]:focus { outline: none; border-color: #1565c0; }
+
+  .empty-state { text-align: center; padding: 50px 20px; color: #999; }
+  .loading { text-align: center; padding: 50px; color: #888; }
+  .spinner { display: inline-block; width: 36px; height: 36px; border: 3px solid #e0e0e0; border-top-color: #1565c0; border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .demo-badge { display: inline-block; background: #fff3e0; color: #e65100; padding: 2px 10px; border-radius: 10px; font-size: .75rem; font-weight: bold; margin-left: 8px; }
+  .export-actions { display: flex; gap: 8px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!--  登录页（仅在没有 token 时显示） -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div id="login-page" class="login-wrap">
+  <div class="login-box">
+    <h2>📊 进度看板</h2>
+    <p>研究生课程《机器人系统》考试系统</p>
+    <div id="login-msg"></div>
+    <input type="password" id="login-pwd" placeholder="请输入教师密码" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">登 录</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!--  主界面 -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div id="app" style="display:none">
+  <div class="header">
+    <h1>📊 进度看板 — 全班任务完成状态总览</h1>
+    <div class="export-actions">
+      <a href="/teacher">📋 返回管理后台</a>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <!-- 统计概览 -->
+    <div id="stat-overview" class="stat-row" style="display:none"></div>
+
+    <!-- 控制面板 -->
+    <div class="card">
+      <div class="card-title">
+        <span>⚙️ 视图配置</span>
+        <span id="connection-status" class="status-bar">
+          <span class="status-dot live"></span><span id="conn-text">Demo 模式</span>
+        </span>
+      </div>
+      <div class="card-body">
+        <div class="controls">
+          <label for="semester-filter">📅 学期：</label>
+          <select id="semester-filter" onchange="onFilterChange()">
+            <option value="">全部学期</option>
+          </select>
+
+          <span class="divider"></span>
+
+          <label for="course-filter">📚 班级：</label>
+          <select id="course-filter" onchange="onFilterChange()">
+            <option value="">全部班级</option>
+          </select>
+
+          <span class="divider"></span>
+
+          <label for="sort-order">📋 排序：</label>
+          <select id="sort-order" onchange="refreshData()">
+            <option value="completion_asc">按完成率升序（落后置顶）</option>
+            <option value="name_asc">按姓名升序</option>
+          </select>
+
+          <label for="bottom-n">🔴 置顶倒数前</label>
+          <input type="number" id="bottom-n" class="n-input" value="5" min="0" max="50" onchange="refreshData()">
+          <span style="font-size:.83rem;color:#888">名</span>
+        </div>
+        <div class="legend" style="margin-top:12px">
+          <span style="font-weight:bold;color:#555">图例：</span>
+          <div class="legend-item"><span class="legend-swatch green"></span>已提交（准时）</div>
+          <div class="legend-item"><span class="legend-swatch yellow"></span>迟交</div>
+          <div class="legend-item"><span class="legend-swatch red"></span>未提交</div>
+          <div class="legend-item"><span class="legend-swatch gray"></span>任务未发布</div>
+          <span style="font-size:.78rem;color:#bbb;margin-left:6px">（点击单元格查看提交详情）</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 热力图 -->
+    <div class="card">
+      <div class="card-title">
+        <span>🔥 学生 × 任务 完成状态热力图</span>
+        <span id="heatmap-info" style="font-weight:normal;font-size:.82rem;color:#888"></span>
+      </div>
+      <div class="card-body" id="heatmap-container" style="padding:0">
+        <div class="loading"><div class="spinner"></div><p style="margin-top:14px">加载中…</p></div>
+      </div>
+    </div>
+
+    <!-- 柱状图 -->
+    <div class="card">
+      <div class="card-title">📊 各任务完成率趋势（按发布时间轴）</div>
+      <div class="card-body" id="barchart-container">
+        <canvas id="barChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!--  JavaScript -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<script>
+const API = '';
+let TOKEN = sessionStorage.getItem('teacher_token') || '';
+// 优先从 URL 参数读取 token（从教师首页跳转时携带）
+if (!TOKEN) {
+  var urlParams = new URLSearchParams(location.search);
+  var urlToken = urlParams.get('token');
+  if (urlToken) {
+    TOKEN = urlToken;
+    sessionStorage.setItem('teacher_token', TOKEN);
+  }
+}
+let evtSource = null;
+let matrixData = null;
+let pollTimer = null;
+let isDemoMode = false;
+
+/* =============================================================================
+   Demo 静态数据（数据库为空时兜底，保证表单始终有内容可看）
+   ============================================================================= */
+var DEMO_DATA = {
+  "students": [
+    {"student_id":"20230001","name":"张明远","class_name":"2023级机器人1班","completion_rate":0.8,"highlight":false,"statuses":{}},
+    {"student_id":"20230002","name":"李雪晴","class_name":"2023级机器人1班","completion_rate":0.4,"highlight":true,"statuses":{}},
+    {"student_id":"20230003","name":"王浩然","class_name":"2023级机器人1班","completion_rate":1.0,"highlight":false,"statuses":{}},
+    {"student_id":"20230004","name":"陈思雨","class_name":"2023级机器人2班","completion_rate":0.6,"highlight":false,"statuses":{}},
+    {"student_id":"20230005","name":"刘宇航","class_name":"2023级机器人2班","completion_rate":0.2,"highlight":true,"statuses":{}},
+    {"student_id":"20230006","name":"赵晓琳","class_name":"2023级机器人2班","completion_rate":0.0,"highlight":true,"statuses":{}},
+    {"student_id":"20230007","name":"孙志强","class_name":"2023级机器人1班","completion_rate":1.0,"highlight":false,"statuses":{}},
+    {"student_id":"20230008","name":"周雅文","class_name":"2023级机器人1班","completion_rate":0.8,"highlight":false,"statuses":{}},
+    {"student_id":"20230009","name":"吴昊天","class_name":"2023级机器人2班","completion_rate":0.4,"highlight":true,"statuses":{}},
+    {"student_id":"20230010","name":"郑佳怡","class_name":"2023级机器人2班","completion_rate":0.6,"highlight":false,"statuses":{}},
+    {"student_id":"20230011","name":"钱伟明","class_name":"2023级机器人1班","completion_rate":0.0,"highlight":true,"statuses":{}},
+    {"student_id":"20230012","name":"马晓燕","class_name":"2023级机器人2班","completion_rate":0.2,"highlight":true,"statuses":{}},
+    {"student_id":"20230013","name":"黄建平","class_name":"2023级机器人1班","completion_rate":0.8,"highlight":false,"statuses":{}},
+    {"student_id":"20230014","name":"林诗涵","class_name":"2023级机器人2班","completion_rate":1.0,"highlight":false,"statuses":{}},
+    {"student_id":"20230015","name":"杨瑞峰","class_name":"2023级机器人1班","completion_rate":0.6,"highlight":false,"statuses":{}}
+    {"id":"hw04","title":"第四章 控制系统设计","is_active":true,"deadline":"2025-05-10T23:59","published_at":"2025-04-21T08:00","semester":"2024-2025-2","total_students":15,"submitted":8,"completion_rate":0.533},
+    {"id":"hw05","title":"第五章 传感器与感知","is_active":true,"deadline":"2025-05-30T23:59","published_at":"2025-05-11T08:00","semester":"2024-2025-2","total_students":15,"submitted":6,"completion_rate":0.4},
+    {"id":"hw01","title":"第一章 机器人学基础","is_active":true,"deadline":"2025-03-15T23:59","published_at":"2025-03-01T08:00","semester":"2024-2025-2","total_students":15,"submitted":12,"completion_rate":0.8},
+    {"id":"hw02","title":"第二章 运动学与动力学","is_active":true,"deadline":"2025-03-30T23:59","published_at":"2025-03-16T08:00","semester":"2024-2025-2","total_students":15,"submitted":10,"completion_rate":0.667},
+    {"id":"hw03","title":"第三章 轨迹规划","is_active":true,"deadline":"2025-04-20T23:59","published_at":"2025-04-01T08:00","semester":"2024-2025-2","total_students":15,"submitted":9,"completion_rate":0.6},
+    {"id":"hw04","title":"第四章 控制系统设计","is_active":true,"deadline":"2025-05-10T23:59","published_at":"2025-04-21T08:00","semester":"2024-2025-2","total_students":15,"submitted":8,"completion_rate":0.533},
+    {"id":"hw05","title":"第五章 传感器与感知","is_active":true,"deadline":"2025-05-30T23:59","published_at":"2025-05-11T08:00","semester":"2024-2025-2","total_students":15,"submitted":6,"completion_rate":0.4},
+    {"id":"hw06","title":"第六章 路径规划","is_active":true,"deadline":"2025-06-20T23:59","published_at":"2025-05-31T08:00","semester":"2024-2025-2","total_students":15,"submitted":3,"completion_rate":0.2},
+    {"id":"hw07","title":"第七章 机器视觉入门","is_active":false,"deadline":"2025-07-05T23:59","published_at":"2025-06-21T08:00","semester":"2024-2025-2","total_students":15,"submitted":0,"completion_rate":0.0}
+  var baseCompletion = [0.8,0.4,1.0,0.6,0.2,0.0,1.0,0.8,0.4,0.6,0.0,0.2,0.8,1.0,0.6];
+  students.forEach(function(s, si){
+    var prob = baseCompletion[si];
+    exams.forEach(function(e){
+      if (!e.is_active) {
+        s.statuses[e.id] = {status:'not_published'};
+        return;
+      }
+  var baseCompletion = [0.8,0.4,1.0,0.6,0.2,0.0,1.0,0.8,0.4,0.6,0.0,0.2,0.8,1.0,0.6];
+      if (r < prob * 0.7) {
+        // 准时提交
+        var dl = new Date(e.deadline.replace(' ','T'));
+        var sub = new Date(dl.getTime() - Math.random()*72*3600*1000);
+        s.statuses[e.id] = {
+          status:'submitted',
+          score: Math.round(60 + Math.random()*40),
+          total: 100,
+      if (r < prob * 0.7) {
+        };
+      } else if (r < prob) {
+        // 迟交
+        var dl2 = new Date(e.deadline.replace(' ','T'));
+        var sub2 = new Date(dl2.getTime() + (1+Math.random()*24)*3600*1000);
+          score: Math.round(60 + Math.random()*40),
+          status:'late',
+          score: Math.round(40 + Math.random()*40),
+          total: 100,
+          submitted_at: sub2.toISOString().replace('T',' ').substring(0,19)
+        };
+      } else {
+        // 未提交
+        s.statuses[e.id] = {status:'unsubmitted'};
+      }
+          score: Math.round(40 + Math.random()*40),
+  });
+})();
+
+/* =============================================================================
+   工具函数
+   ============================================================================= */
+function showMsg(id, msg, type) {
+  type = type || 'error';
+  var el = document.getElementById(id);
+  var bg = type==='error'?'#ffebee':'#e8f5e9';
+  var color = type==='error'?'#c62828':'#2e7d32';
+  var border = type==='error'?'#ef9a9a':'#a5d6a7';
+  el.innerHTML = '<div style="padding:10px 14px;border-radius:6px;margin-bottom:8px;font-size:.86rem;background:'+bg+';color:'+color+';border:1px solid '+border+';">'+msg+'</div>';
+  setTimeout(function(){ if(el&&el.innerHTML) el.innerHTML=''; }, 5000);
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  var d = document.createElement('div');
+  d.textContent = String(str);
+  return d.innerHTML;
+}
+
+/* =============================================================================
+   登录
+   ============================================================================= */
+async function doLogin() {
+  var pwd = document.getElementById('login-pwd').value;
+  try {
+    var r = await fetch(API+'/api/teacher/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({password:pwd})
+    });
+    if (!r.ok) { var e = await r.json(); showMsg('login-msg', e.detail||'密码错误'); return; }
+    var d = await r.json();
+    TOKEN = d.token;
+    sessionStorage.setItem('teacher_token', TOKEN);
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initPage();
+  } catch(e) { showMsg('login-msg', '网络错误：'+e.message); }
+}
+
+function logout() {
+  TOKEN = ''; sessionStorage.removeItem('teacher_token');
+  if (evtSource) evtSource.close();
+  if (pollTimer) clearInterval(pollTimer);
+  location.href = '/teacher/progress'; // 回到登录状态
+}
+
+/* =============================================================================
+   初始化
+   ============================================================================= */
+async function initPage() {
+  await loadSemesters();
+  await refreshData();
+  connectSSE();
+}
+
+/* =============================================================================
+   学期列表加载
+   ============================================================================= */
+async function loadSemesters() {
+  var sel = document.getElementById('semester-filter');
+  try {
+    if (!TOKEN) throw new Error('no token');
+    var r = await fetch(API+'/api/teacher/semesters', {
+      headers: {'Authorization':'Bearer '+TOKEN}
+    });
+    if (r.status === 401) { logout(); return; }
+    var d = await r.json();
+    var current = sel.getAttribute('data-value') || '';
+    var opts = '<option value="">全部学期</option>';
+    (d.semesters||[]).forEach(function(s){
+      opts += '<option value="'+escapeHtml(s)+'"'+(s===current?' selected':'')+'>'+escapeHtml(s)+'</option>';
+    });
+    // 如果 API 没返回学期，把 Demo 数据里的学期也加上
+    if (!d.semesters || !d.semesters.length) {
+      opts += '<option value="2024-2025-2">2024-2025-2（Demo）</option>';
+    }
+    sel.innerHTML = opts;
+  } catch(e) {
+    // API 不可用时，用 Demo 数据填充学期列表
+    sel.innerHTML = '<option value="">全部学期</option><option value="2024-2025-2">2024-2025-2（Demo）</option>';
+  }
+}
+
+/* =============================================================================
+   数据获取 — API 优先，失败/空数据时用 Demo 兜底
+   ============================================================================= */
+function getQueryParams() {
+  var course  = document.getElementById('course-filter').value;
+  var sort    = document.getElementById('sort-order').value;
+  var bottomN = parseInt(document.getElementById('bottom-n').value) || 5;
+  var semester = document.getElementById('semester-filter').value;
+  var params = new URLSearchParams({ bottom_n: bottomN, sort_order: sort });
+  if (course) params.set('course', course);
+  if (semester) params.set('semester', semester);
+  return params;
+}
+
+async function fetchMatrix() {
+  if (!TOKEN) return null;
+  try {
+    var r = await fetch(API+'/api/teacher/progress/matrix?'+getQueryParams(), {
+      headers: {'Authorization':'Bearer '+TOKEN}
+    });
+    if (r.status === 401) { logout(); return null; }
+    return await r.json();
+  } catch(e) { console.warn('fetchMatrix error:', e.message); return null; }
+}
+
+/**
+ * 判断数据是否为有效真实数据（至少有一条学生 + 一条考试）
+ */
+function isValidRealData(data) {
+  return data && data.students && data.students.length > 0 && data.exams && data.exams.length > 0;
+}
+
+/**
+ * 应用前端筛选到数据
+ */
+function applyLocalFilter(data) {
+  var course = document.getElementById('course-filter').value;
+  var sort   = document.getElementById('sort-order').value;
+  var bottomN = parseInt(document.getElementById('bottom-n').value) || 5;
+  var semester = document.getElementById('semester-filter').value;
+
+  // 班级筛选
+  var students = data.students.slice();
+  if (course) {
+    students = students.filter(function(s){ return s.class_name === course; });
+  }
+
+  // 学期筛选（Demo 数据前端模拟：过滤 exam 列表及学生 statuses）
+  var exams = data.exams.slice();
+  if (semester) {
+    exams = exams.filter(function(e){ return e.semester === semester; });
+    // 重新计算每个学生的完成率
+    var examIds = new Set(exams.map(function(e){ return e.id; }));
+    students.forEach(function(s){
+      var sub = 0, act = 0;
+      for (var eid in s.statuses) {
+        if (!examIds.has(eid)) continue;
+        var st = s.statuses[eid];
+        if (st.status === 'submitted' || st.status === 'late') sub++;
+        if (st.status !== 'not_published') act++;
+      }
+      s.completion_rate = act > 0 ? Math.round(sub / act * 1000) / 1000 : 0;
+    });
+  }
+
+  // 排序
+  if (sort === 'completion_asc') {
+    students.sort(function(a,b){ return a.completion_rate - b.completion_rate; });
+  } else {
+    students.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+  }
+
+  // 置顶标记
+  students.forEach(function(s, idx){ s.highlight = (idx < bottomN && s.completion_rate < 1); });
+
+  // 更新考试完成率
+  var totalStu = students.length;
+  exams.forEach(function(e){
+    var sub = 0;
+    students.forEach(function(s){
+      var st = (s.statuses||{})[e.id];
+      if (st && (st.status === 'submitted' || st.status === 'late')) sub++;
+    });
+    e.total_students = totalStu;
+    e.submitted = sub;
+    e.completion_rate = totalStu > 0 ? Math.round(sub / totalStu * 1000) / 1000 : 0;
+  });
+
+  return { students: students, exams: exams };
+}
+
+async function refreshData() {
+  var apiData = await fetchMatrix();
+  var data = apiData;
+
+  if (isValidRealData(apiData)) {
+    // 真实数据：在前端重新应用排序和置顶
+    isDemoMode = false;
+    data = applyLocalFilter(apiData);
+    tryConnectRealAPI();
+  } else {
+    // Demo 兜底
+    isDemoMode = true;
+    data = applyLocalFilter(DEMO_DATA);
+    setConnectionStatus('demo');
+  }
+
+  matrixData = data;
+  renderHeatmap(data);
+  renderBarChart(data);
+  renderStats(data);
+  populateFilterOptions(data);
+}
+
+function onFilterChange() {
+  if (evtSource) evtSource.close();
+  connectSSE();
+  refreshData();
+}
+
+function tryConnectRealAPI() {
+  // 如果之前是 Demo 模式但现在 API 有数据了，重连 SSE
+  if (TOKEN) {
+    connectSSE();
+  }
+}
+
+/* =============================================================================
+   筛选下拉框
+   ============================================================================= */
+function populateFilterOptions(data) {
+  var sel = document.getElementById('course-filter');
+  var current = sel.value;
+  var classes = new Set();
+  (data.students||[]).forEach(function(s){
+    if (s.class_name) classes.add(s.class_name);
+  });
+  sel.innerHTML = '<option value="">全部班级</option>' +
+    Array.from(classes).sort().map(function(c){
+      return '<option value="'+escapeHtml(c)+'"'+(c===current?' selected':'')+'>'+escapeHtml(c)+'</option>';
+    }).join('');
+}
+
+/* =============================================================================
+   统计概览
+   ============================================================================= */
+function renderStats(data) {
+  var el = document.getElementById('stat-overview');
+  var students = data.students || [];
+  var exams = data.exams || [];
+  var activeExams = exams.filter(function(e){ return e.is_active; });
+  var totalSubmissions = 0, lateCount = 0;
+  students.forEach(function(s){
+    var sts = s.statuses || {};
+    for (var eid in sts) {
+      if (sts[eid].status === 'submitted' || sts[eid].status === 'late') totalSubmissions++;
+      if (sts[eid].status === 'late') lateCount++;
+    }
+  });
+  var avgRate = 0;
+  if (students.length > 0 && activeExams.length > 0) {
+    var sum = students.reduce(function(acc, s){ return acc + (s.completion_rate||0); }, 0);
+    avgRate = Math.round(sum / students.length * 100);
+  }
+  el.style.display = 'flex';
+  el.innerHTML =
+    '<div class="stat-chip"><div class="stat-num">'+students.length+'</div><div class="stat-label">学生总数</div></div>'+
+    '<div class="stat-chip"><div class="stat-num">'+activeExams.length+'</div><div class="stat-label">活跃任务</div></div>'+
+    '<div class="stat-chip"><div class="stat-num">'+totalSubmissions+'</div><div class="stat-label">总提交数</div></div>'+
+    '<div class="stat-chip"><div class="stat-num">'+avgRate+'%</div><div class="stat-label">平均完成率</div></div>'+
+    (lateCount>0?'<div class="stat-chip warn"><div class="stat-num">'+lateCount+'</div><div class="stat-label">迟交人次</div></div>':'');
+}
+
+/* =============================================================================
+   热力图渲染
+   ============================================================================= */
+function renderHeatmap(data) {
+  var container = document.getElementById('heatmap-container');
+  var info = document.getElementById('heatmap-info');
+  var students = data.students || [];
+  var exams    = data.exams    || [];
+
+  if (!students.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>暂无学生数据</p></div>';
+    info.textContent = '';
+    return;
+  }
+  if (!exams.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📝</div><p>当前学期暂无考试/任务</p></div>';
+    info.textContent = '';
+    return;
+  }
+
+  var activeCount = exams.filter(function(e){ return e.is_active; }).length;
+  var highlightCount = students.filter(function(s){ return s.highlight; }).length;
+  var demoTag = isDemoMode ? ' <span class="demo-badge">Demo</span>' : '';
+  info.innerHTML = (activeCount>0 ? activeCount+' 个活跃任务 · ' : '') + students.length + ' 名学生' + demoTag;
+  if (highlightCount > 0) info.innerHTML += ' · 🔴 ' + highlightCount + ' 人需关注';
+
+  var examIds = exams.map(function(e){ return e.id; });
+
+  var thead = '<tr><th>学生</th><th>完成率</th>';
+  exams.forEach(function(e){
+    var icon = e.is_active ? '📋' : '🔒';
+    thead += '<th title="'+escapeHtml(e.title)+'\n'+(e.deadline?'截止: '+e.deadline:'')+'">'+icon+' '+escapeHtml(e.id)+'</th>';
+  });
+  thead += '</tr>';
+
+  var tbody = '';
+  students.forEach(function(s){
+    var rowClass = s.highlight ? ' class="highlight-row"' : '';
+    var ratePct  = Math.round((s.completion_rate||0) * 100);
+    var hasAny = hasAnySubmission(s, exams);
+    var rateDisplay = (s.completion_rate===0 && ratePct===0 && !hasAny) ? '—' : ratePct+'%';
+    var barColor = ratePct >= 80 ? '#4caf50' : ratePct >= 50 ? '#ff9800' : '#ef5350';
+    tbody += '<tr'+rowClass+'>';
+    tbody += '<td title="'+escapeHtml(s.name)+' · '+escapeHtml(s.student_id)+(s.class_name?' · '+escapeHtml(s.class_name):'')+'">'+escapeHtml(s.name)+'</td>';
+    tbody += '<td class="completion-rate-cell">'+rateDisplay+
+      '<span class="rate-bar" style="width:20px;background:'+barColor+';display:'+(hasAny?'inline-block':'none')+'"></span></td>';
+    examIds.forEach(function(eid){
+      var st = (s.statuses||{})[eid] || {status:'not_published'};
+      var labelMap = {'submitted':'✓','late':'!','unsubmitted':'✗','not_published':'·'};
+      var title = buildCellTitle(s, eid, st, exams);
+      tbody += '<td><span class="cell '+st.status+'" title="'+title+'" '+
+        'onclick="showDetail(\''+escapeHtml(s.student_id)+'\',\''+escapeHtml(eid)+'\')">'+labelMap[st.status]+'</span></td>';
+    });
+    tbody += '</tr>';
+  });
+
+  container.innerHTML =
+    '<div class="heatmap-wrap">'+
+    '<table class="heatmap-table">'+
+    '<thead>'+thead+'</thead>'+
+    '<tbody>'+tbody+'</tbody>'+
+    '</table></div>';
+}
+
+function hasAnySubmission(s, exams) {
+  for (var i=0; i<exams.length; i++) {
+    var e = exams[i];
+    if (!e.is_active) continue;
+    var st = (s.statuses||{})[e.id];
+    if (st && (st.status==='submitted'||st.status==='late')) return true;
+  }
+  return false;
+}
+
+function buildCellTitle(s, eid, st, exams) {
+  var examTitle = eid;
+  for (var i=0; i<exams.length; i++) {
+    if (exams[i].id === eid) { examTitle = exams[i].title; break; }
+  }
+  var statusText = {'submitted':'✅ 已提交','late':'⚠️ 迟交','unsubmitted':'❌ 未提交','not_published':'🔒 未发布'}[st.status];
+  var parts = [escapeHtml(s.name)+' — '+escapeHtml(examTitle), statusText];
+  if (st.submitted_at) parts.push('提交: '+st.submitted_at);
+  if (st.score !== undefined && st.score !== null) parts.push('得分: '+st.score+'/'+st.total);
+  return parts.join('\n');
+}
+
+/* =============================================================================
+   柱状图渲染 (Canvas)
+   ============================================================================= */
+var barChartCache = null;
+
+function renderBarChart(data) {
+  var canvas  = document.getElementById('barChart');
+  var wrapper = document.getElementById('barchart-container');
+
+  var exams = (data.exams||[]).filter(function(e){ return e.is_active; });
+  exams.sort(function(a, b){
+    return (a.published_at||'').localeCompare(b.published_at||'');
+  });
+
+  if (!exams.length) {
+    wrapper.innerHTML = '<div class="empty-state"><div class="icon">📊</div><p>当前学期暂无活跃考试</p></div>';
+    barChartCache = null;
+    return;
+  }
+
+  // 恢复 canvas
+  if (wrapper.querySelector('canvas') === null) {
+    canvas = document.createElement('canvas');
+    canvas.id = 'barChart';
+    canvas.style.display = 'block';
+    canvas.style.width = '100%';
+    canvas.style.maxHeight = '380px';
+    wrapper.innerHTML = '';
+    wrapper.appendChild(canvas);
+  } else {
+    canvas = wrapper.querySelector('canvas');
+  }
+
+  var dpr = window.devicePixelRatio || 1;
+  var W = Math.max(300, canvas.parentElement.clientWidth - 20);
+  var H = 340;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  var ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  var pad = { top: 30, right: 40, bottom: 80, left: 60 };
+  var plotW = W - pad.left - pad.right;
+  var plotH = H - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // 背景网格
+  ctx.strokeStyle = '#e8e8e8';
+  ctx.lineWidth = 1;
+  for (var i = 0; i <= 4; i++) {
+    var y = pad.top + (plotH / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.right + pad.left, y); ctx.stroke();
+    ctx.fillStyle = '#888';
+    ctx.font = '11px "Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText((100 - i * 25) + '%', pad.left - 8, y + 4);
+  }
+
+  // 轴线
+  ctx.strokeStyle = '#bbb';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, H - pad.bottom); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(pad.left, H - pad.bottom); ctx.lineTo(W - pad.right, H - pad.bottom); ctx.stroke();
+
+  // 柱状条
+  var barCount = exams.length;
+  var barGap = Math.max(10, plotW / (barCount * 3.5));
+  var barW = Math.max(18, (plotW - barGap * (barCount + 1)) / barCount);
+
+  var maxRate = 1.0;
+  exams.forEach(function(e){ if (e.completion_rate > maxRate) maxRate = e.completion_rate; });
+  if (maxRate === 0) maxRate = 1;
+
+  exams.forEach(function(e, idx) {
+    var x  = pad.left + barGap + idx * (barW + barGap);
+    var bh = Math.max(2, (e.completion_rate / maxRate) * plotH);
+    var y  = H - pad.bottom - bh;
+
+    var grad = ctx.createLinearGradient(x, y, x, H - pad.bottom);
+    var c = getCompletionColor(e.completion_rate);
+    grad.addColorStop(0, c[0]); grad.addColorStop(1, c[1]);
+    ctx.fillStyle = grad;
+    roundRect(ctx, x, y, barW, bh, 4);
+    ctx.fill();
+
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 11px "Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(Math.round(e.completion_rate*100)+'%', x + barW/2, y - 8);
+
+    ctx.fillStyle = '#666';
+    ctx.font = '9px "Microsoft YaHei",sans-serif';
+    ctx.fillText(e.submitted+'/'+(e.total_students||0), x + barW/2, H - pad.bottom + 14);
+
+    ctx.save();
+    ctx.fillStyle = '#555';
+    ctx.font = '10px "Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'right';
+    ctx.translate(x + barW/2, H - pad.bottom + 30);
+    ctx.rotate(-Math.PI / 6);
+    var dateLabel = formatDateLabel(e.published_at) || e.id;
+    ctx.fillText(truncateText(dateLabel, 14), 0, 0);
+    ctx.restore();
+  });
+
+  var totalStudents = exams[0].total_students || 0;
+  if (totalStudents > 0) {
+    ctx.fillStyle = '#999';
+    ctx.font = '10px "Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    var footer = '共 ' + totalStudents + ' 名学生 · ' + barCount + ' 个活跃任务';
+    if (isDemoMode) footer += '（Demo 数据）';
+    ctx.fillText(footer, W / 2, H - 4);
+  }
+
+  barChartCache = exams;
+}
+
+function formatDateLabel(isoStr) {
+  if (!isoStr) return null;
+  try {
+    var d = new Date(isoStr.replace(' ','T'));
+    if (isNaN(d.getTime())) {
+      var parts = isoStr.split(/[-T ]/);
+      if (parts.length >= 3) return parts[1]+'/'+parts[2];
+      return null;
+    }
+    return (d.getMonth()+1)+'/'+d.getDate();
+  } catch(e) { return null; }
+}
+
+function getCompletionColor(rate) {
+  if (rate >= 0.8) return ['#4caf50','#66bb6a'];
+  if (rate >= 0.5) return ['#ff9800','#ffb74d'];
+  return ['#ef5350','#e57373'];
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function truncateText(text, maxLen) {
+  if (text.length <= maxLen) return text;
+  return text.substring(0, maxLen - 2) + '…';
+}
+
+/* =============================================================================
+   单元格点击 → 提交详情弹窗
+   ============================================================================= */
+function showDetail(studentId, examId) {
+  if (!matrixData) return;
+  var student = null, exam = null;
+  (matrixData.students||[]).forEach(function(s){ if (s.student_id === studentId) student = s; });
+  (matrixData.exams||[]).forEach(function(e){ if (e.id === examId) exam = e; });
+  if (!student || !exam) return;
+
+  var st = (student.statuses||{})[examId] || {status:'not_published'};
+  var badgeMap = {
+    'submitted':     {text:'✅ 已提交（准时）', color:'#fff', bg:'#4caf50'},
+    'late':          {text:'⚠️ 迟交',           color:'#fff', bg:'#ff9800'},
+    'unsubmitted':   {text:'❌ 未提交',          color:'#fff', bg:'#ef5350'},
+    'not_published': {text:'🔒 任务未发布',       color:'#666', bg:'#cfd8dc'},
+  };
+  var badge = badgeMap[st.status] || badgeMap['not_published'];
+
+  var rows = [
+    ['学生姓名', escapeHtml(student.name)],
+    ['学号',     escapeHtml(student.student_id)],
+    ['班级',     escapeHtml(student.class_name||'—')],
+    ['任务名称', escapeHtml(exam.title||examId)],
+    ['任务ID',   escapeHtml(examId)],
+    ['状态',     '<span class="status-badge" style="background:'+badge.bg+';color:'+badge.color+'">'+badge.text+'</span>'],
+  ];
+
+  if (st.submitted_at) {
+    rows.push(['提交时间', escapeHtml(st.submitted_at)]);
+    if (exam.deadline) {
+      var subTime = new Date(st.submitted_at.replace(' ','T'));
+      var dlTime  = new Date(exam.deadline.replace(' ','T'));
+      if (!isNaN(subTime.getTime()) && !isNaN(dlTime.getTime())) {
+        var diff = Math.round((subTime - dlTime) / 1000 / 60);
+        if (diff > 0) {
+          var lateStr = diff >= 1440 ? Math.round(diff/1440)+' 天' :
+                        diff >= 60 ? Math.round(diff/60)+' 小时' : diff+' 分钟';
+          rows.push(['超时', '<span style="color:#ef5350;font-weight:bold">+'+lateStr+'</span>']);
+        }
+      }
+    }
+    rows.push(['得分', '<b>'+(st.score!==undefined&&st.score!==null?st.score:'—')+'</b> / '+(st.total||'—')]);
+  }
+  if (exam.deadline) rows.push(['截止时间', escapeHtml(exam.deadline)]);
+  if (exam.published_at) rows.push(['发布时间', escapeHtml(exam.published_at)]);
+  if (exam.semester) rows.push(['学期', escapeHtml(exam.semester)]);
+
+  var detailHtml = rows.map(function(r){
+    return '<dt>'+r[0]+'</dt><dd>'+r[1]+'</dd>';
+  }).join('');
+
+  var backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML =
+    '<div class="modal">'+
+    '<h3>📋 提交详情'+(isDemoMode?' <span class="demo-badge">Demo</span>':'')+'</h3>'+
+    '<p class="subtitle">'+escapeHtml(student.name)+' — '+escapeHtml(exam.title||examId)+'</p>'+
+    '<dl class="detail-grid">'+detailHtml+'</dl>'+
+    '<div class="btn-row">'+
+    '<button class="btn btn-outline" id="modal-close">关闭</button>'+
+    '</div></div>';
+  document.body.appendChild(backdrop);
+
+  var closeBtn = backdrop.querySelector('#modal-close');
+  closeBtn.onclick = function(){ backdrop.remove(); };
+  closeBtn.focus();
+  backdrop.addEventListener('click', function(e){ if (e.target===backdrop) backdrop.remove(); });
+  document.addEventListener('keydown', function escHandler(e) {
+    if (e.key === 'Escape') { backdrop.remove(); document.removeEventListener('keydown', escHandler); }
+  });
+}
+
+/* =============================================================================
+   SSE 实时推送 / 轮询兜底
+   ============================================================================= */
+function connectSSE() {
+  if (!TOKEN) return;
+  if (evtSource) { evtSource.close(); evtSource = null; }
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+
+  var semester = document.getElementById('semester-filter') ? document.getElementById('semester-filter').value : '';
+  var url = API + '/api/teacher/progress/events?token=' + encodeURIComponent(TOKEN);
+  if (semester) url += '&semester=' + encodeURIComponent(semester);
+
+  try {
+    evtSource = new EventSource(url);
+    evtSource.onmessage = function(event) {
+      try {
+        var rawData = JSON.parse(event.data);
+        var semesterVal = document.getElementById('semester-filter').value;
+        if (!semesterVal && isValidRealData(rawData)) {
+          // 真实数据到达 → 退出 Demo 模式
+          isDemoMode = false;
+          var filtered = applyLocalFilter(rawData);
+          matrixData = filtered;
+          renderHeatmap(filtered);
+          renderBarChart(filtered);
+          renderStats(filtered);
+          populateFilterOptions(filtered);
+        }
+        setConnectionStatus('live');
+      } catch(e) { console.warn('SSE parse error:', e); }
+    };
+    evtSource.onerror = function() {
+      setConnectionStatus('stale');
+      evtSource.close();
+      evtSource = null;
+      setTimeout(function(){
+        if (!evtSource || evtSource.readyState === EventSource.CLOSED) {
+          startPolling();
+        }
+      }, 3000);
+    };
+    evtSource.onopen = function() {
+      setConnectionStatus('live');
+    };
+  } catch(e) {
+    console.warn('SSE init failed');
+    startPolling();
+  }
+}
+
+function setConnectionStatus(state) {
+  var el = document.getElementById('connection-status');
+  var txt = document.getElementById('conn-text');
+  if (!el || !txt) return;
+  if (state === 'live') {
+    el.innerHTML = '<span class="status-dot live"></span>';
+    txt.textContent = '实时连接中';
+  } else if (state === 'stale') {
+    el.innerHTML = '<span class="status-dot stale"></span>';
+    txt.textContent = '轮询模式（每8秒）';
+  } else if (state === 'demo') {
+    el.innerHTML = '<span class="status-dot" style="background:#ff9800;display:inline-block;width:9px;height:9px;border-radius:50%"></span>';
+    txt.textContent = 'Demo 模式（数据库暂无数据）';
+  }
+}
+
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  setConnectionStatus('stale');
+  pollTimer = setInterval(async function(){
+    try {
+      var data = await fetchMatrix();
+      if (isValidRealData(data)) {
+        var newHash = JSON.stringify(data);
+        var oldHash = JSON.stringify(matrixData);
+        if (newHash !== oldHash) {
+          isDemoMode = false;
+          var filtered = applyLocalFilter(data);
+          matrixData = filtered;
+          renderHeatmap(filtered);
+          renderBarChart(filtered);
+          renderStats(filtered);
+          populateFilterOptions(filtered);
+        }
+      }
+    } catch(e) { /* ignore */ }
+  }, 8000);
+}
+
+/* =============================================================================
+   窗口自适应
+   ============================================================================= */
+var resizeTimeout;
+window.addEventListener('resize', function(){
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(function(){
+    if (matrixData) renderBarChart(matrixData);
+  }, 300);
+});
+
+/* =============================================================================
+   初始检查 — 有 token 直接进主界面（免登录）
+   ============================================================================= */
+if (TOKEN) {
+  // 先用 Demo 数据立即渲染，然后尝试拉取真实数据
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  initPage();
+}
+</script>
+</body>
+</html>

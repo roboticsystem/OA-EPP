@@ -4,13 +4,18 @@
 TDD RED   : oaepp.states.notice 不存在 → ImportError → 所有用例失败（预期）
 TDD GREEN : NoticeState 实现后 → 全部通过
 """
-import pytest
+# pyright: reportMissingImports=false
+import pytest  # noqa: F401, pylint: disable=unused-import
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from oaepp.states.notice import NoticeState as _NoticeState
 
 try:
-    from oaepp.states.notice import NoticeState
+    from oaepp.states.notice import NoticeState  # type: ignore[import-not-found]
     _IMPORT_ERROR = None
 except ImportError as _e:
-    NoticeState = None
+    NoticeState = None  # type: ignore[assignment]
     _IMPORT_ERROR = str(_e)
 
 
@@ -26,10 +31,10 @@ def test_F_S_012_TC01_state_attrs_exist():
         assert hasattr(NoticeState, attr), f"缺少 {attr} 状态变量"
 
 
-async def test_F_S_012_TC02_notices_sorted_desc(mem_db):
+async def test_F_S_012_TC02_notices_sorted_desc(mem_db):  # noqa: F811, pylint: disable=unused-argument
     """notices 应按发布时间降序排列"""
     _guard()
-    state = NoticeState()
+    state = NoticeState()  # type: ignore[misc]
     await state.load_notices()
     # 内存库为空列表，验证不抛异常且为列表
     assert isinstance(state.notices, list), "notices 应为列表类型"
@@ -46,6 +51,6 @@ def test_F_S_012_TC03_mark_as_read_method_exists():
 def test_F_S_012_TC04_unread_count_is_var():
     """unread_count 应为计算变量（@rx.var）或可更新的状态变量"""
     _guard()
-    state = NoticeState()
+    state = NoticeState()  # type: ignore[misc]
     assert isinstance(state.unread_count, int), "unread_count 应为整数类型"
     assert state.unread_count >= 0, "unread_count 不能为负数"
