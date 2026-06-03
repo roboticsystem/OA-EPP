@@ -7,3 +7,17 @@ def test_docs_route_available(client):
 
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
+
+
+def test_teacher_page_available(client):
+    response = client.get("/teacher")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+
+
+def test_score_page_available(client):
+    response = client.get("/score")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
