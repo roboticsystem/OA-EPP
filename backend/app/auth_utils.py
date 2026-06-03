@@ -1,4 +1,7 @@
 import os
+import hmac
+import hashlib
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import jwt, JWTError
@@ -16,6 +19,26 @@ def create_token(data: dict, expires_hours: int = 2) -> str:
 
 def decode_token(token: str) -> dict:
     return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+
+def hash_password(password: str, iterations: int = 150_000) -> str:
+    salt = secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), iterations)
+    return f"{iterations}${salt}${digest.hex()}"
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    try:
+        iterations, salt, expected = stored_hash.split("$", 2)
+        digest = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode("utf-8"),
+            salt.encode("utf-8"),
+            int(iterations),
+        )
+        return hmac.compare_digest(digest.hex(), expected)
+    except Exception:
+        return False
 
 
 def verify_student_token(token: str) -> dict:

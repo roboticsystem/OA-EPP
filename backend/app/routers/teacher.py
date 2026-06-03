@@ -8,22 +8,35 @@ from fastapi.responses import StreamingResponse
 from typing import Optional
 from pydantic import BaseModel
 from app.database import db
-from app.auth_utils import create_token, require_teacher
-        from datetime import datetime
-        for e in exams:
-            # 优先使用 upstream 的 grading_records/submissions 统计（更通用）；失败时回退到 scores 表（feature 分支）
-            submitted = 0
-            avg = None
-            try:
-                cur.execute("""
-                    SELECT COUNT(DISTINCT sub.student_user_id) AS cnt
-                    FROM grading_records gr
-                    JOIN submissions sub ON gr.submission_id = sub.id
-                    JOIN assignments a ON sub.assignment_id = a.id
-                    WHERE a.course_id = %s AND a.title LIKE CONCAT('exam_', %s, '%%')
-                """, (COURSE_ID, str(e["id"])))
-                row = cur.fetchone()
-                submitted = row["cnt"] or 0
+from app.auth_utils import create_token, hash_password, verify_teacher_token
+from app.sync_exams import sync_exams
+from pypinyin import lazy_pinyin, Style
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
+
+router = APIRouter()
+
+TEACHER_PASSWORD = os.environ.get("TEACHER_PASSWORD", "admin123")
+
+
+def _require_teacher(authorization: Optional[str]):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="请先登录")
+    token = authorization.removeprefix("Bearer ").strip()
+    try:
+        verify_teacher_token(token)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+
+def _name_to_pinyin(name: str):
+    full = "".join(lazy_pinyin(name, style=Style.NORMAL))
+    abbr = "".join(lazy_pinyin(name, style=Style.FIRST_LETTER))
+    return full.lower(), abbr.lower()
+
+
+class LoginRequest(BaseModel):
+    password: str
 
                 cur.execute("""
                     SELECT AVG(gr.exam_score) AS avg
@@ -187,6 +200,10 @@ def add_student(req: AddStudentRequest, authorization: Optional[str] = Header(No
             "INSERT IGNORE INTO enrollments (course_id, student_user_id) VALUES (%s, %s)",
             (COURSE_ID, user_id)
         )
+        conn.execute(
+            "INSERT INTO student_accounts (student_id, password_hash) VALUES (?, ?)",
+            (req.student_id, hash_password(req.student_id)),
+        )
     return {"ok": True}
 
 
@@ -280,7 +297,6 @@ def list_exams(authorization: Optional[str] = Header(None)):
         result = []
         from datetime import datetime
         for e in exams:
-<<<<<<< HEAD
             submitted = conn.execute(
                 "SELECT COUNT(*) FROM scores WHERE exam_id=?", (e["id"],)
             ).fetchone()[0]
@@ -301,41 +317,14 @@ def list_exams(authorization: Optional[str] = Header(None)):
             else:
                 # 继续使用 is_active 字段作为回退
                 status = "active" if e["is_active"] == 1 else "ended"
-=======
-            # 统计该考试已提交人数
-            cur.execute("""
-                SELECT COUNT(DISTINCT sub.student_user_id) AS cnt
-                FROM grading_records gr
-                JOIN submissions sub ON gr.submission_id = sub.id
-                JOIN assignments a ON sub.assignment_id = a.id
-                WHERE a.course_id = %s AND a.title LIKE CONCAT('exam_', %s, '%%')
-            """, (COURSE_ID, str(e["id"])))
-            submitted = cur.fetchone()["cnt"] or 0
-
-            # 统计该考试平均分
-            cur.execute("""
-                SELECT AVG(gr.exam_score) AS avg
-                FROM grading_records gr
-                JOIN submissions sub ON gr.submission_id = sub.id
-                JOIN assignments a ON sub.assignment_id = a.id
-                WHERE a.course_id = %s AND a.title LIKE CONCAT('exam_', %s, '%%')
-            """, (COURSE_ID, str(e["id"])))
-            avg_row = cur.fetchone()
-            avg = avg_row["avg"]
-
->>>>>>> upstream/main
             result.append({
                 "id": str(e["id"]), "title": e["title"], "is_active": 1,
                 "exam_type": e["exam_type"],
                 "start_at": e["start_at"].strftime("%Y-%m-%d %H:%M:%S") if e["start_at"] else None,
                 "end_at": e["end_at"].strftime("%Y-%m-%d %H:%M:%S") if e["end_at"] else None,
                 "submitted": submitted, "total_students": total_students,
-<<<<<<< HEAD
                 "avg_score": round(avg, 1) if avg else None,
                 "status": status,
-=======
-                "avg_score": round(float(avg), 1) if avg else None,
->>>>>>> upstream/main
             })
     return result
 
@@ -490,7 +479,6 @@ def export_scores(exam_id: int = Query(...), authorization: Optional[str] = Head
     )
 
 
-<<<<<<< HEAD
 @router.post("/api/teacher/exams/cleanup")
 def cleanup_exams(req: CleanupRequest, authorization: Optional[str] = Header(None)):
     """删除指定标题的考试（慎用）。若未提供 titles，则删除已知的三条错误记录。"""
@@ -539,614 +527,3 @@ def delete_exam(exam_id: str, authorization: Optional[str] = Header(None)):
             conn.execute("DELETE FROM classroom_exams WHERE id=?", (eid,))
             affected += 1
     return {"ok": True, "deleted": affected}
-=======
-# ───── GitHub 账号绑定状态看板 (F-T-004) ─────
-
-
-@router.get("/api/teacher/github-bindings/summary")
-def get_binding_summary(authorization: Optional[str] = Header(None)):
-    """获取全班绑定状态汇总统计"""
-    require_teacher(authorization)
-    with db() as conn:
-        total = conn.execute(
-            "SELECT COUNT(*) FROM users WHERE role='student'"
-        ).fetchone()[0]
-        bound = conn.execute(
-            "SELECT COUNT(*) FROM github_bindings WHERE verify_status='approved'"
-        ).fetchone()[0]
-        pending = conn.execute(
-            "SELECT COUNT(*) FROM github_bindings WHERE verify_status='pending'"
-        ).fetchone()[0]
-        unbound = total - bound - pending
-    return {"total": total, "bound": bound, "pending": pending, "unbound": max(unbound, 0)}
-
-
-@router.get("/api/teacher/github-bindings/list")
-def get_binding_list(
-    status: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
-    sort_by_status: bool = Query(False),
-    authorization: Optional[str] = Header(None)
-):
-    """获取全班学生 GitHub 绑定状态列表，支持筛选、搜索、排序"""
-    require_teacher(authorization)
-
-    with db() as conn:
-        query = """
-            SELECT u.full_name AS name, u.student_no AS student_id,
-                   COALESCE(s.class_name, '') AS class_name,
-                   COALESCE(g.github_username, '') AS github_username,
-                   COALESCE(g.verify_status, 'unbound') AS binding_status,
-                   COALESCE(g.github_name, '') AS github_name,
-                   g.verified_at
-            FROM users u
-            LEFT JOIN students s ON s.user_id = u.id
-            LEFT JOIN github_bindings g ON u.id = g.student_user_id
-            WHERE u.role = 'student'
-        """
-        conditions = []
-        params: list = []
-
-        if status and status != "all":
-            if status == "unbound":
-                conditions.append("(g.verify_status IS NULL OR g.verify_status NOT IN ('approved','pending'))")
-            else:
-                conditions.append("g.verify_status = %s")
-                params.append(status)
-
-        if search:
-            conditions.append(
-                "(u.full_name LIKE %s OR u.student_no LIKE %s OR g.github_username LIKE %s)"
-            )
-            like = f"%{search}%"
-            params.extend([like, like, like])
-
-        if conditions:
-            query += " AND " + " AND ".join(conditions)
-
-        if sort_by_status:
-            query += """
-                ORDER BY
-                    CASE
-                        WHEN g.verify_status IS NULL OR g.verify_status NOT IN ('approved','pending') THEN 0
-                        WHEN g.verify_status = 'pending' THEN 1
-                        WHEN g.verify_status = 'approved' THEN 2
-                    END,
-                    u.student_no
-            """
-        else:
-            query += " ORDER BY u.student_no"
-
-    with db() as conn:
-        rows = conn.execute(query, params).fetchall()
-
-    return [dict(r) for r in rows]
-
-
-class BatchStudentIds(BaseModel):
-    student_ids: list[str]
-
-
-@router.post("/api/teacher/github-bindings/batch-approve")
-def batch_approve_bindings(req: BatchStudentIds, authorization: Optional[str] = Header(None)):
-    """一键批量通过待审核的绑定请求"""
-    require_teacher(authorization)
-    if not req.student_ids:
-        raise HTTPException(status_code=422, detail="请选择至少一名学生")
-    placeholders = ",".join(["%s"] * len(req.student_ids))
-    with db() as conn:
-        conn.execute(
-            f"UPDATE github_bindings g JOIN users u ON g.student_user_id=u.id "
-            f"SET g.verify_status='approved', g.verified_at=NOW() "
-            f"WHERE u.student_no IN ({placeholders}) AND g.verify_status='pending'",
-            req.student_ids
-        )
-    return {"ok": True, "approved": conn.rowcount}
-
-
-@router.post("/api/teacher/github-bindings/reject")
-def reject_binding(req: BatchStudentIds, authorization: Optional[str] = Header(None)):
-    """拒绝绑定申请"""
-    require_teacher(authorization)
-    if not req.student_ids:
-        raise HTTPException(status_code=422, detail="请选择至少一名学生")
-    placeholders = ",".join(["%s"] * len(req.student_ids))
-    with db() as conn:
-        conn.execute(
-            f"UPDATE github_bindings g JOIN users u ON g.student_user_id=u.id "
-            f"SET g.verify_status='rejected', g.github_username='', g.github_name='', g.verified_at=NULL "
-            f"WHERE u.student_no IN ({placeholders})",
-            req.student_ids
-        )
-    return {"ok": True}
-
-
-@router.post("/api/teacher/github-bindings/send-reminder")
-def send_binding_reminder(req: BatchStudentIds, authorization: Optional[str] = Header(None)):
-    """向未绑定学生批量发送提醒"""
-    require_teacher(authorization)
-    if not req.student_ids:
-        raise HTTPException(status_code=422, detail="请选择至少一名学生")
-    placeholders = ",".join(["%s"] * len(req.student_ids))
-    with db() as conn:
-        rows = conn.execute(
-            f"SELECT u.full_name AS name FROM users u "
-            f"LEFT JOIN github_bindings g ON g.student_user_id=u.id "
-            f"WHERE u.student_no IN ({placeholders}) "
-            f"AND u.role='student' "
-            f"AND (g.verify_status IS NULL OR g.verify_status NOT IN ('approved','pending'))",
-            req.student_ids
-        ).fetchall()
-    names = [r["name"] for r in rows]
-    return {"ok": True, "reminded": len(names), "students": names}
-
-
-# ───── 进度看板 API (F-T-013) ─────
-
-# 热力图状态常量
-HEATMAP_STATUS = {
-    "submitted": "绿",      # 已提交
-    "late": "黄",          # 迟交
-    "missing": "红",        # 未提交
-    "not_published": "灰"  # 任务未发布
-}
-
-
-class ProgressFilter(BaseModel):
-    """进度看板筛选参数"""
-    course_id: Optional[int] = None
-    semester: Optional[str] = None
-    top_n_lowest: Optional[int] = 5  # 完成率最低的前N名置顶高亮
-
-
-@router.get("/api/teacher/progress/heatmap")
-def get_progress_heatmap(
-    course_id: Optional[int] = Query(None),
-    semester: Optional[str] = Query(None),
-    authorization: Optional[str] = Header(None)
-):
-    """
-    获取热力图数据：学生（行）× 任务（列）二维完成状态矩阵
-    
-    返回格式：
-    {
-        "students": [{"id": 1, "name": "张三", "student_id": "2021001", "class_name": "计算机1班"}, ...],
-        "assignments": [{"id": 1, "title": "第一章作业", "deadline": "2026-06-10"}, ...],
-        "matrix": [
-            [{"assignment_id": 1, "student_id": 1, "status": "submitted"}, ...],
-            ...
-        ]
-    }
-    """
-    require_teacher(authorization)
-    
-    with db() as conn:
-        # 查询学生列表
-        student_query = """
-            SELECT s.user_id AS student_id, u.full_name AS name, 
-                   u.student_no, COALESCE(s.class_name, '') AS class_name
-            FROM students s
-            JOIN users u ON s.user_id = u.id
-            WHERE u.role = 'student'
-        """
-        students = conn.execute(student_query).fetchall()
-        
-        # 查询作业列表
-        assignment_query = """
-            SELECT a.id, a.title, a.deadline, a.created_at, a.course_id,
-                   c.name AS course_name
-            FROM assignments a
-            JOIN courses c ON a.course_id = c.id
-        """
-        params = []
-        if course_id:
-            assignment_query += " WHERE a.course_id = %s"
-            params.append(course_id)
-        if semester:
-            assignment_query += " AND c.term = %s" if course_id else " WHERE c.term = %s"
-            params.append(semester)
-        assignment_query += " ORDER BY a.deadline"
-        
-        assignments = conn.execute(assignment_query, params).fetchall()
-        
-        if not assignments:
-            return {"students": [], "assignments": [], "matrix": []}
-        
-        # 查询提交状态
-        assignment_ids = [a["id"] for a in assignments]
-        student_ids = [s["student_id"] for s in students]
-        
-        if not assignment_ids or not student_ids:
-            return {"students": [], "assignments": [], "matrix": []}
-        
-        # 构建查询条件
-        placeholders_a = ",".join(["%s"] * len(assignment_ids))
-        placeholders_s = ",".join(["%s"] * len(student_ids))
-        
-        submissions = conn.execute(f"""
-            SELECT sub.assignment_id, sub.student_user_id, sub.is_late, 
-                   sub.submitted_at, sub.version_no, sub.grading_status
-            FROM submissions sub
-            WHERE sub.assignment_id IN ({placeholders_a})
-            AND sub.student_user_id IN ({placeholders_s})
-            AND sub.version_no = (
-                SELECT MAX(s2.version_no) 
-                FROM submissions s2 
-                WHERE s2.assignment_id = sub.assignment_id 
-                AND s2.student_user_id = sub.student_user_id
-            )
-        """, assignment_ids + student_ids).fetchall()
-        
-        # 构建提交映射：(assignment_id, student_id) -> submission
-        submission_map = {
-            (str(s["assignment_id"]), str(s["student_user_id"])): dict(s)
-            for s in submissions
-        }
-        
-        # 构建矩阵数据
-        now = datetime.now()
-        matrix = []
-        for student in students:
-            row = []
-            for assignment in assignments:
-                key = (str(assignment["id"]), str(student["student_id"]))
-                sub = submission_map.get(key)
-                
-                if sub:
-                    # 有提交记录
-                    if sub["is_late"]:
-                        status = "late"
-                    else:
-                        status = "submitted"
-                    cell = {
-                        "assignment_id": assignment["id"],
-                        "student_id": student["student_id"],
-                        "status": status,
-                        "submitted_at": sub["submitted_at"].isoformat() if sub["submitted_at"] else None,
-                        "version_no": sub["version_no"],
-                        "grading_status": sub["grading_status"]
-                    }
-                elif assignment["deadline"] < now:
-                    # 截止时间已过且未提交
-                    cell = {
-                        "assignment_id": assignment["id"],
-                        "student_id": student["student_id"],
-                        "status": "missing",
-                        "submitted_at": None,
-                        "version_no": None,
-                        "grading_status": None
-                    }
-                else:
-                    # 任务未发布（截止时间未到）
-                    cell = {
-                        "assignment_id": assignment["id"],
-                        "student_id": student["student_id"],
-                        "status": "not_published",
-                        "submitted_at": None,
-                        "version_no": None,
-                        "grading_status": None
-                    }
-                row.append(cell)
-            matrix.append({
-                "student_id": student["student_id"],
-                "name": student["name"],
-                "student_no": student["student_no"],
-                "class_name": student["class_name"],
-                "cells": row
-            })
-        
-        return {
-            "students": [dict(s) for s in students],
-            "assignments": [dict(a) for a in assignments],
-            "matrix": matrix
-        }
-
-
-@router.get("/api/teacher/progress/chart")
-def get_progress_chart(
-    course_id: Optional[int] = Query(None),
-    semester: Optional[str] = Query(None),
-    authorization: Optional[str] = Header(None)
-):
-    """
-    获取柱状图数据：各任务在全班的完成率趋势
-    
-    返回格式：
-    {
-        "tasks": [{"id": 1, "title": "第一章作业", "deadline": "2026-06-10", "completion_rate": 0.75}, ...]
-    }
-    """
-    require_teacher(authorization)
-    
-    with db() as conn:
-        # 获取总学生数
-        total_students = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM users WHERE role='student'"
-        ).fetchone()["cnt"]
-        
-        if total_students == 0:
-            return {"tasks": []}
-        
-        # 查询作业列表
-        assignment_query = """
-            SELECT a.id, a.title, a.deadline, a.created_at, a.course_id,
-                   c.name AS course_name
-            FROM assignments a
-            JOIN courses c ON a.course_id = c.id
-        """
-        params = []
-        if course_id:
-            assignment_query += " WHERE a.course_id = %s"
-            params.append(course_id)
-        if semester:
-            assignment_query += " AND c.term = %s" if course_id else " WHERE c.term = %s"
-            params.append(semester)
-        assignment_query += " ORDER BY a.deadline"
-        
-        assignments = conn.execute(assignment_query, params).fetchall()
-        
-        if not assignments:
-            return {"tasks": []}
-        
-        # 查询每个作业的提交数量
-        now = datetime.now()
-        tasks = []
-        for a in assignments:
-            assignment_id = a["id"]
-            
-            # 获取该作业的最新提交（每个学生只算一次）
-            submitted_count = conn.execute("""
-                SELECT COUNT(DISTINCT student_user_id) AS cnt
-                FROM submissions
-                WHERE assignment_id = %s
-            """, (assignment_id,)).fetchone()["cnt"]
-            
-            # 判断是否已截止
-            is_past_deadline = a["deadline"] < now
-            
-            if is_past_deadline:
-                completion_rate = submitted_count / total_students if total_students > 0 else 0
-            else:
-                completion_rate = None  # 未截止的任务不计算完成率
-            
-            tasks.append({
-                "id": assignment_id,
-                "title": a["title"],
-                "deadline": a["deadline"].isoformat() if a["deadline"] else None,
-                "created_at": a["created_at"].isoformat() if a["created_at"] else None,
-                "course_name": a["course_name"],
-                "total_students": total_students,
-                "submitted_count": submitted_count,
-                "completion_rate": round(completion_rate, 2) if completion_rate is not None else None,
-                "is_past_deadline": is_past_deadline
-            })
-        
-        return {"tasks": tasks}
-
-
-@router.get("/api/teacher/progress/matrix")
-def get_progress_matrix(
-    course_id: Optional[int] = Query(None),
-    semester: Optional[str] = Query(None),
-    bottom_n: int = Query(5, description="完成率最低的前N名学生置顶"),
-    sort_order: str = Query("completion_asc", description="排序方式"),
-    authorization: Optional[str] = Header(None)
-):
-    """
-    获取完整的进度矩阵数据，包含排序（完成率最低的前N名置顶高亮）
-    
-    返回格式（兼容前端期望的exams字段）：
-    {
-        "students": [...],
-        "exams": [...],
-        "matrix": [...]
-    }
-    """
-    require_teacher(authorization)
-    
-    # 获取热力图数据
-    heatmap_data = get_progress_heatmap(course_id=course_id, semester=semester, authorization=authorization)
-    
-    # 转换assignments为exams格式（前端期望的字段名）
-    exams = []
-    for assn in heatmap_data["assignments"]:
-        deadline = assn.get("deadline", "")
-        # deadline可能是datetime对象或字符串
-        if isinstance(deadline, datetime):
-            deadline_str = deadline.strftime("%Y-%m-%d %H:%M:%S")
-            is_active = datetime.now() >= deadline
-        elif isinstance(deadline, str) and deadline:
-            deadline_str = deadline
-            try:
-                deadline_dt = datetime.strptime(deadline, "%Y-%m-%d %H:%M:%S")
-                is_active = datetime.now() >= deadline_dt
-            except:
-                is_active = False
-        else:
-            deadline_str = ""
-            is_active = False
-            
-        exams.append({
-            "id": f"hw{assn['id']}",
-            "title": assn["title"],
-            "deadline": deadline_str,
-            "published_at": assn.get("created_at", ""),
-            "semester": semester or "2024-2025-2",
-            "is_active": is_active,
-            "total_students": len(heatmap_data["students"]),
-            "submitted": 0,
-            "completion_rate": 0.0
-        })
-    
-    # 构建学生数据（包含statuses字段，前端需要）
-    now = datetime.now()
-    students = []
-    for row in heatmap_data["matrix"]:
-        student_id = row["student_id"]
-        cells = row["cells"]
-        
-        # 构建statuses字典
-        statuses = {}
-        for idx, cell in enumerate(cells):
-            exam_id = f"hw{heatmap_data['assignments'][idx]['id']}"
-            status_map = {
-                "submitted": "submitted",
-                "late": "late",
-                "missing": "unsubmitted",
-                "not_published": "not_published"
-            }
-            status = status_map.get(cell["status"], "not_published")
-            
-            status_info = {"status": status}
-            if cell.get("submitted_at"):
-                status_info["submitted_at"] = cell["submitted_at"]
-            if cell.get("score") is not None:
-                status_info["score"] = cell["score"]
-                status_info["total"] = 100
-            
-            statuses[exam_id] = status_info
-        
-        # 计算完成率
-        completed = sum(1 for c in cells if c["status"] in ["submitted", "late"])
-        past_deadline = sum(1 for c in cells if c["status"] in ["submitted", "late", "missing"])
-        
-        if past_deadline > 0:
-            completion_rate = completed / past_deadline
-        else:
-            completion_rate = 1.0
-        
-        students.append({
-            "student_id": student_id,
-            "name": row["name"],
-            "student_no": row["student_no"],
-            "class_name": row["class_name"],
-            "completion_rate": round(completion_rate, 3),
-            "highlight": False,
-            "statuses": statuses
-        })
-    
-    # 排序
-    if sort_order == "completion_asc":
-        students.sort(key=lambda x: x["completion_rate"])
-    else:
-        students.sort(key=lambda x: x["name"])
-    
-    # 高亮前N名
-    for i, student in enumerate(students):
-        student["highlight"] = i < bottom_n and student["completion_rate"] < 1.0
-    
-    # 更新exams的完成率统计
-    for exam in exams:
-        submitted = 0
-        for student in students:
-            st = student["statuses"].get(exam["id"])
-            if st and (st["status"] == "submitted" or st["status"] == "late"):
-                submitted += 1
-        exam["submitted"] = submitted
-        exam["completion_rate"] = round(submitted / len(students), 3) if students else 0.0
-    
-    return {
-        "students": students,
-        "exams": exams,
-        "matrix": heatmap_data["matrix"]
-    }
-
-
-@router.get("/api/teacher/progress/submission/{student_user_id}/{assignment_id}")
-def get_submission_detail(
-    student_user_id: int,
-    assignment_id: int,
-    authorization: Optional[str] = Header(None)
-):
-    """
-    获取学生某任务的提交详情
-    
-    返回格式：
-    {
-        "student": {"id": 1, "name": "张三", "student_no": "2021001", "class_name": "计算机1班"},
-        "assignment": {"id": 1, "title": "第一章作业", "deadline": "2026-06-10"},
-        "submission": {
-            "id": 1,
-            "version_no": 2,
-            "is_late": false,
-            "submitted_at": "2026-06-09T10:30:00",
-            "grading_status": "graded",
-            "file_url": "...",
-            "text_content": "..."
-        } or None
-    }
-    """
-    require_teacher(authorization)
-    
-    with db() as conn:
-        # 获取学生信息
-        student = conn.execute("""
-            SELECT s.user_id AS student_id, u.full_name AS name, 
-                   u.student_no, COALESCE(s.class_name, '') AS class_name
-            FROM students s
-            JOIN users u ON s.user_id = u.id
-            WHERE u.role = 'student' AND s.user_id = %s
-        """, (student_user_id,)).fetchone()
-        
-        if not student:
-            raise HTTPException(status_code=404, detail="学生不存在")
-        
-        # 获取作业信息
-        assignment = conn.execute("""
-            SELECT a.id, a.title, a.deadline, a.description_md, a.late_policy,
-                   c.name AS course_name
-            FROM assignments a
-            JOIN courses c ON a.course_id = c.id
-            WHERE a.id = %s
-        """, (assignment_id,)).fetchone()
-        
-        if not assignment:
-            raise HTTPException(status_code=404, detail="作业不存在")
-        
-        # 获取最新的提交记录
-        submission = conn.execute("""
-            SELECT id, version_no, is_late, submitted_at, grading_status,
-                   file_url, text_content
-            FROM submissions
-            WHERE assignment_id = %s AND student_user_id = %s
-            ORDER BY version_no DESC
-            LIMIT 1
-        """, (assignment_id, student_user_id)).fetchone()
-        
-        return {
-            "student": dict(student),
-            "assignment": {
-                "id": assignment["id"],
-                "title": assignment["title"],
-                "deadline": assignment["deadline"].isoformat() if assignment["deadline"] else None,
-                "description": assignment["description_md"],
-                "late_policy": assignment["late_policy"],
-                "course_name": assignment["course_name"]
-            },
-            "submission": dict(submission) if submission else None
-        }
-
-
-@router.get("/api/teacher/progress/courses")
-def get_progress_courses(
-    authorization: Optional[str] = Header(None)
-):
-    """
-    获取可用于进度看板筛选的课程列表
-    
-    返回格式：
-    {
-        "courses": [{"id": 1, "code": "CS2026-PYTHON", "name": "Python程序设计", "term": "2026-春"}, ...]
-    }
-    """
-    require_teacher(authorization)
-    
-    with db() as conn:
-        courses = conn.execute("""
-            SELECT id, code, name, term
-            FROM courses
-            ORDER BY term DESC, code
-        """).fetchall()
-    
-    return {"courses": [dict(c) for c in courses]}
->>>>>>> upstream/main

@@ -236,25 +236,43 @@ def start_api_server():
         str(REPO_ROOT),
     ]
 
-    cmd = [
-        sys.executable,
-        "-m",
-        "uvicorn",
-        "app.main:app",
-        "--host",
-        HOST,
-        "--port",
-        str(API_PORT),
-        "--reload",
-    ]
+    if os.name == "nt":
+        # On Windows, Click expands glob patterns in sys.argv by default.
+        # Programmatically pass args to uvicorn.main.main() instead.
+        uvicorn_args = [
+            "app.main:app",
+            "--host",
+            HOST,
+            "--port",
+            str(API_PORT),
+            "--reload",
+        ]
+        for d in reload_dirs:
+            uvicorn_args += ["--reload-dir", d]
+        for pat in ("*.py", "*.html", "*.md", "*.css", "*.js"):
+            uvicorn_args += ["--reload-include", pat]
 
-    # Add --reload-dir entries
-    for d in reload_dirs:
-        cmd += ["--reload-dir", d]
-
-    # Also watch common non-.py assets (md, html, css, js)
-    for pat in ("*.py", "*.html", "*.md", "*.css", "*.js"):
-        cmd += ["--reload-include", pat]
+        cmd = [
+            sys.executable,
+            "-c",
+            "import uvicorn; uvicorn.main.main(%r)" % uvicorn_args,
+        ]
+    else:
+        cmd = [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "app.main:app",
+            "--host",
+            HOST,
+            "--port",
+            str(API_PORT),
+            "--reload",
+        ]
+        for d in reload_dirs:
+            cmd += ["--reload-dir", d]
+        for pat in ("*.py", "*.html", "*.md", "*.css", "*.js"):
+            cmd += ["--reload-include", pat]
 
     popen_kwargs = dict(cwd=str(BACKEND_DIR), env=env)
     # On POSIX, start a new process group so we can terminate whole group later
