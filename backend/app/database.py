@@ -199,7 +199,8 @@ def init_db():
             """)
         except Exception as e:
             print(f"[init_db] exams table skipped: {e}")
-
+ 
+        # 基础表：scores（兼容 legacy）
         try:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS scores (
@@ -215,6 +216,67 @@ def init_db():
         except Exception as e:
             print(f"[init_db] scores table skipped: {e}")
 
+        # classroom_exams：feature 分支中的在线课堂考试表（使用 MySQL 形式）
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS classroom_exams (
+                    id         VARCHAR(100) PRIMARY KEY,
+                    title      VARCHAR(255) NOT NULL,
+                    start_at   DATETIME NOT NULL,
+                    end_at     DATETIME NOT NULL,
+                    is_active  TINYINT DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+        except Exception as e:
+            print(f"[init_db] classroom_exams table skipped: {e}")
+
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS classroom_exam_questions (
+                    id              INT AUTO_INCREMENT PRIMARY KEY,
+                    exam_id         VARCHAR(100) NOT NULL,
+                    qtype           VARCHAR(20) NOT NULL,
+                    content         TEXT NOT NULL,
+                    options_json    TEXT,
+                    answer_key_json TEXT NOT NULL,
+                    score           DOUBLE NOT NULL,
+                    sort_no         INT NOT NULL DEFAULT 1,
+                    FOREIGN KEY (exam_id) REFERENCES classroom_exams(id) ON DELETE CASCADE
+                )
+            """)
+        except Exception as e:
+            print(f"[init_db] classroom_exam_questions table skipped: {e}")
+
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS classroom_exam_attempts (
+                    id                  INT AUTO_INCREMENT PRIMARY KEY,
+                    exam_id             VARCHAR(100) NOT NULL,
+                    student_id          VARCHAR(100) NOT NULL,
+                    status              VARCHAR(20) NOT NULL DEFAULT 'draft',
+                    objective_score     DOUBLE,
+                    subjective_pending  TINYINT DEFAULT 0,
+                    total_score         DOUBLE,
+                    max_score           DOUBLE,
+                    submitted_at        DATETIME,
+                    auto_submitted      TINYINT DEFAULT 0,
+                    draft_saved_at      DATETIME,
+                    answers_json        TEXT,
+                    UNIQUE(exam_id, student_id),
+                    FOREIGN KEY (exam_id) REFERENCES classroom_exams(id)
+                )
+            """)
+        except Exception as e:
+            print(f"[init_db] classroom_exam_attempts table skipped: {e}")
+
+        # 尝试添加可选字段（兼容旧数据）
+        try:
+            conn.execute("ALTER TABLE classroom_exam_attempts ADD COLUMN question_scores_json TEXT")
+        except Exception:
+            pass
+
+        # 继续创建 upstream/main 的表结构
         try:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS courses (
@@ -424,3 +486,4 @@ def seed_timeline_events():
             )
     except Exception as e:
         print(f"[seed_timeline_events] skipped: {e}")
+    

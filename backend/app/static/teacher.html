@@ -124,7 +124,10 @@
 <div id="app">
   <div class="header">
     <h1>🎓 教师管理后台 — 研究生课程《机器人系统》</h1>
-    <button onclick="logout()">退出登录</button>
+    <div style="display:flex;gap:10px;align-items:center">
+      <a href="/classroom-exam/admin" style="color:#fff;font-size:.85rem;text-decoration:underline">课堂在线考试</a>
+      <button onclick="logout()">退出登录</button>
+    </div>
   </div>
   <div class="container">
 
@@ -529,7 +532,8 @@ function renderExams() {
   `).join('');
 
   const exam = examsData.find(e => e.id === currentExamId) || examsData[0];
-  const isActive = exam.is_active === 1;
+  // Determine status displayed to teacher based on classroom exam times when possible
+  const isActive = exam.status === 'active' || (exam.is_active === 1 && exam.status !== 'ended');
 
   document.getElementById('exams-content').innerHTML = `
     <div class="exam-tabs">${tabs}</div>
@@ -540,15 +544,9 @@ function renderExams() {
       <div class="stat-item"><div class="stat-value">${exam.total_students ? Math.round(exam.submitted/exam.total_students*100) : 0}%</div><div class="stat-label">完成率</div></div>
     </div>
     <div class="flex-row" style="margin-bottom:16px">
-      <div class="toggle-switch">
-        <span style="font-size:.9rem">考试状态：</span>
-        <label class="switch">
-          <input type="checkbox" ${isActive?'checked':''} onchange="toggleExam('${exam.id}', this.checked)">
-          <span class="slider"></span>
-        </label>
-        <span style="font-size:.9rem;color:${isActive?'#2e7d32':'#888'}">${isActive?'开放中':'已关闭'}</span>
-      </div>
+        <div style="font-size:.9rem">考试状态： <strong style="color:${isActive?'#2e7d32':'#888'}">${isActive?'开放中':'已关闭'}</strong></div>
       <button class="btn btn-primary btn-sm" onclick="downloadExcel('${exam.id}', '${exam.title}')">⬇ 下载 Excel 成绩单</button>
+      <button class="btn btn-outline-danger btn-sm" onclick="confirmDeleteExam('${exam.id}','${exam.title}')">🗑 删除考试</button>
     </div>
     <div id="scores-table">加载成绩中…</div>
   `;
@@ -607,6 +605,28 @@ async function downloadExcel(examId, title) {
   const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
   a.download = `成绩单_${title}_${date}.xlsx`;
   a.click();
+}
+
+async function deleteExam(examId) {
+  const r = await fetch(`${API}/api/teacher/exams/${examId}`, {
+    method: 'DELETE',
+    headers: {'Authorization': `Bearer ${TOKEN}`}
+  });
+  let d = {};
+  try { d = await r.json(); } catch(e) {}
+  if (!r.ok) { showMsg('exams-content', d.detail || '删除失败', 'error'); return false; }
+  showMsg('exams-content', `✅ 已删除考试（影响记录：${d.deleted ?? d.affected ?? 0}）`);
+  currentExamId = null;
+  await loadExams();
+  return true;
+}
+
+function confirmDeleteExam(examId, title) {
+  showConfirmDialog(
+    '删除考试',
+    `确认删除考试 <strong>${title}</strong> 及其所有成绩与相关记录？此操作不可恢复。`,
+    async () => { await deleteExam(examId); }
+  );
 }
 
 // ───── 学生名单管理 ─────

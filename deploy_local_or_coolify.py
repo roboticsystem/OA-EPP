@@ -276,6 +276,8 @@ def serve_local():
     teacher_pwd = os.environ.get("TEACHER_PASSWORD", "admin123")
     print(f"🎓 教师后台：  http://{HOST}:{API_PORT}/teacher  （密码：{teacher_pwd}）")
     print(f"📊 学生查分：  http://{HOST}:{API_PORT}/score")
+    print(f"✏️  课堂考试：  http://{HOST}:{API_PORT}/classroom-exam  （勿用 /api/classroom-exam）")
+    print(f"📝 考试管理：  http://{HOST}:{API_PORT}/classroom-exam/admin")
     print(f"📡 API 文档：  http://{HOST}:{API_PORT}/api/docs")
     print("⛔ Ctrl+C 停止所有服务\n")
 

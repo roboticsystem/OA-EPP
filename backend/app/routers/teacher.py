@@ -9,65 +9,75 @@ from typing import Optional
 from pydantic import BaseModel
 from app.database import db
 from app.auth_utils import create_token, require_teacher
-from app.sync_exams import sync_exams
-from pypinyin import lazy_pinyin, Style
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment
+        from datetime import datetime
+        for e in exams:
+            # 优先使用 upstream 的 grading_records/submissions 统计（更通用）；失败时回退到 scores 表（feature 分支）
+            submitted = 0
+            avg = None
+            try:
+                cur.execute("""
+                    SELECT COUNT(DISTINCT sub.student_user_id) AS cnt
+                    FROM grading_records gr
+                    JOIN submissions sub ON gr.submission_id = sub.id
+                    JOIN assignments a ON sub.assignment_id = a.id
+                    WHERE a.course_id = %s AND a.title LIKE CONCAT('exam_', %s, '%%')
+                """, (COURSE_ID, str(e["id"])))
+                row = cur.fetchone()
+                submitted = row["cnt"] or 0
 
-router = APIRouter()
+                cur.execute("""
+                    SELECT AVG(gr.exam_score) AS avg
+                    FROM grading_records gr
+                    JOIN submissions sub ON gr.submission_id = sub.id
+                    JOIN assignments a ON sub.assignment_id = a.id
+                    WHERE a.course_id = %s AND a.title LIKE CONCAT('exam_', %s, '%%')
+                """, (COURSE_ID, str(e["id"])))
+                avg_row = cur.fetchone()
+                avg = avg_row["avg"]
+            except Exception:
+                # 回退到 legacy 的 scores 表
+                try:
+                    cur.execute("SELECT COUNT(*) AS cnt FROM scores WHERE exam_id = %s", (e["id"],))
+                    submitted = cur.fetchone()["cnt"] or 0
+                except Exception:
+                    submitted = 0
+                try:
+                    cur.execute("SELECT AVG(score) AS avg FROM scores WHERE exam_id = %s", (e["id"],))
+                    avg_row = cur.fetchone()
+                    avg = avg_row["avg"]
+                except Exception:
+                    avg = None
 
-TEACHER_PASSWORD = os.environ.get("TEACHER_PASSWORD", "admin123")
+            # 尝试根据 classroom_exams 的时间判断状态（开放中 / 已关闭），找不到则以 is_active 回退
+            status = None
+            try:
+                cur.execute("SELECT start_at, end_at FROM classroom_exams WHERE id = %s", (e["id"],))
+                ce = cur.fetchone()
+                if ce and ce.get("start_at") and ce.get("end_at"):
+                    try:
+                        now = datetime.now()
+                        start = datetime.strptime(str(ce["start_at"]), "%Y-%m-%d %H:%M:%S")
+                        end = datetime.strptime(str(ce["end_at"]), "%Y-%m-%d %H:%M:%S")
+                        status = "active" if (now >= start and now <= end) else "ended"
+                    except Exception:
+                        status = "unknown"
+                else:
+                    status = "active" if e.get("is_active", 1) == 1 else "ended"
+            except Exception:
+                status = "active" if e.get("is_active", 1) == 1 else "ended"
 
-# 当前课程 ID（嵌入式系统综合实践）
-COURSE_ID = int(os.environ.get("COURSE_ID", "2"))
-
-
-def _name_to_pinyin(name: str):
-    full = "".join(lazy_pinyin(name, style=Style.NORMAL))
-    abbr = "".join(lazy_pinyin(name, style=Style.FIRST_LETTER))
-    return full.lower(), abbr.lower()
-
-
-# ──────────────── 辅助函数 ────────────────
-
-def _get_enrolled_student_count(conn) -> int:
-    """获取已选课学生数"""
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT COUNT(*) AS cnt FROM enrollments WHERE course_id = %s",
-        (COURSE_ID,)
-    )
-    return cur.fetchone()["cnt"]
-
-
-def _list_students_with_class(conn):
-    """获取所有已选课学生（含班级信息）"""
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT u.id AS user_id, u.full_name AS name, u.student_no AS student_id,
-               COALESCE(s.class_name, '') AS class_name
-        FROM users u
-        JOIN enrollments e ON u.id = e.student_user_id
-        LEFT JOIN students s ON u.id = s.user_id
-        WHERE u.role = 'student' AND e.course_id = %s
-        ORDER BY u.student_no
-    """, (COURSE_ID,))
-    return cur.fetchall()
-
-
-# ──────────────── 模型 ────────────────
-
-class LoginRequest(BaseModel):
-    password: str
-
-
-@router.post("/api/teacher/login")
-def teacher_login(req: LoginRequest):
-    if req.password != TEACHER_PASSWORD:
-        raise HTTPException(status_code=401, detail="密码错误")
-    token = create_token({"role": "teacher"}, expires_hours=8)
-    return {"token": token}
-
+            result.append({
+                "id": str(e["id"]),
+                "title": e["title"],
+                "is_active": 1,
+                "exam_type": e["exam_type"],
+                "start_at": e["start_at"].strftime("%Y-%m-%d %H:%M:%S") if e["start_at"] else None,
+                "end_at": e["end_at"].strftime("%Y-%m-%d %H:%M:%S") if e["end_at"] else None,
+                "submitted": submitted,
+                "total_students": total_students,
+                "avg_score": round(float(avg), 1) if avg else None,
+                "status": status,
+            })
 
 @router.post("/api/teacher/students")
 async def upload_students(
@@ -268,6 +278,7 @@ def list_exams(authorization: Optional[str] = Header(None)):
         cur = conn.cursor()
         total_students = _get_enrolled_student_count(conn)
         result = []
+        from datetime import datetime
         for e in exams:
             # 统计该考试已提交人数
             cur.execute("""
@@ -325,6 +336,10 @@ class ExamUpdate(BaseModel):
     exam_type: Optional[str] = None
     start_at: Optional[str] = None
     end_at: Optional[str] = None
+
+
+class CleanupRequest(BaseModel):
+    titles: Optional[list[str]] = None
 
 
 @router.put("/api/teacher/exams/{exam_id}")
@@ -446,6 +461,50 @@ def export_scores(exam_id: int = Query(...), authorization: Optional[str] = Head
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )
 
+
+@router.post("/api/teacher/exams/cleanup")
+def cleanup_exams(req: CleanupRequest, authorization: Optional[str] = Header(None)):
+    """删除指定标题的考试（慎用）。若未提供 titles，则删除已知的三条错误记录。"""
+    _require_teacher(authorization)
+    defaults = [
+        "第 12 章 机器人系统开发环境配置 测验",
+        "第二章 CubeMX 编程测验",
+        "第三章 PicSimlab 仿真开发测验",
+    ]
+    titles = req.titles or defaults
+    affected = 0
+    with db() as conn:
+        for t in titles:
+            cur = conn.execute("DELETE FROM exams WHERE title=%s", (t,))
+            affected += cur.rowcount
+            rows = conn.execute("SELECT id FROM classroom_exams WHERE title=%s", (t,)).fetchall()
+            for r in rows:
+                eid = r["id"]
+                conn.execute("DELETE FROM classroom_exam_questions WHERE exam_id=%s", (eid,))
+                conn.execute("DELETE FROM classroom_exam_attempts WHERE exam_id=%s", (eid,))
+                conn.execute("DELETE FROM classroom_exams WHERE id=%s", (eid,))
+                affected += 1
+    return {"ok": True, "affected": affected}
+
+
+@router.delete("/api/teacher/exams/{exam_id}")
+def delete_exam(exam_id: str, authorization: Optional[str] = Header(None)):
+    """删除某次考试及其相关记录（scores、classroom_exams、questions、attempts）。"""
+    _require_teacher(authorization)
+    affected = 0
+    with db() as conn:
+        cur = conn.execute("DELETE FROM scores WHERE exam_id=%s", (exam_id,))
+        affected += cur.rowcount
+        cur2 = conn.execute("DELETE FROM exams WHERE id=%s", (exam_id,))
+        affected += cur2.rowcount
+        rows = conn.execute("SELECT id FROM classroom_exams WHERE id=%s", (exam_id,)).fetchall()
+        for r in rows:
+            eid = r["id"]
+            conn.execute("DELETE FROM classroom_exam_questions WHERE exam_id=%s", (eid,))
+            conn.execute("DELETE FROM classroom_exam_attempts WHERE exam_id=%s", (eid,))
+            conn.execute("DELETE FROM classroom_exams WHERE id=%s", (eid,))
+            affected += 1
+    return {"ok": True, "deleted": affected}
 
 # ───── GitHub 账号绑定状态看板 (F-T-004) ─────
 

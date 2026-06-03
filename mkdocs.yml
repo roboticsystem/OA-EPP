@@ -32,6 +32,7 @@ nav:
       - 附录B 实验用容器与开发环境: appendix_b.md
       - 附录C STM32实践项目集: appendix_c.md
   - 书写规范: contributing.md
+  - 课堂在线考试: classroom-exam.md
   - 参考资料: resources.md
 theme:
   name: material

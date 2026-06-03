@@ -50,3 +50,5 @@ secrets.yml
 # 微信小程序配置（不属于本项目）
 project.config.json
 project.private.config.json
+*.ps1
+exam-requirements.md

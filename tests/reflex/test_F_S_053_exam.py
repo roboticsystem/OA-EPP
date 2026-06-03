@@ -5,6 +5,7 @@ TDD RED   : oaepp.states.exam 不存在 → ImportError → 所有用例失败�
 TDD GREEN : ExamState 实现后 → 全部通过
 """
 import pytest
+import asyncio
 
 try:
     from oaepp.states.exam import ExamState
@@ -26,12 +27,19 @@ def test_F_S_053_TC01_state_attrs_exist():
         assert hasattr(ExamState, attr), f"缺少 {attr} 状态变量"
 
 
-async def test_F_S_053_TC02_auto_submit_on_timeout(mem_db):
-    """time_remaining 归零时自动提交，exam_status = submitted"""
+def test_F_S_053_TC02_auto_submit_on_timeout(mem_db):
+    """time_remaining 归零时自动提交，exam_status = submitted
+
+    使用 `asyncio.run` 调用可能的协程，以便在没有 pytest-asyncio 插件时仍能运行测试。
+    """
     _guard()
     state = ExamState()
     state.time_remaining = 0
-    await state.tick()  # 或 check_timer()
+    # 支持同步或异步的 `tick()` 实现
+    res = state.tick()
+    if asyncio.iscoroutine(res):
+        asyncio.run(res)
+
     submitted_statuses = ("submitted", "finished", "completed", "auto_submitted")
     assert state.exam_status in submitted_statuses, (
         f"倒计时归零后 exam_status='{state.exam_status}' 应为提交状态"
