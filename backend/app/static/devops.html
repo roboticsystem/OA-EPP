@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F-D-005 仓库协作者权限管理</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        
+        .header {
+            background: white;
+            padding: 28px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .header h1 {
+            font-size: 28px;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+        .header p {
+            color: #666;
+            font-size: 15px;
+        }
+        
+        .role-badges {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .role-badge {
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+        }
+        .role-admin { background: linear-gradient(135deg, #dc2626, #b91c1c); }
+        .role-write { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .role-triage { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+        .role-read { background: linear-gradient(135deg, #6b7280, #4b5563); }
+        
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 12px 24px;
+            background: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.2s;
+        }
+        .tab.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .table th {
+            background: #f8fafc;
+            padding: 14px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            font-size: 14px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .table td {
+            padding: 14px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 14px;
+            color: #4b5563;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #9ca3af;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 16px 28px;
+            border-radius: 12px;
+            color: white;
+            font-size: 15px;
+            z-index: 1000;
+            animation: slideIn 0.4s ease;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .toast.success { background: linear-gradient(135deg, #10b981, #059669); }
+        .toast.error { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .audit-item {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            border-left: 4px solid #667eea;
+        }
+        .audit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .audit-action {
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+        .audit-time {
+            font-size: 13px;
+            color: #9ca3af;
+        }
+        .audit-detail {
+            font-size: 14px;
+            color: #64748b;
+            word-break: break-all;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #667eea;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+        
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 12px 0;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+        .feature-list .check {
+            width: 24px;
+            height: 24px;
+            background: #10b981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="login-notice" style="display: none;" class="card" style="background: #fef3c7; border-left: 4px solid #f59e0b;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <strong>⚠️ 请先登录教师后台</strong>
+                    <p style="margin-top: 4px; color: #6b7280; font-size: 14px;">您需要先登录教师账号才能操作协作者权限管理</p>
+                </div>
+                <button onclick="window.location.href='/teacher'" style="padding: 8px 16px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer;">去登录</button>
+            </div>
+        </div>
+        
+        <div id="user-info" style="display: none; text-align: right; margin-bottom: 10px;">
+            <span style="color: white; font-size: 14px;">👤 教师已登录</span>
+            <button onclick="logout()" style="margin-left: 10px; padding: 6px 12px; background: rgba(255,255,255,0.2); color: white; border: 1px solid white; border-radius: 4px; cursor: pointer; font-size: 12px;">退出登录</button>
+        </div>
+        
+        <div class="header">
+            <h1> F-D-005 仓库协作者权限管理</h1>
+            <p>通过 GitHub Team 统一管理课程组成员权限，禁止个人直接授权，确保权限管理规范化</p>
+            <div class="role-badges">
+                <span class="role-badge role-admin">Admin</span>
+                <span class="role-badge role-write">Write</span>
+                <span class="role-badge role-triage">Triage</span>
+                <span class="role-badge role-read">Read</span>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">4</div>
+                <div class="stat-label">角色类型</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">Team</div>
+                <div class="stat-label">管理方式</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">✓</div>
+                <div class="stat-label">操作审计</div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-title">功能特性</div>
+            <ul class="feature-list">
+                <li><span class="check">✓</span> 通过 GitHub Team 而非个人直接授权管理权限</li>
+                <li><span class="check">✓</span> 角色分配符合 Admin/Write/Triage/Read 规范</li>
+                <li><span class="check">✓</span> 权限变更有操作记录（audit_logs）</li>
+                <li><span class="check">✓</span> 禁止个人直接授权，确保权限管理规范化</li>
+            </ul>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('manage')">权限操作</button>
+            <button class="tab" onclick="showTab('audit')">操作记录</button>
+            <button class="tab" onclick="showTab('roles')">角色说明</button>
+        </div>
+        
+        <div id="manage-tab">
+            <div class="card">
+                <div class="card-title">添加协作者</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>团队名称 *</label>
+                        <input type="text" id="team_name" placeholder="如：robotics-course-2024" value="robotics-course-2024">
+                    </div>
+                    <div class="form-group">
+                        <label>用户 ID *</label>
+                        <input type="text" id="user_id" placeholder="GitHub 用户名或学号">
+                    </div>
+                    <div class="form-group">
+                        <label>角色权限</label>
+                        <select id="role">
+                            <option value="Admin">Admin - 管理员</option>
+                            <option value="Write">Write - 写入</option>
+                            <option value="Triage">Triage - 分类</option>
+                            <option value="Read" selected>Read - 只读</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="addCollaborator()">添加协作者</button>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">协作者列表</div>
+                <div style="margin-bottom: 16px;">
+                    <input type="text" id="list_team_name" placeholder="输入团队名称查询" value="robotics-course-2024" style="padding: 8px 12px; width: 250px; border: 1px solid #ddd; border-radius: 6px;">
+                    <button class="btn btn-primary" onclick="loadCollaborators()" style="margin-left: 8px;">查询</button>
+                </div>
+                <div id="collaborator-list">
+                    <div class="empty-state">点击查询查看协作者列表</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">移除协作者</div>
+                <div class="form-grid" style="max-width: 600px;">
+                    <div class="form-group">
+                        <label>团队名称 *</label>
+                        <input type="text" id="remove_team_name" placeholder="团队名称" value="robotics-course-2024">
+                    </div>
+                    <div class="form-group">
+                        <label>用户 ID *</label>
+                        <input type="text" id="remove_user_id" placeholder="要移除的用户 ID">
+                    </div>
+                </div>
+                <button class="btn btn-danger" onclick="removeCollaborator()">移除协作者</button>
+            </div>
+        </div>
+        
+        <div id="audit-tab" style="display: none;">
+            <div class="card">
+                <div class="card-title">📝 操作审计日志</div>
+                <div id="audit-list">
+                    <div class="empty-state">加载中...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="roles-tab" style="display: none;">
+            <div class="card">
+                <div class="card-title">角色权限说明</div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                    <div style="background: #fef2f2; padding: 20px; border-radius: 12px; border-left: 4px solid #dc2626;">
+                        <h3 style="color: #dc2626; margin-bottom: 8px;">👑 Admin</h3>
+                        <p style="color: #4b5563; font-size: 14px;">完全仓库权限，包括删除仓库、管理团队、设置保护分支等</p>
+                    </div>
+                    <div style="background: #fffbeb; padding: 20px; border-radius: 12px; border-left: 4px solid #f59e0b;">
+                        <h3 style="color: #f59e0b; margin-bottom: 8px;">✏️ Write</h3>
+                        <p style="color: #4b5563; font-size: 14px;">推送代码、创建分支、发起 PR、管理 Issues</p>
+                    </div>
+                    <div style="background: #eff6ff; padding: 20px; border-radius: 12px; border-left: 4px solid #2563eb;">
+                        <h3 style="color: #2563eb; margin-bottom: 8px;">🏷️ Triage</h3>
+                        <p style="color: #4b5563; font-size: 14px;">管理 Issues 和 PR，添加标签，无法推送代码</p>
+                    </div>
+                    <div style="background: #f3f4f6; padding: 20px; border-radius: 12px; border-left: 4px solid #6b7280;">
+                        <h3 style="color: #6b7280; margin-bottom: 8px;">📖 Read</h3>
+                        <p style="color: #4b5563; font-size: 14px;">仅查看仓库内容，无法修改或提交</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = '/api';
+        
+        // 从 localStorage 获取教师端登录后的 token
+        function getToken() {
+            return localStorage.getItem('teacher_token') || sessionStorage.getItem('teacher_token');
+        }
+        
+        // 检查是否已登录（不强制跳转，由教师后台按钮跳转）
+        function checkAuth() {
+            const token = getToken();
+            return token;
+        }
+        
+        let token = checkAuth();
+        
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('[id$="-tab"]').forEach(c => c.style.display = 'none');
+            event.target.classList.add('active');
+            document.getElementById(`${tabName}-tab`).style.display = 'block';
+            
+            if (tabName === 'audit') loadAuditLogs();
+        }
+        
+        async function addCollaborator() {
+            const team_name = document.getElementById('team_name').value.trim();
+            const user_id = document.getElementById('user_id').value.trim();
+            const role = document.getElementById('role').value;
+            
+            if (!team_name || !user_id) {
+                showToast('请填写团队名称和用户 ID', 'error');
+                return;
+            }
+            
+            try {
+                const currentToken = getToken();
+                const res = await fetch(`${API_BASE}/devops/collaborators?team_name=${encodeURIComponent(team_name)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentToken}`
+                    },
+                    body: JSON.stringify({ user_id, role })
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    showToast(`✅ ${data.message}`);
+                    document.getElementById('user_id').value = '';
+                    loadAuditLogs();
+                    loadCollaborators();  // 刷新协作者列表
+                } else {
+                    const data = await res.json();
+                    showToast(data.detail || '添加失败', 'error');
+                }
+            } catch (err) {
+                showToast('网络错误，使用模拟数据', 'error');
+                // 模拟成功
+                showToast(`✅ 已通过团队 ${team_name} 添加协作者 ${user_id}，角色：${role}（模拟）`);
+                document.getElementById('user_id').value = '';
+            }
+        }
+        
+        async function loadCollaborators() {
+            const team_name = document.getElementById('list_team_name').value.trim();
+            
+            if (!team_name) {
+                showToast('请填写团队名称', 'error');
+                return;
+            }
+            
+            const list = document.getElementById('collaborator-list');
+            list.innerHTML = '<div class="empty-state">加载中...</div>';
+            
+            try {
+                const currentToken = getToken();
+                const res = await fetch(`${API_BASE}/devops/collaborators/list?team_name=${encodeURIComponent(team_name)}`, {
+                    headers: { Authorization: `Bearer ${currentToken}` }
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    renderCollaborators(data);
+                } else {
+                    renderCollaborators([]);
+                }
+            } catch (err) {
+                // 使用模拟数据
+                renderCollaborators([
+                    { user_id: 'zhangsan', role: 'Admin', team_name: 'robotics-course-2024', last_action_at: '2024-03-15 10:30:00' },
+                    { user_id: 'lisi', role: 'Write', team_name: 'robotics-course-2024', last_action_at: '2024-03-16 14:20:00' },
+                    { user_id: 'wangwu', role: 'Read', team_name: 'robotics-course-2024', last_action_at: '2024-03-17 09:00:00' },
+                ]);
+            }
+        }
+        
+        function renderCollaborators(data) {
+            const list = document.getElementById('collaborator-list');
+            
+            if (!data || data.length === 0) {
+                list.innerHTML = '<div class="empty-state">暂无协作者</div>';
+                return;
+            }
+            
+            list.innerHTML = `
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f3f4f6;">
+                            <th style="padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb;">用户 ID</th>
+                            <th style="padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb;">角色权限</th>
+                            <th style="padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb;">团队名称</th>
+                            <th style="padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb;">添加时间</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(item => `
+                            <tr style="border-bottom: 1px solid #f3f4f6;">
+                                <td style="padding: 10px;">${item.user_id}</td>
+                                <td style="padding: 10px;"><span style="padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; color: white; background: ${getRoleColor(item.role)}">${item.role}</span></td>
+                                <td style="padding: 10px;">${item.team_name}</td>
+                                <td style="padding: 10px; color: #6b7280;">${item.last_action_at || '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+        
+        function getRoleColor(role) {
+            const colors = {
+                'Admin': '#dc2626',
+                'Write': '#f59e0b',
+                'Triage': '#2563eb',
+                'Read': '#6b7280'
+            };
+            return colors[role] || '#6b7280';
+        }
+        
+        async function removeCollaborator() {
+            const team_name = document.getElementById('remove_team_name').value.trim();
+            const user_id = document.getElementById('remove_user_id').value.trim();
+            
+            if (!team_name || !user_id) {
+                showToast('请填写团队名称和用户 ID', 'error');
+                return;
+            }
+            
+            try {
+                const currentToken = getToken();
+                const res = await fetch(`${API_BASE}/devops/collaborators/${user_id}?team_name=${encodeURIComponent(team_name)}`, {
+                    method: 'DELETE',
+                    headers: { Authorization: `Bearer ${currentToken}` }
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    showToast(`✅ ${data.message}`);
+                    document.getElementById('remove_user_id').value = '';
+                    loadAuditLogs();
+                } else {
+                    const data = await res.json();
+                    showToast(data.detail || '移除失败', 'error');
+                }
+            } catch (err) {
+                showToast('网络错误，使用模拟数据', 'error');
+                showToast(`✅ 已从团队 ${team_name} 移除协作者 ${user_id}（模拟）`);
+                document.getElementById('remove_user_id').value = '';
+            }
+        }
+        
+        async function loadAuditLogs() {
+            const list = document.getElementById('audit-list');
+            list.innerHTML = '<div class="empty-state">加载中...</div>';
+            
+            try {
+                const currentToken = getToken();
+                const res = await fetch(`${API_BASE}/devops/collaborators/audit`, {
+                    headers: { Authorization: `Bearer ${currentToken}` }
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    renderAuditLogs(data);
+                } else {
+                    renderAuditLogs([]);
+                }
+            } catch (err) {
+                renderAuditLogs([
+                    { action: 'collaborator_add', target_id: 'zhangsan', detail_json: '{"team_name":"robotics-course-2024","user_id":"zhangsan","role":"Admin"}', action_at: '2024-03-15 10:30:00' },
+                    { action: 'collaborator_add', target_id: 'lisi', detail_json: '{"team_name":"robotics-course-2024","user_id":"lisi","role":"Write"}', action_at: '2024-03-16 14:20:00' },
+                    { action: 'collaborator_remove', target_id: 'wangwu', detail_json: '{"team_name":"robotics-course-2024","user_id":"wangwu"}', action_at: '2024-03-17 09:00:00' },
+                    { action: 'collaborator_add', target_id: 'zhaoliu', detail_json: '{"team_name":"teaching-assistants","user_id":"zhaoliu","role":"Write"}', action_at: '2024-03-18 16:45:00' },
+                ]);
+            }
+        }
+        
+        function renderAuditLogs(data) {
+            const list = document.getElementById('audit-list');
+            
+            if (!data || data.length === 0) {
+                list.innerHTML = '<div class="empty-state">暂无操作记录</div>';
+                return;
+            }
+            
+            list.innerHTML = data.map(item => {
+                const detail = typeof item.detail_json === 'string' ? JSON.parse(item.detail_json) : item.detail_json;
+                const actionText = {
+                    'collaborator_add': '添加协作者',
+                    'collaborator_remove': '移除协作者',
+                    'collaborator_role_update': '更新角色权限'
+                }[item.action] || item.action;
+                
+                return `
+                    <div class="audit-item">
+                        <div class="audit-header">
+                            <span class="audit-action">${actionText}</span>
+                            <span class="audit-time">${item.action_at || '未知时间'}</span>
+                        </div>
+                        <div class="audit-detail">
+                            <strong>目标:</strong> ${item.target_type} #${item.target_id}<br>
+                            <strong>详情:</strong> ${JSON.stringify(detail)}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // 检查登录状态并更新 UI
+        function checkLoginStatus() {
+            const currentToken = getToken();
+            const loginNotice = document.getElementById('login-notice');
+            const userInfo = document.getElementById('user-info');
+            
+            if (currentToken) {
+                // 已登录
+                if (loginNotice) loginNotice.style.display = 'none';
+                if (userInfo) userInfo.style.display = 'block';
+            } else {
+                // 未登录 - 显示提示但不跳转（用户可从教师后台点击按钮进入）
+                if (loginNotice) loginNotice.style.display = 'block';
+                if (userInfo) userInfo.style.display = 'none';
+            }
+        }
+        
+        // 退出登录
+        function logout() {
+            localStorage.removeItem('teacher_token');
+            sessionStorage.removeItem('teacher_token');
+            showToast('已退出登录', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+        
+        // 页面加载时检查登录状态
+        checkLoginStatus();
+        loadAuditLogs();
+    </script>
+</body>
+</html>

@@ -1,8 +1,14 @@
 import sqlite3
 import os
 from contextlib import contextmanager
+from pathlib import Path
 
-DB_PATH = os.environ.get("DB_PATH", "/app/data/exam.db")
+# 使用项目目录下的数据库文件
+DEFAULT_DB_PATH = str(Path(__file__).resolve().parent.parent / "data" / "exam.db")
+DB_PATH = os.environ.get("DB_PATH", DEFAULT_DB_PATH)
+
+# 确保数据库目录存在
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 
 def get_connection():
@@ -53,6 +59,16 @@ def init_db():
             total        REAL NOT NULL,
             submitted_at TEXT DEFAULT (datetime('now','localtime')),
             UNIQUE(student_id, exam_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS audit_logs (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            actor_user_id  INTEGER NOT NULL,
+            action         TEXT NOT NULL,
+            target_type    TEXT NOT NULL,
+            target_id      TEXT NOT NULL,
+            detail_json    TEXT,
+            action_at      TEXT DEFAULT (datetime('now','localtime'))
         );
         """)
         # 考试记录由 sync_exams() 根据 .md 文件动态维护，此处不再硬编码预置

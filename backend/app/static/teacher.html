@@ -95,7 +95,10 @@
 <div id="app">
   <div class="header">
     <h1>🎓 教师管理后台 — 研究生课程《机器人系统》</h1>
-    <button onclick="logout()">退出登录</button>
+    <div style="display: flex; gap: 10px;">
+      <button style="background: #7b1fa2; color: #fff; border: 1px solid rgba(255,255,255,.5); padding: 6px 16px; border-radius: 4px; cursor: pointer;" onclick="window.location.href='/devops'">🔐 权限管理</button>
+      <button onclick="logout()">退出登录</button>
+    </div>
   </div>
   <div class="container">
 
