@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在线考试 - OA-EPP</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <aside class="w-56 bg-white border-r border-gray-200 flex flex-col min-h-screen fixed left-0 top-0">
+    <div class="px-5 py-5 border-b border-gray-100">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+          </svg>
+        </div>
+        <span class="font-bold text-gray-800 text-sm">OA-EPP</span>
+      </div>
+    </div>
+    <nav class="flex-1 px-3 py-4 space-y-1">
+      <a href="dashboard.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        仪表盘
+      </a>
+      <a href="timeline.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        学习时间线
+      </a>
+      <a href="courses.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        课程列表
+      </a>
+      <a href="assignments.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        作业提交
+      </a>
+      <a href="grades.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        成绩与反馈
+      </a>
+      <a href="attendance.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+        课堂签到
+      </a>
+      <a href="exam.html" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 font-medium text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+        在线考试
+      </a>
+      <a href="notifications.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm relative">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        公告与通知
+        <span id="sidebar-badge" class="absolute right-2 top-1/2 -translate-y-1/2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+      </a>
+      <a href="profile.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        个人资料
+      </a>
+    </nav>
+    <div class="px-4 py-4 border-t border-gray-100">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">张</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-800 truncate">张三</p>
+          <p class="text-xs text-gray-400 truncate">2021001001</p>
+        </div>
+      </div>
+      <a href="login.html" class="mt-3 block text-center text-xs text-gray-400 hover:text-red-500 transition">退出登录</a>
+    </div>
+  </aside>
+
+  <main class="ml-56 flex-1 p-6">
+      <h1 class="text-xl font-bold text-gray-800 mb-6">在线考试</h1>
+
+      <!-- 当前进行中的考试 -->
+      <div class="bg-orange-50 border-2 border-orange-400 rounded-xl p-6 mb-6">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="inline-block w-2.5 h-2.5 bg-orange-500 rounded-full animate-pulse"></span>
+              <span class="text-orange-700 font-semibold text-sm">考试进行中</span>
+            </div>
+            <h2 class="text-lg font-bold text-gray-800">工程实践4 · 第11周随堂测验</h2>
+            <p class="text-gray-500 text-sm mt-1">共 10 题 &nbsp;|&nbsp; 总分 20 分 &nbsp;|&nbsp; 限时 20 分钟</p>
+          </div>
+          <div class="text-right">
+            <div class="text-3xl font-bold text-orange-500 tabular-nums">14:23</div>
+            <div class="text-xs text-gray-500 mt-1">剩余时间</div>
+          </div>
+        </div>
+        <!-- 答题进度 -->
+        <div class="mb-4">
+          <div class="flex justify-between text-xs text-gray-500 mb-1">
+            <span>答题进度</span>
+            <span>7 / 10 题已作答</span>
+          </div>
+          <div class="w-full bg-gray-200 rounded-full h-2">
+            <div class="bg-orange-500 h-2 rounded-full" style="width: 70%"></div>
+          </div>
+        </div>
+        <!-- 题目导航 -->
+        <div class="flex flex-wrap gap-2 mb-4">
+          <span class="w-8 h-8 bg-green-500 text-white rounded text-xs font-bold flex items-center justify-center">1</span>
+          <span class="w-8 h-8 bg-green-500 text-white rounded text-xs font-bold flex items-center justify-center">2</span>
+          <span class="w-8 h-8 bg-green-500 text-white rounded text-xs font-bold flex items-center justify-center">3</span>
+          <span class="w-8 h-8 bg-green-500 text-white rounded text-xs font-bold flex items-center justify-center">4</span>
+          <span class="w-8 h-8 bg-green-500 text-white rounded text-xs font-bold flex items-center justify-center">5</span>
+          <span class="w-8 h-8 bg-green-500 text-white rounded text-xs font-bold flex items-center justify-center">6</span>
+          <span class="w-8 h-8 bg-green-500 text-white rounded text-xs font-bold flex items-center justify-center">7</span>
+          <span class="w-8 h-8 bg-orange-500 text-white rounded text-xs font-bold flex items-center justify-center ring-2 ring-orange-300">8</span>
+          <span class="w-8 h-8 bg-gray-200 text-gray-500 rounded text-xs font-bold flex items-center justify-center">9</span>
+          <span class="w-8 h-8 bg-gray-200 text-gray-500 rounded text-xs font-bold flex items-center justify-center">10</span>
+          <span class="text-xs text-gray-400 self-center ml-2">绿=已答 · 橙=当前 · 灰=未答</span>
+        </div>
+      </div>
+
+      <!-- 当前题目：第8题 -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm mb-4">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <span class="text-sm font-medium text-gray-600">第 8 题 · 单选题 · 2 分</span>
+          <span class="text-xs text-gray-400">草稿已自动保存 08:14:22</span>
+        </div>
+        <div class="px-6 py-5">
+          <p class="text-gray-800 font-medium mb-5">
+            在 Reflex 框架中，下列哪种方式是触发 State 更新的正确方法？
+          </p>
+          <div class="space-y-3">
+            <label class="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300">
+              <input type="radio" name="q8" class="mt-0.5 text-blue-600">
+              <span class="text-gray-700">A. 直接修改 State 类的实例变量</span>
+            </label>
+            <label class="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300">
+              <input type="radio" name="q8" class="mt-0.5 text-blue-600">
+              <span class="text-gray-700">B. 在事件处理函数中通过 <code class="bg-gray-100 px-1 rounded text-sm font-mono">yield</code> 返回状态更新</span>
+            </label>
+            <label class="flex items-start gap-3 p-3 border border-blue-400 bg-blue-50 rounded-lg cursor-pointer">
+              <input type="radio" name="q8" checked class="mt-0.5 text-blue-600">
+              <span class="text-gray-700">C. 定义事件处理函数（EventHandler），在其中 <code class="bg-gray-100 px-1 rounded text-sm font-mono">self.var = value</code> 赋值</span>
+            </label>
+            <label class="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300">
+              <input type="radio" name="q8" class="mt-0.5 text-blue-600">
+              <span class="text-gray-700">D. 通过 JavaScript 调用 Reflex 内置全局函数 <code class="bg-gray-100 px-1 rounded text-sm font-mono">setState()</code></span>
+            </label>
+          </div>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-100 flex justify-between">
+          <button class="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50">
+            ← 上一题
+          </button>
+          <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
+            下一题 →
+          </button>
+        </div>
+      </div>
+
+      <!-- 提交按钮区 -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center justify-between">
+        <div class="text-sm text-gray-500">
+          <span class="text-red-500 font-medium">注意：</span>提交后不可修改。截止时间到将自动提交当前已作答内容。
+        </div>
+        <button class="px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg text-sm shadow">
+          提交试卷
+        </button>
+      </div>
+
+      <!-- 历史考试列表 -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm mt-6">
+        <div class="px-5 py-4 border-b border-gray-100">
+          <h2 class="font-semibold text-gray-800">历史考试成绩</h2>
+        </div>
+        <div class="px-5 py-4">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-gray-400 text-xs uppercase border-b border-gray-100">
+                <th class="pb-2">考试名称</th>
+                <th class="pb-2">考试时间</th>
+                <th class="pb-2">总分</th>
+                <th class="pb-2">得分</th>
+                <th class="pb-2">状态</th>
+                <th class="pb-2">操作</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+              <tr>
+                <td class="py-2.5 font-medium text-gray-700">第10周随堂测验</td>
+                <td class="py-2.5 text-gray-500">2025-05-18</td>
+                <td class="py-2.5 text-gray-600">20</td>
+                <td class="py-2.5 text-green-600 font-bold">18</td>
+                <td class="py-2.5"><span class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs">已批改</span></td>
+                <td class="py-2.5"><a href="#" class="text-blue-500 hover:underline text-xs">查看详情</a></td>
+              </tr>
+              <tr>
+                <td class="py-2.5 font-medium text-gray-700">第8周随堂测验</td>
+                <td class="py-2.5 text-gray-500">2025-05-04</td>
+                <td class="py-2.5 text-gray-600">20</td>
+                <td class="py-2.5 text-green-600 font-bold">16</td>
+                <td class="py-2.5"><span class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs">已批改</span></td>
+                <td class="py-2.5"><a href="#" class="text-blue-500 hover:underline text-xs">查看详情</a></td>
+              </tr>
+              <tr>
+                <td class="py-2.5 font-medium text-gray-700">期中考试</td>
+                <td class="py-2.5 text-gray-500">2025-04-20</td>
+                <td class="py-2.5 text-gray-600">50</td>
+                <td class="py-2.5 text-yellow-600 font-bold">38</td>
+                <td class="py-2.5"><span class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs">已批改</span></td>
+                <td class="py-2.5"><a href="#" class="text-blue-500 hover:underline text-xs">查看详情</a></td>
+              </tr>
+              <tr>
+                <td class="py-2.5 font-medium text-gray-700">第5周随堂测验</td>
+                <td class="py-2.5 text-gray-500">2025-04-13</td>
+                <td class="py-2.5 text-gray-600">20</td>
+                <td class="py-2.5 text-gray-500 font-bold">—</td>
+                <td class="py-2.5"><span class="px-2 py-0.5 bg-yellow-100 text-yellow-600 rounded text-xs">待批改</span></td>
+                <td class="py-2.5"><span class="text-gray-300 text-xs">—</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+  </main>
+
+<script>
+// ─── 侧边栏未读通知角标 ───
+(async function updateSidebarBadge() {
+  try {
+    const token = new URLSearchParams(window.location.search).get('token') || localStorage.getItem('student_token') || '';
+    if (!token) return;
+    const res = await fetch('http://127.0.0.1:8009/api/notifications/unread-count', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    const badge = document.getElementById('sidebar-badge');
+    if (!badge) return;
+    const count = data.unread_count || 0;
+    if (count > 0) {
+      badge.textContent = count > 99 ? '99+' : count;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  } catch {}
+})();
+</script>
+
+</body>
+</html>

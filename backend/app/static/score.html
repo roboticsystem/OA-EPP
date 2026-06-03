@@ -43,6 +43,40 @@
   .score-pending { font-size: .9rem; color: #bbb; }
   .hint { font-size: .85rem; color: #888; margin-top: 10px; text-align: center; }
   .empty { padding: 32px; text-align: center; color: #bbb; }
+  /* 通知模块样式 */
+  .notif-section { margin-top: 16px; }
+  .notif-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; cursor: pointer; margin-bottom: 12px; transition: background .2s; }
+  .notif-header:hover { background: #fff3cd; }
+  .notif-header .badge-unread { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; background: #c62828; color: #fff; border-radius: 11px; font-size: .75rem; font-weight: bold; padding: 0 6px; }
+  .notif-list-wrap { display: none; }
+  .notif-list-wrap.open { display: block; }
+  .notif-card { border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 8px; overflow: hidden; transition: background .15s; }
+  .notif-card.unread { border-left: 4px solid #1565c0; }
+  .notif-card.read { opacity: .75; }
+  .notif-card .n-summary { padding: 14px 18px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .notif-card .n-summary:hover { background: #f5f5f5; }
+  .notif-card .n-title { font-weight: bold; font-size: .95rem; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .notif-card .n-meta { font-size: .78rem; color: #999; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .notif-card .n-arrow { font-size: .8rem; color: #bbb; transition: transform .2s; flex-shrink: 0; }
+  .notif-card.expanded .n-arrow { transform: rotate(180deg); }
+  .notif-card .n-detail { display: none; padding: 0 18px 16px 18px; border-top: 1px solid #f0f0f0; }
+  .notif-card.expanded .n-detail { display: block; }
+  .notif-card .n-body { font-size: .88rem; color: #555; line-height: 1.7; padding: 12px 0; white-space: pre-wrap; }
+  .notif-card .n-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .notif-card .btn-read { padding: 6px 16px; border-radius: 6px; border: 1px solid #1565c0; background: #fff; color: #1565c0; cursor: pointer; font-size: .85rem; }
+  .notif-card .btn-read:hover { background: #1565c0; color: #fff; }
+  .notif-card .btn-read.done { border-color: #bbb; color: #bbb; cursor: default; }
+  .notif-card .btn-read.done:hover { background: #fff; color: #bbb; }
+  .n-cat-tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: .72rem; font-weight: bold; }
+  .n-cat-announcement { background: #e3f2fd; color: #1565c0; }
+  .n-cat-deadline { background: #fff3e0; color: #e65100; }
+  .n-cat-grade { background: #e8f5e9; color: #2e7d32; }
+  .n-cat-system { background: #f3e5f5; color: #7b1fa2; }
+  .n-cat-graded { background: #e8f5e9; color: #2e7d32; }
+  .notif-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .notif-tab { padding: 5px 14px; border-radius: 16px; border: 1px solid #1565c0; color: #1565c0; cursor: pointer; font-size: .82rem; background: #fff; transition: all .2s; }
+  .notif-tab:hover { background: #e3f2fd; }
+  .notif-tab.active { background: #1565c0; color: #fff; }
 </style>
 </head>
 <body>
@@ -81,11 +115,32 @@
       <p class="hint">成绩由服务器记录，如有疑问请联系授课教师</p>
     </div>
   </div>
+
+  <!-- 公告通知模块 -->
+  <div id="notif-module" class="card" style="display:none">
+    <div class="notif-section" style="padding:4px 20px 20px 20px;">
+      <div class="notif-header" id="notif-toggle" onclick="toggleNotifications()">
+        <span style="font-weight:bold;font-size:.95rem;">📢 公告与通知</span>
+        <span id="notif-badge-wrap" style="display:none"><span class="badge-unread" id="notif-badge">0</span></span>
+      </div>
+      <div class="notif-list-wrap" id="notif-list-wrap">
+        <div class="notif-tabs" id="notif-tabs">
+          <button class="notif-tab active" data-cat="all" onclick="switchNotifCat('all')">全部</button>
+          <button class="notif-tab" data-cat="announcement" onclick="switchNotifCat('announcement')">📋 公告</button>
+          <button class="notif-tab" data-cat="deadline" onclick="switchNotifCat('deadline')">⏰ 截止提醒</button>
+          <button class="notif-tab" data-cat="grade" onclick="switchNotifCat('grade')">📊 成绩通知</button>
+        </div>
+        <div id="notif-list" style="max-height:360px;overflow-y:auto;">加载中…</div>
+        <button class="btn" style="margin-top:10px;width:100%;background:#e0e0e0;color:#333;font-size:.85rem" onclick="markAllNotificationsRead()">全部标记已读</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
 const API = '';
 let searchTimer = null;
+let currentStudentId = null;  // 当前查看成绩的学生学号
 
 function onInput() {
   clearTimeout(searchTimer);
@@ -127,11 +182,16 @@ async function selectStudent(studentId, name, className) {
   document.querySelectorAll('.candidate-item').forEach(el => el.classList.remove('selected'));
   event.currentTarget.classList.add('selected');
 
+  currentStudentId = studentId;
+
   try {
     const r = await fetch(`${API}/api/scores?student_id=${encodeURIComponent(studentId)}`);
     if (!r.ok) { alert('查询失败'); return; }
     const d = await r.json();
     renderResults(d);
+    // 加载通知并启动自动轮询
+    loadNotifications(studentId);
+    startNotifPolling(studentId);
   } catch(e) { alert('网络错误：' + e); }
 }
 
@@ -169,6 +229,200 @@ function renderResults(data) {
   card.style.display = 'block';
   card.scrollIntoView({behavior: 'smooth', block: 'start'});
 }
+
+// ───── 公告与通知 ─────
+
+const N_CAT_LABELS = {
+  announcement: '公告', deadline: '截止提醒', grade: '成绩通知',
+  system: '系统', graded: '已批改'
+};
+let notifCurrentCat = 'all';
+let notifAllItems = [];
+let notifCurrentStudentId = null;
+let notifPollInterval = null;
+let isMarkingAllRead = false;
+
+async function loadNotifications(studentId, isSilent = false) {
+  const module = document.getElementById('notif-module');
+  const listEl = document.getElementById('notif-list');
+  const badgeWrap = document.getElementById('notif-badge-wrap');
+  const badge = document.getElementById('notif-badge');
+
+  notifCurrentStudentId = studentId;
+  if (!isSilent) {
+    notifCurrentCat = 'all';
+    module.style.display = 'block';
+    listEl.innerHTML = '<p style="color:#888;font-size:.9rem;text-align:center;padding:16px">加载中…</p>';
+  }
+
+  try {
+    const r = await fetch(`${API}/api/public/notifications?student_id=${encodeURIComponent(studentId)}&page_size=50`);
+    const d = await r.json();
+    const newItems = d.items || [];
+
+    // 更新未读角标
+    const unread = d.unread_count || 0;
+    if (unread > 0) {
+      badge.textContent = unread > 99 ? '99+' : unread;
+      badgeWrap.style.display = '';
+    } else {
+      badgeWrap.style.display = 'none';
+    }
+
+    // 静默轮询：只在有新通知或未读数变化时才刷新列表
+    if (isSilent) {
+      const oldIds = new Set(notifAllItems.map(i => i.id));
+      const hasNew = newItems.some(i => !oldIds.has(i.id));
+      const oldUnreadCount = notifAllItems.filter(i => !i.is_read).length;
+      if (!hasNew && unread === oldUnreadCount) return;
+    }
+
+    notifAllItems = newItems;
+    renderNotifList();
+  } catch(e) {
+    if (!isSilent) {
+      listEl.innerHTML = '<p style="color:#c62828;text-align:center;padding:16px">加载失败，请稍后重试</p>';
+    }
+  }
+}
+
+function startNotifPolling(studentId) {
+  stopNotifPolling();
+  notifPollInterval = setInterval(() => {
+    if (notifCurrentStudentId) {
+      loadNotifications(notifCurrentStudentId, true);
+    }
+  }, 15000);
+}
+
+function stopNotifPolling() {
+  if (notifPollInterval) {
+    clearInterval(notifPollInterval);
+    notifPollInterval = null;
+  }
+}
+
+function renderNotifList() {
+  const listEl = document.getElementById('notif-list');
+  const items = notifCurrentCat === 'all'
+    ? notifAllItems
+    : notifAllItems.filter(n => n.category === notifCurrentCat);
+
+  if (!items.length) {
+    const msg = notifCurrentCat === 'all' ? '暂无通知' : `暂无${N_CAT_LABELS[notifCurrentCat] || notifCurrentCat}类通知`;
+    listEl.innerHTML = `<p style="color:#bbb;text-align:center;padding:20px;font-size:.9rem">${msg}</p>`;
+    return;
+  }
+
+  listEl.innerHTML = items.map(n => `
+    <div class="notif-card ${n.is_read ? 'read' : 'unread'}" id="ncard-${n.id}">
+      <div class="n-summary" onclick="toggleNotifDetail(${n.id})">
+        <div class="n-title">${escHtml2(n.title)}</div>
+        <div class="n-meta">
+          <span class="n-cat-tag n-cat-${n.category}">${N_CAT_LABELS[n.category] || n.category}</span>
+          <span>${n.created_at}</span>
+          ${n.is_read ? '' : '<span style="color:#1565c0;font-weight:bold">● 未读</span>'}
+        </div>
+        <span class="n-arrow">▼</span>
+      </div>
+      <div class="n-detail">
+        <div class="n-body">${escHtml2(n.content || '')}</div>
+        <div class="n-actions">
+          <span style="font-size:.78rem;color:#999;">${n.is_read ? '✅ 已读' : '📩 未读'}</span>
+          ${n.is_read
+            ? '<button class="btn-read done" disabled>已标记为已读</button>'
+            : `<button class="btn-read" id="read-btn-${n.id}" onclick="event.stopPropagation();markRead(${n.id}, '${escHtml2(notifCurrentStudentId)}')">标记已读</button>`
+          }
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function switchNotifCat(cat) {
+  notifCurrentCat = cat;
+  document.querySelectorAll('#notif-tabs .notif-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.cat === cat);
+  });
+  renderNotifList();
+}
+
+function toggleNotifications() {
+  const wrap = document.getElementById('notif-list-wrap');
+  wrap.classList.toggle('open');
+}
+
+function toggleNotifDetail(nid) {
+  const card = document.getElementById('ncard-' + nid);
+  if (!card) return;
+  card.classList.toggle('expanded');
+}
+
+let markingReadIds = new Set();
+
+async function markRead(nid, studentId) {
+  // 防重复标记
+  if (markingReadIds.has(nid)) return;
+  markingReadIds.add(nid);
+
+  // 按钮 loading 状态
+  const btn = document.getElementById('read-btn-' + nid);
+  if (btn) {
+    btn.textContent = '标记中…';
+    btn.disabled = true;
+  }
+
+  try {
+    await fetch(`${API}/api/public/notifications/${nid}/read?student_id=${encodeURIComponent(studentId)}`, {
+      method: 'POST'
+    });
+    loadNotifications(studentId);
+  } catch(e) { /* 静默处理 */ } finally {
+    markingReadIds.delete(nid);
+  }
+}
+
+async function markAllNotificationsRead() {
+  if (!notifCurrentStudentId || isMarkingAllRead) return;
+
+  const unreadItems = notifAllItems.filter(n => !n.is_read);
+  if (unreadItems.length === 0) return;
+
+  isMarkingAllRead = true;
+  const allReadBtn = document.querySelector('#notif-module .btn');
+  const originalText = allReadBtn ? allReadBtn.textContent : '';
+  if (allReadBtn) {
+    allReadBtn.textContent = '标记中…';
+    allReadBtn.disabled = true;
+    allReadBtn.style.opacity = '0.6';
+  }
+
+  try {
+    // 批量并发标记，而非串行
+    await Promise.all(
+      unreadItems.map(n =>
+        fetch(`${API}/api/public/notifications/${n.id}/read?student_id=${encodeURIComponent(notifCurrentStudentId)}`, { method: 'POST' })
+      )
+    );
+    loadNotifications(notifCurrentStudentId);
+  } catch(e) { /* 静默处理 */ } finally {
+    isMarkingAllRead = false;
+    if (allReadBtn) {
+      allReadBtn.textContent = originalText;
+      allReadBtn.disabled = false;
+      allReadBtn.style.opacity = '1';
+    }
+  }
+}
+
+function escHtml2(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+// 页面卸载时停止轮询
+window.addEventListener('beforeunload', () => stopNotifPolling());
 </script>
 </body>
 </html>

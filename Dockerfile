@@ -23,6 +23,13 @@ RUN apk add --no-cache libgcc  # svgbob_cli 运行时依赖
 COPY bin/svgbob_cli /usr/local/bin/svgbob_cli
 RUN chmod +x /usr/local/bin/svgbob_cli \
 	&& ln -sf /usr/local/bin/svgbob_cli /usr/local/bin/svgbob
+
+# 安装 Marp CLI（用于将 slides_src/*.md 转换为独立 HTML 幻灯片）
+# 注意：增加约 2-3 分钟构建时间（Node.js + npm + marp-cli 包）
+RUN apk add --no-cache nodejs npm \
+    && npm install -g @marp-team/marp-cli@3 \
+    && marp --version
+
 COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
@@ -33,3 +40,8 @@ FROM nginx:alpine
 COPY --from=builder /build/site /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
+# 注意：不在 Dockerfile 中定义 HEALTHCHECK。
+# 原因：caddy-docker-proxy 遇到有 HEALTHCHECK 的容器会等待 healthy 才路由，
+# 而 nginx:alpine 的 busybox 工具局限性可能导致 healthcheck 持续失败，
+# 最终表现为容器头、 unhealthy， Caddy 不路由 → no available server。
+# docker-compose.yaml 中的 healthcheck 仅用于监控，不影响 Caddy 路由行为。

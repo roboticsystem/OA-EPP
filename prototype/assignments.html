@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OA-EPP · 作业提交</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex">
+
+  <!-- Sidebar -->
+  <aside class="w-56 bg-white border-r border-gray-200 flex flex-col min-h-screen fixed left-0 top-0">
+    <div class="px-5 py-5 border-b border-gray-100">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+          </svg>
+        </div>
+        <span class="font-bold text-gray-800 text-sm">OA-EPP</span>
+      </div>
+    </div>
+    <nav class="flex-1 px-3 py-4 space-y-1">
+      <a href="dashboard.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        仪表盘
+      </a>
+      <a href="timeline.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        学习时间线
+      </a>
+      <a href="courses.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        课程列表
+      </a>
+      <a href="assignments.html" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 font-medium text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        作业提交
+      </a>
+      <a href="grades.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        成绩与反馈
+      </a>
+      <a href="attendance.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+        课堂签到
+      </a>
+      <a href="exam.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+        在线考试
+      </a>
+      <a href="notifications.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm relative">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        公告与通知
+        <span id="sidebar-badge" class="absolute right-2 top-1/2 -translate-y-1/2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+      </a>
+      <a href="profile.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        个人资料
+      </a>
+    </nav>
+    <div class="px-4 py-4 border-t border-gray-100">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">张</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-800 truncate">张三</p>
+          <p class="text-xs text-gray-400 truncate">2021001001</p>
+        </div>
+      </div>
+      <a href="login.html" class="mt-3 block text-center text-xs text-gray-400 hover:text-red-500 transition">退出登录</a>
+    </div>
+  </aside>
+
+  <main class="ml-56 flex-1 p-8">
+    <div class="mb-6">
+      <h1 class="text-xl font-bold text-gray-800">作业提交</h1>
+      <p class="text-sm text-gray-400 mt-0.5">工程实践 4 · 2025 春</p>
+    </div>
+
+    <!-- Assignment List + Submit Panel (two-column) -->
+    <div class="flex gap-6">
+      <!-- Left: Task List -->
+      <div class="flex-1 min-w-0">
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm">
+          <!-- Filter bar -->
+          <div class="flex items-center gap-3 px-5 py-3 border-b border-gray-100">
+            <span class="text-xs font-medium text-gray-600">筛选：</span>
+            <button class="text-xs bg-blue-600 text-white px-3 py-1 rounded-full">全部</button>
+            <button class="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full hover:bg-gray-200">待提交</button>
+            <button class="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full hover:bg-gray-200">已提交</button>
+            <button class="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full hover:bg-gray-200">已批改</button>
+          </div>
+
+          <!-- Task items -->
+          <div class="divide-y divide-gray-50">
+            <!-- Task: 待提交（紧急） -->
+            <a href="#submit-panel" class="flex items-center gap-4 px-5 py-4 hover:bg-blue-50 transition cursor-pointer">
+              <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-0.5">
+                  <p class="text-sm font-semibold text-gray-800">第7章 软件需求规格说明书</p>
+                  <span class="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">待提交</span>
+                </div>
+                <p class="text-xs text-red-500">截止：2025-05-27 23:59 · 剩余 2 天</p>
+                <p class="text-xs text-gray-400 mt-0.5">支持：pdf、docx、zip · 最大 50MB</p>
+              </div>
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </a>
+
+            <!-- Task: 已提交，待批 -->
+            <div class="flex items-center gap-4 px-5 py-4 bg-white">
+              <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-0.5">
+                  <p class="text-sm font-medium text-gray-700">第6章 数据库设计</p>
+                  <span class="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">待批改</span>
+                </div>
+                <p class="text-xs text-gray-400">提交时间：2025-05-09 21:32 · v1 · 1.2MB</p>
+                <p class="text-xs text-gray-400 mt-0.5">文件：2021001001_db_design.pdf</p>
+              </div>
+              <button class="text-xs text-blue-500 hover:underline flex-shrink-0">查看提交</button>
+            </div>
+
+            <!-- Task: 已批改 -->
+            <div class="flex items-center gap-4 px-5 py-4 bg-white">
+              <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-0.5">
+                  <p class="text-sm font-medium text-gray-700">第5章 系统架构设计</p>
+                  <span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">已批改</span>
+                </div>
+                <p class="text-xs text-gray-400">得分：<span class="font-semibold text-green-600">9/10</span> · 批改时间：2025-05-02</p>
+                <p class="text-xs text-gray-400 mt-0.5">v2 · 有改进建议</p>
+              </div>
+              <a href="grades.html" class="text-xs text-blue-500 hover:underline flex-shrink-0">查看评语</a>
+            </div>
+
+            <!-- Task: 迟交 -->
+            <div class="flex items-center gap-4 px-5 py-4 bg-white">
+              <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-0.5">
+                  <p class="text-sm font-medium text-gray-700">第4章 用例分析</p>
+                  <span class="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded">迟交</span>
+                </div>
+                <p class="text-xs text-gray-400">提交时间：2025-04-21 01:12 （截止：04-18 23:59）</p>
+                <p class="text-xs text-gray-400 mt-0.5">迟交扣分适用，得分以批改结果为准</p>
+              </div>
+              <button class="text-xs text-blue-500 hover:underline flex-shrink-0">查看提交</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Submit Panel -->
+      <div class="w-80 flex-shrink-0" id="submit-panel">
+        <div class="bg-white rounded-xl border-2 border-blue-200 shadow-sm p-5 sticky top-8">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-2 h-2 rounded-full bg-red-500"></span>
+            <h3 class="text-sm font-semibold text-gray-800">提交作业</h3>
+          </div>
+          <p class="text-xs text-gray-500 mb-4">第7章 软件需求规格说明书 · 截止 2025-05-27</p>
+
+          <!-- Submission text area -->
+          <div class="mb-4">
+            <label class="block text-xs font-medium text-gray-600 mb-1">说明（可选）</label>
+            <textarea rows="3" placeholder="填写提交说明或备注..."
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"></textarea>
+          </div>
+
+          <!-- File Drop Zone -->
+          <div class="border-2 border-dashed border-gray-200 rounded-lg p-5 text-center mb-4 hover:border-blue-300 transition">
+            <svg class="w-8 h-8 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            <p class="text-xs text-gray-400">拖拽文件到此处，或</p>
+            <button class="mt-1 text-xs text-blue-500 hover:underline">选择文件</button>
+            <p class="text-xs text-gray-300 mt-1">支持 pdf · docx · zip · 最大 50MB</p>
+          </div>
+
+          <!-- Version info -->
+          <div class="bg-gray-50 rounded-lg px-3 py-2 mb-4 text-xs text-gray-500">
+            当前版本：<span class="font-medium text-gray-700">v1（首次提交）</span><br/>
+            教师允许多次重新提交
+          </div>
+
+          <!-- Submit button -->
+          <button class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-lg transition">
+            确认提交
+          </button>
+          <p class="text-xs text-gray-400 text-center mt-2">提交后可在截止前重新上传</p>
+        </div>
+
+        <!-- Version History (if re-submit) -->
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5 mt-4">
+          <h4 class="text-xs font-semibold text-gray-600 mb-3">第6章提交版本记录</h4>
+          <div class="space-y-2">
+            <div class="flex items-center gap-3 text-xs">
+              <span class="text-gray-400">v1</span>
+              <span class="text-gray-600 flex-1">2021001001_db_design.pdf</span>
+              <span class="text-gray-400">05-09 21:32</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+<script>
+// ─── 侧边栏未读通知角标 ───
+(async function updateSidebarBadge() {
+  try {
+    const token = new URLSearchParams(window.location.search).get('token') || localStorage.getItem('student_token') || '';
+    if (!token) return;
+    const res = await fetch('http://127.0.0.1:8009/api/notifications/unread-count', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    const badge = document.getElementById('sidebar-badge');
+    if (!badge) return;
+    const count = data.unread_count || 0;
+    if (count > 0) {
+      badge.textContent = count > 99 ? '99+' : count;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  } catch {}
+})();
+</script>
+
+</body>
+</html>
