@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 import os
 
-from app.database import init_db, seed_timeline_events
+from app.database import init_db
 from app.sync_exams import sync_exams
 from app.sync_chapters import sync_chapters
 from app.routers import (
@@ -23,6 +23,7 @@ from app.routers import (
     notifications,
     chapters,
     timeline,
+    profile,
 )
 # classroom_exam 是 feature 分支新增的路由，若存在则包含
 try:
@@ -50,6 +51,7 @@ if _HAS_CLASSROOM_EXAM:
 app.include_router(notifications.router)
 app.include_router(chapters.router)
 app.include_router(timeline.router)
+app.include_router(profile.router)
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
@@ -62,6 +64,11 @@ def _static_file(name: str) -> FileResponse:
     if not os.path.isfile(path):
         raise HTTPException(status_code=500, detail=f"缺少静态文件: {name}")
     return FileResponse(path)
+
+
+@app.get("/student")
+def student_page():
+    return FileResponse(os.path.join(STATIC_DIR, "student.html"))
 
 
 @app.get("/teacher")
@@ -129,4 +136,3 @@ def startup():
     init_db()
     sync_chapters()
     sync_exams()
-    seed_timeline_events()
