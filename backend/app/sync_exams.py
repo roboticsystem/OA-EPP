@@ -109,32 +109,53 @@ def sync_exams() -> dict:
 
     added   = []
     updated = []
+    deleted = []
     with db() as conn:
-        cur = conn.cursor()
-        # 获取现有考试（按 title 模糊匹配 exam slug）
-        cur.execute("SELECT id, title FROM exams WHERE course_id = %s", (COURSE_ID,))
-        existing_exams = cur.fetchall()
-
-        for slug, title in found.items():
-            matched = None
-            for ex in existing_exams:
-                # 尝试匹配：title 包含 slug 或完全相同
-                if slug.lower() in ex["title"].lower() or title == ex["title"]:
-                    matched = ex
-                    break
-            if matched:
-                if matched["title"] != title:
-                    cur.execute("UPDATE exams SET title = %s WHERE id = %s", (title, matched["id"]))
-                    updated.append(slug)
-                    print(f"[sync_exams] 数据库更新考试标题：{matched['id']} → {title}")
+        existing = {r["id"]: r["title"] for r in conn.execute("SELECT id, title FROM exams").fetchall()}
+        
+        # 获取有效的教师ID和课程ID
+        teachers = conn.execute("SELECT user_id FROM teachers LIMIT 1").fetchall()
+        courses = conn.execute("SELECT id FROM courses LIMIT 1").fetchall()
+        
+        if not teachers:
+            print("[sync_exams] ⚠️  未找到教师记录，跳过数据库写入")
+            return {"found": len(found), "injected": len(injected), "added": 0, "updated": 0, "deleted": 0}
+        
+        if not courses:
+            print("[sync_exams] ⚠️  未找到课程记录，跳过数据库写入")
+            return {"found": len(found), "injected": len(injected), "added": 0, "updated": 0, "deleted": 0}
+        
+        teacher_id = teachers[0]["user_id"]
+        course_id = courses[0]["id"]
+        
+        for eid, etitle in found.items():
+            if eid not in existing:
+                conn.execute("INSERT INTO exams (title, exam_type, start_at, end_at, course_id, created_by) VALUES (%s, %s, %s, %s, %s, %s)", 
+                            (etitle, 'quiz', '2026-06-01 09:00:00', '2026-12-31 23:59:59', course_id, teacher_id))
+                added.append(eid)
+                print(f"[sync_exams] 数据库新增考试：{eid} - {etitle}")
             else:
-                cur.execute(
-                    "INSERT INTO exams (course_id, title, exam_type, start_at, end_at, created_by) "
-                    "VALUES (%s, %s, 'quiz', NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 14)",
-                    (COURSE_ID, title)
-                )
-                added.append(slug)
-                print(f"[sync_exams] 数据库新增考试：{slug} - {title}")
+                # 如果文档中 exam-title 与数据库中不一致，更新数据库中的标题
+                if existing.get(eid) != etitle:
+                    conn.execute("UPDATE exams SET title=%s WHERE id=%s", (etitle, eid))
+                    updated.append(eid)
+                    print(f"[sync_exams] 数据库更新考试标题：{eid} - {etitle}")
+        # 只有在确实扫描到考试文档时才清理孤立记录，防止挂载目录为空时误删所有考试
+        if found:
+            for eid in list(existing):
+                if eid not in found:
+                    # 检查是否有关联的考试提交记录
+                    attempt_count = conn.execute(
+                        "SELECT COUNT(*) AS cnt FROM exam_attempts WHERE exam_id=%s", (eid,)
+                    ).fetchone()["cnt"]
+                    if attempt_count > 0:
+                        print(f"[sync_exams] ⚠️  跳过删除考试 {eid}（存在 {attempt_count} 条提交记录）")
+                    else:
+                        conn.execute("DELETE FROM exams WHERE id=%s", (eid,))
+                        deleted.append(eid)
+                        print(f"[sync_exams] 数据库删除孤立考试：{eid}")
+        elif existing:
+            print(f"[sync_exams] ⚠️  文档扫描结果为空，跳过孤立记录清理（保留 {len(existing)} 条现有记录）")
 
     print(f"[sync_exams] 完成：发现 {len(found)} 个考试，"
           f"注入 {len(injected)} 个文件，DB 新增 {len(added)}，更新 {len(updated)}")

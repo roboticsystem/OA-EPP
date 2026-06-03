@@ -39,61 +39,27 @@ def submit_score(req: SubmitRequest, authorization: Optional[str] = Header(None)
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
 
-    student_no = payload["student_id"]
+    student_id = payload["student_id"]
     exam_id = payload["exam_id"]
 
     if req.score < 0 or req.total <= 0 or req.score > req.total:
         raise HTTPException(status_code=422, detail="成绩数据无效")
 
     with db() as conn:
-        cur = conn.cursor()
-        user_id = _get_user_id(conn, student_no)
-        if not user_id:
-            raise HTTPException(status_code=404, detail="学生不存在")
+        # 再次确认未提交（防止并发重复）
+        existing = conn.execute(
+            "SELECT id FROM scores WHERE student_id = %s AND exam_id = %s",
+            (student_id, exam_id)
+        ).fetchone()
+        if existing:
+            raise HTTPException(status_code=409, detail="您已经提交过本次考试的成绩")
 
-        # 检查是否已有成绩（按 exam_id 筛选）
-        cur.execute("""
-            SELECT gr.id FROM grading_records gr
-            JOIN submissions sub ON gr.submission_id = sub.id
-            JOIN assignments a ON sub.assignment_id = a.id
-            WHERE sub.student_user_id = %s
-              AND a.title LIKE CONCAT('exam_', %s, '%%')
-            LIMIT 1
-        """, (user_id, exam_id))
-        if cur.fetchone():
-            raise HTTPException(status_code=409, detail="您已经提交过成绩")
-
-        # 为该考试创建 assignment（如果不存在）
-        assignment_title = f"exam_{exam_id}"
-        cur.execute(
-            "SELECT id FROM assignments WHERE course_id = %s AND title = %s LIMIT 1",
-            (COURSE_ID, assignment_title)
-        )
-        assignment = cur.fetchone()
-        if not assignment:
-            cur.execute(
-                "INSERT INTO assignments (course_id, title, deadline, created_by) "
-                "VALUES (%s, %s, DATE_ADD(NOW(), INTERVAL 7 DAY), %s)",
-                (COURSE_ID, assignment_title, TEACHER_ID)
-            )
-            assignment_id = cur.lastrowid
-        else:
-            assignment_id = assignment["id"]
-
-        # 创建 submission 记录
-        cur.execute(
-            "INSERT INTO submissions (assignment_id, student_user_id, version_no) VALUES (%s, %s, 1)",
-            (assignment_id, user_id)
-        )
-        submission_id = cur.lastrowid
-
-        # 创建 grading_record
-        cur.execute(
-            "INSERT INTO grading_records (submission_id, graded_by, exam_score, total_score) VALUES (%s, %s, %s, %s)",
-            (submission_id, TEACHER_ID, req.score, req.total)
+        conn.execute(
+            "INSERT INTO scores (student_id, exam_id, score, total) VALUES (%s,%s,%s,%s)",
+            (student_id, exam_id, req.score, req.total)
         )
 
-    return {"ok": True, "student_id": student_no, "exam_id": exam_id,
+    return {"ok": True, "student_id": student_id, "exam_id": exam_id,
             "score": req.score, "total": req.total}
 
 
@@ -101,41 +67,21 @@ def submit_score(req: SubmitRequest, authorization: Optional[str] = Header(None)
 def get_scores(student_id: str = Query(...)):
     """查询某学生所有考试成绩"""
     with db() as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT u.id AS user_id, u.full_name AS name, u.student_no AS student_id,
-                   COALESCE(s.class_name, '') AS class_name
-            FROM users u
-            LEFT JOIN students s ON u.id = s.user_id
-            WHERE u.role = 'student' AND u.student_no = %s
-        """, (student_id,))
-        student = cur.fetchone()
+        student = conn.execute(
+            "SELECT name, student_id, class_name FROM students WHERE student_id = %s",
+            (student_id,)
+        ).fetchone()
         if not student:
             raise HTTPException(status_code=404, detail="学号不存在")
 
-        # 获取所有考试
-        cur.execute("SELECT id, title, exam_type FROM exams WHERE course_id = %s ORDER BY id", (COURSE_ID,))
-        exams = cur.fetchall()
-
-        # 获取该学生所有成绩
-        cur.execute("""
-            SELECT a.title AS assignment_title, gr.exam_score AS score, gr.total_score AS total, gr.graded_at AS submitted_at
-            FROM grading_records gr
-            JOIN submissions sub ON gr.submission_id = sub.id
-            JOIN assignments a ON sub.assignment_id = a.id
-            WHERE sub.student_user_id = %s AND a.course_id = %s
-            ORDER BY gr.graded_at DESC
-        """, (student["user_id"], COURSE_ID))
-        score_rows = cur.fetchall()
-
-    # 构建 exam_id → score 映射
-    scores_map = {}
-    for sr in score_rows:
-        title = sr["assignment_title"] or ""
-        if title.startswith("exam_"):
-            eid = title.replace("exam_", "")
-            if eid not in scores_map:
-                scores_map[eid] = sr
+        exams = conn.execute("SELECT id, title FROM exams ORDER BY id").fetchall()
+        scores_map = {
+            row["exam_id"]: dict(row)
+            for row in conn.execute(
+                "SELECT exam_id, score, total, submitted_at FROM scores WHERE student_id = %s",
+                (student_id,)
+            ).fetchall()
+        }
 
     result = []
     for exam in exams:
@@ -144,7 +90,7 @@ def get_scores(student_id: str = Query(...)):
         result.append({
             "exam_id": eid,
             "exam_title": exam["title"],
-            "exam_type": exam["exam_type"],
+            "exam_type": exam.get("exam_type", ""),
             "score": float(s["score"]) if s else None,
             "total": float(s["total"]) if s else None,
             "submitted_at": s["submitted_at"].strftime("%Y-%m-%d %H:%M:%S") if s and s["submitted_at"] else None,

@@ -18,44 +18,31 @@ def verify_identity(req: VerifyRequest):
     适配远程 users + students + exams 表。
     """
     with db() as conn:
-        cur = conn.cursor()
-        # 通过 student_no 查找学生
-        cur.execute("""
-            SELECT u.id AS user_id, u.full_name AS name, u.student_no AS student_id,
-                   COALESCE(s.class_name, '') AS class_name
-            FROM users u
-            LEFT JOIN students s ON u.id = s.user_id
-            WHERE u.role = 'student' AND u.student_no = %s
-        """, (req.student_id,))
-        student = cur.fetchone()
+        student = conn.execute(
+            "SELECT name, student_id, class_name FROM students WHERE student_id = %s",
+            (req.student_id,)
+        ).fetchone()
 
         if not student:
             raise HTTPException(status_code=403, detail="学号不在名单中，请联系老师确认")
 
-        # 查找考试（兼容远程库 exams 表可能为空的情况）
-        cur.execute(
-            "SELECT id, title, exam_type FROM exams WHERE id = %s",
+        exam = conn.execute(
+            "SELECT id, title, is_active FROM exams WHERE id = %s",
             (req.exam_id,)
-        )
-        exam = cur.fetchone()
+        ).fetchone()
 
         if not exam:
             # 如果考试不存在，仍然允许验证身份（返回 token），
             # 实际考试状态由前端根据列表接口判断
             pass
 
-        # 检查是否已提交成绩（通过 submissions + grading_records，按 exam_id 筛选）
-        cur.execute("""
-            SELECT gr.exam_score AS score, gr.total_score AS total, gr.graded_at AS submitted_at
-            FROM submissions sub
-            JOIN grading_records gr ON sub.id = gr.submission_id
-            JOIN assignments a ON sub.assignment_id = a.id
-            WHERE sub.student_user_id = %s
-              AND a.title LIKE CONCAT('exam_', %s, '%%')
-            ORDER BY gr.graded_at DESC
-            LIMIT 1
-        """, (student["user_id"], req.exam_id))
-        existing = cur.fetchone()
+        if exam and not exam["is_active"]:
+            raise HTTPException(status_code=403, detail="本次考试已关闭，无法答题")
+
+        existing = conn.execute(
+            "SELECT score, total, submitted_at FROM scores WHERE student_id = %s AND exam_id = %s",
+            (req.student_id, req.exam_id)
+        ).fetchone()
 
         if existing:
             return {

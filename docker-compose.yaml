@@ -1,4 +1,7 @@
 services:
+  # 该 Compose 文件用于 Coolify 部署。
+  # 注意：Coolify 的容器路由判断依赖服务健康状况，必须配置 healthcheck。
+  # 如果没有 healthcheck，Coolify 有时会认为服务不可用，导致路由失败。
   oaepp_web:
     container_name: oaepp_web
     build:
@@ -10,19 +13,16 @@ services:
     depends_on:
       - oaepp_api
     healthcheck:
-      # 注意：仅用于监控，不影响 Caddy 路由。
-      # Dockerfile 不定义 HEALTHCHECK，避免 caddy-docker-proxy 等待 healthy 设备致路由。
+      # 注意：这里必须配置 healthcheck，Coolify 才能确定容器已经启动并可路由。
+      # 如果没有健康检查，Coolify 可能不会把该服务加入可用 backend，导致访问失败。
+      # 这里只是检测 nginx 进程是否存在，用于确认应用已经准备就绪。
       test: ["CMD-SHELL", "pidof nginx || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
-    labels:
-      # Caddy docker-proxy 路由标签
-      caddy: "oaepp.uwis.cn"
-      caddy.reverse_proxy: "{{upstreams 80}}"
     networks:
-      - coolify              # 让 Caddy 代理可以连接到此容器
+      - coolify              # 连接到 Coolify 全局网络，供 Caddy/代理服务访问
 
   oaepp_api:
     container_name: oaepp_api
@@ -54,8 +54,8 @@ services:
     container_name: oaepp_mysql
     image: mysql:8.0
     restart: unless-stopped
-    ports:
-      - "${MYSQL_HOST_PORT:-13306}:3306"  # main=13306；PR Preview 由 Coolify 注入 MYSQL_HOST_PORT=133{pr_id}
+    expose:
+      - "3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
       MYSQL_ROOT_HOST: '%'
@@ -79,8 +79,18 @@ services:
     environment:
       PMA_HOST: oaepp-mysql
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
-    ports:
-      - "${PHPMYADMIN_HOST_PORT:-5050}:80"  # main=5050；PR Preview 由 Coolify 注入 PHPMYADMIN_HOST_PORT=50{pr_id}
+    expose:
+      - "80"
+    # phpMyAdmin 作为 Web UI 服务，需要通过 healthcheck 告知 Coolify 本服务可用。
+    # 该检查必须能在容器内访问本地 HTTP 服务，否则 Coolify 可能不会将其纳入路由。
+    healthcheck:
+      # phpmyadmin 镜像中 PHP CLI 的 allow_url_fopen 默认可能被禁用，file_get_contents HTTP 请求不可靠。
+      # 使用 curl 作为更稳定的本地 HTTP 健康检查命令。
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     depends_on:
       - oaepp-mysql
     networks:
@@ -106,8 +116,16 @@ services:
     restart: unless-stopped
     environment:
       REDIS_HOSTS: local:oaepp-redis:6379
-    ports:
-      - "${REDIS_COMMANDER_HOST_PORT:-8081}:8081"  # main=8081；PR Preview 由 Coolify 注入 REDIS_COMMANDER_HOST_PORT=80{pr_id}
+    expose:
+      - "8081"
+    # Redis Commander 作为独立运维界面，也需要 healthcheck 才能被 Coolify 路由。
+    # 该检查会在容器内访问本地 8081 端口，确保服务已经启动完成。
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:8081', res => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1));\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     depends_on:
       - oaepp-redis
     networks:
