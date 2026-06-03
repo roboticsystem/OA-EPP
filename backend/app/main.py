@@ -123,6 +123,7 @@ def chapter_page():
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
+
 @app.on_event("startup")
 def startup():
     init_db()
