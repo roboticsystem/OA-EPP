@@ -1,20 +1,10 @@
 """F-T-013 进度看板 — Reflex State
 
 ProgressBoardState 负责教师端进度看板的数据管理与状态更新。
-数据来源：MySQL 数据库 (oaepp_dev)，通过 backend.app.database 模块连接。
+数据来源：MySQL 数据库 (oaepp_dev)，通过 oaepp.database 模块连接。
 """
-import sys
-import os
 from datetime import datetime
-
-# 确保 backend 包可导入
-_backend_root = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "backend")
-)
-if _backend_root not in sys.path:
-    sys.path.insert(0, _backend_root)
-
-from app.database import db as _get_db
+from oaepp.database import db as _get_db
 
 
 class ProgressBoardState:
@@ -118,7 +108,6 @@ class ProgressBoardState:
             # 构建矩阵数据
             now = datetime.now()
             matrix = []
-            student_stats = []
 
             for student in students:
                 row_cells = []
@@ -157,11 +146,6 @@ class ProgressBoardState:
                     "class_name": student["class_name"],
                     "completion_rate": round(completion_rate, 3),
                     "cells": row_cells
-                })
-                student_stats.append({
-                    "student_id": student["student_id"],
-                    "name": student["name"],
-                    "completion_rate": completion_rate
                 })
 
             # 转换为前端期望的格式（exams 字段）
