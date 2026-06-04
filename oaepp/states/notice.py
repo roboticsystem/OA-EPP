@@ -5,6 +5,9 @@
 - unread_count: 未读通知计数
 - load_notices(): 从数据库加载通知
 - mark_as_read(): 标记通知为已读
+
+依赖：
+- oaepp.models.notice: 数据库连接
 """
 from typing import Any, List, Optional
 
@@ -29,8 +32,9 @@ class NoticeState:
     async def load_notices(self, user_id: Optional[int] = None) -> None:
         """从数据库加载通知列表，按发布时间降序排列。
 
+        优先使用 oaepp.models.notice 中的生产数据库连接；
         如果 conftest 提供了 mem_db fixture（SQLite 内存数据库），
-        则通过 sqlmodel Session 查询；否则使用生产环境的 MySQL 连接。
+        则通过 sqlmodel Session 查询。
 
         Args:
             user_id: 可选，指定加载哪个用户的通知
@@ -38,11 +42,10 @@ class NoticeState:
         self._user_id = user_id
 
         # 尝试从 conftest mem_db fixture 注入的 session 获取数据
-        # 注意：测试环境下 mem_db 是空的，因此 notices 保持为空列表
         if hasattr(self, "_db_session") and self._db_session is not None:
             self._load_from_session(self._db_session)
         else:
-            # 尝试使用生产数据库
+            # 使用 oaepp.models.notice 中的生产数据库连接
             self._load_from_production()
 
         # 确保 notices 始终为列表类型
@@ -103,84 +106,42 @@ class NoticeState:
             self.notices = []
 
     def _load_from_production(self) -> None:
-        """从生产数据库加载通知"""
+        """从 oaepp.models.notice 中的生产数据库加载通知"""
         try:
-            import os
-            import pymysql
-            from urllib.parse import urlparse, unquote
+            from oaepp.models.notice import get_db_connection
 
-            db_url = os.environ.get("DATABASE_URL", "")
-            if db_url:
-                parsed = urlparse(db_url)
-                conn = pymysql.connect(
-                    host=parsed.hostname or "127.0.0.1",
-                    port=parsed.port or 3306,
-                    user=parsed.username or "root",
-                    password=unquote(parsed.password) if parsed.password else "",
-                    database=parsed.path.lstrip("/") or "oaepp_dev",
-                    charset="utf8mb4",
-                    cursorclass=pymysql.cursors.DictCursor,
-                )
-            else:
-                conn = pymysql.connect(
-                    host=os.environ.get("DB_HOST", "127.0.0.1"),
-                    port=int(os.environ.get("DB_PORT", "3306")),
-                    user=os.environ.get("DB_USER", "root"),
-                    password=os.environ.get("DB_PASSWORD", ""),
-                    database=os.environ.get("DB_NAME", "oaepp_dev"),
-                    charset="utf8mb4",
-                    cursorclass=pymysql.cursors.DictCursor,
-                )
-
-            with conn.cursor() as cur:
-                if self._user_id:
-                    cur.execute(
-                        "SELECT * FROM notifications WHERE user_id = %s ORDER BY created_at DESC",
-                        (self._user_id,),
-                    )
-                else:
-                    cur.execute("SELECT * FROM notifications ORDER BY created_at DESC")
-                self.notices = cur.fetchall()
-
-            conn.close()
+            conn = get_db_connection()
+            try:
+                import pymysql
+                with conn.cursor(pymysql.cursors.DictCursor) as cur:
+                    if self._user_id:
+                        cur.execute(
+                            "SELECT * FROM notifications WHERE user_id = %s ORDER BY created_at DESC",
+                            (self._user_id,),
+                        )
+                    else:
+                        cur.execute("SELECT * FROM notifications ORDER BY created_at DESC")
+                    self.notices = cur.fetchall()
+            finally:
+                conn.close()
         except Exception:
             self.notices = []
 
     def _mark_read_in_production(self, notification_id: int) -> None:
         """在生产数据库中标记已读"""
         try:
-            import os
-            import pymysql
-            from urllib.parse import urlparse, unquote
+            from oaepp.models.notice import get_db_connection
 
-            db_url = os.environ.get("DATABASE_URL", "")
-            if db_url:
-                parsed = urlparse(db_url)
-                conn = pymysql.connect(
-                    host=parsed.hostname or "127.0.0.1",
-                    port=parsed.port or 3306,
-                    user=parsed.username or "root",
-                    password=unquote(parsed.password) if parsed.password else "",
-                    database=parsed.path.lstrip("/") or "oaepp_dev",
-                    charset="utf8mb4",
-                )
-            else:
-                conn = pymysql.connect(
-                    host=os.environ.get("DB_HOST", "127.0.0.1"),
-                    port=int(os.environ.get("DB_PORT", "3306")),
-                    user=os.environ.get("DB_USER", "root"),
-                    password=os.environ.get("DB_PASSWORD", ""),
-                    database=os.environ.get("DB_NAME", "oaepp_dev"),
-                    charset="utf8mb4",
-                )
-
-            with conn.cursor() as cur:
-                cur.execute(
-                    "UPDATE notifications SET is_read = 1 WHERE id = %s",
-                    (notification_id,),
-                )
-            conn.commit()
-            conn.close()
+            conn = get_db_connection()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE notifications SET is_read = 1 WHERE id = %s",
+                        (notification_id,),
+                    )
+                conn.commit()
+            finally:
+                conn.close()
         except Exception:
             pass
 

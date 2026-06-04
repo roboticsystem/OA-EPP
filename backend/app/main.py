@@ -14,7 +14,8 @@ import os
 from app.database import init_db, seed_timeline_events
 from app.sync_exams import sync_exams
 from app.sync_chapters import sync_chapters
-from app.routers import students, auth, exam, teacher, notifications, chapters, timeline
+from app.routers import students, auth, exam, teacher, chapters, timeline
+# F-S-012 通知公告模块已迁移至 oaepp/routers/notice.py
 
 app = FastAPI(title="嵌入式系统综合实践 - OA-EPP", docs_url="/api/docs")
 
@@ -29,7 +30,7 @@ app.include_router(students.router)
 app.include_router(auth.router)
 app.include_router(exam.router)
 app.include_router(teacher.router)
-app.include_router(notifications.router)
+# F-S-012 通知公告 API 已迁移至 oaepp/routers/notice.py
 app.include_router(chapters.router)
 app.include_router(timeline.router)
 
