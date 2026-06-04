@@ -11,5 +11,9 @@ nginx -g 'daemon off;' &
 NGINX_PID=$!
 
 # 任一关键进程退出，都让容器退出（避免只剩 Nginx 欢迎页）。
-wait -n "$REFLEX_PID" "$NGINX_PID"
+# BusyBox /bin/sh 不支持 wait -n，因此用可移植轮询。
+while kill -0 "$REFLEX_PID" 2>/dev/null && kill -0 "$NGINX_PID" 2>/dev/null; do
+	sleep 1
+done
+
 exit 1
