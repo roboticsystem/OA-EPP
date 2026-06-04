@@ -26,6 +26,9 @@ pip-wheel-metadata/
 /oaepp/.states/
 /oaepp/reflex.lock/
 
+# F-D-007 Dry-Run 临时状态（不提交）
+.github/review-prompts/.dry-run-state.json
+
 # 虚拟环境
 .venv/
 venv/
