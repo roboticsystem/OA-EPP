@@ -345,7 +345,8 @@ export const applyRestEvent = async (event, socket) => {
  */
 export const queueEvents = async (events, socket) => {
   event_queue.push(...events);
-  await processEvent(socket.current);
+  const socketRefOrInstance = socket?.current ?? socket;
+  await processEvent(socketRefOrInstance);
 };
 
 /**
@@ -437,7 +438,7 @@ export const connect = async (
   });
 
   socket.current.on("connect_error", (error) => {
-    setConnectErrors((connectErrors) => [connectErrors.slice(-9), error]);
+    setConnectErrors((connectErrors) => [...connectErrors.slice(-9), error]);
   });
 
   // When the socket disconnects reset the event_processing flag
