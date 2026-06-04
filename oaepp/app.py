@@ -20,6 +20,14 @@ except Exception:
     except Exception:
         login_mod = None
 
+# Import auth module for collaborator permission management
+try:
+    from pages import auth as auth_mod
+except Exception:
+    try:
+        from oaepp.pages import auth as auth_mod
+    except Exception:
+        auth_mod = None
 app = None
 if rx is not None:
     try:
@@ -63,6 +71,24 @@ except Exception:
 if app is not None and profile_mod is not None:
     if hasattr(profile_mod, "profile_page") and callable(getattr(profile_mod, "profile_page")):
         app.add_page(profile_mod.profile_page, route="/profile")
+
+# --- auth page ---
+if app is not None and auth_mod is not None:
+    try:
+        if hasattr(auth_mod, "auth_page") and callable(getattr(auth_mod, "auth_page")):
+            try:
+                app.add_page(auth_mod.auth_page, route="/auth")
+            except Exception:
+                app.add_page(auth_mod.auth_page)
+        elif hasattr(auth_mod, "page"):
+            app.add_page(auth_mod.page, route="/auth")
+        
+        # Register FastAPI router for API endpoints
+        if hasattr(auth_mod, "router"):
+            if app._api is not None:
+                app._api.include_router(auth_mod.router)
+    except Exception:
+        pass
 
 if app is not None and login_mod is not None:
     try:
