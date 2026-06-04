@@ -197,6 +197,32 @@ class GitHubService:
         self._set_cache(cache_key, result)
         return result
 
+    async def get_user(self, username: str) -> Optional[Dict[str, Any]]:
+        """Get GitHub user profile by username. Returns None if not found."""
+        cache_key = f"user:{username}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
+        url = f"{GITHUB_API_BASE}/users/{username}"
+        data = await self._request("GET", url)
+        if data is None:
+            return None
+
+        # basic profile fields
+        profile = {
+            "login": data.get("login", ""),
+            "name": data.get("name", ""),
+            "bio": data.get("bio", ""),
+            "email": data.get("email", ""),
+            "company": data.get("company", ""),
+            "location": data.get("location", ""),
+            "html_url": data.get("html_url", ""),
+        }
+
+        self._set_cache(cache_key, profile)
+        return profile
+
     async def get_full_data(self, owner: str, repo: str) -> Dict[str, Any]:
         branches_task = self.get_branches(owner, repo)
         commits_task = self.get_commits(owner, repo)

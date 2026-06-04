@@ -338,5 +338,140 @@
       </div>
     </div>
   </main>
+</main>
+
+<!-- 弹窗与前端脚本 -->
+<div id="ai-verify-modal" class="fixed inset-0 hidden items-center justify-center bg-black/30 z-50">
+  <div class="bg-white rounded-lg w-11/12 max-w-xl p-4">
+    <div class="flex items-start justify-between">
+      <h3 class="text-lg font-semibold">AI 实名核查结果</h3>
+      <button id="ai-modal-close" class="text-gray-400 hover:text-gray-600">✕</button>
+    </div>
+    <div id="ai-modal-body" class="mt-3 text-sm text-gray-700"></div>
+    <div class="mt-4 text-right">
+      <button id="ai-modal-ok" class="px-3 py-1 bg-indigo-600 text-white rounded">确定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// 简易教师 Token 管理
+function getTeacherToken(){
+  return localStorage.getItem('teacher_token') || '';
+}
+function ensureToken(){
+  let token = getTeacherToken();
+  if(!token){
+    token = prompt('请输入教师授权 Token（Bearer 后的内容）以调用 API：') || '';
+    if(token) localStorage.setItem('teacher_token', token);
+  }
+  return token;
+}
+
+function showModal(html){
+  const modal = document.getElementById('ai-verify-modal');
+  document.getElementById('ai-modal-body').innerHTML = html;
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+function hideModal(){
+  const modal = document.getElementById('ai-verify-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+document.getElementById('ai-modal-close').addEventListener('click', hideModal);
+document.getElementById('ai-modal-ok').addEventListener('click', hideModal);
+
+// 提取行中的学号和 GitHub 用户名（兼容两种表格布局）
+function extractStudentInfoFromRow(tr){
+  const tds = tr.querySelectorAll('td');
+  let studentId = '';
+  let github = '';
+  if(tds.length >= 4){
+    // 常见：td[1] 学号/姓名 (可能包含 student id div)，td[2] github 用户名
+    // 尝试在 td[1] 中查找 font-mono（学号）
+    const mono = tds[1].querySelector('.font-mono, .text-xs.font-mono');
+    if(mono) studentId = mono.textContent.trim();
+    else studentId = tds[1].textContent.trim().split('\n').pop().trim();
+    github = tds[2].textContent.trim();
+  } else if(tds.length >= 2){
+    // 另一种表格（主表）：td[1] 为学号
+    studentId = tds[1].textContent.trim();
+    if(tds.length >= 4) github = tds[3].textContent.trim();
+  }
+  // 清理
+  studentId = studentId.replace(/\s+/g,'').trim();
+  github = github.replace(/\s+/g,'').trim();
+  return {studentId, github};
+}
+
+async function callVerifyApi(studentId){
+  const token = ensureToken();
+  if(!token) return showModal('<p class="text-red-500">未提供教师 Token，无法调用 API。</p>');
+
+  const res = await fetch(`/api/teacher/report/github-verify/${encodeURIComponent(studentId)}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json'
+    }
+  });
+  if(!res.ok){
+    const txt = await res.text();
+    return showModal(`<p class="text-red-500">请求失败：${res.status} ${txt}</p>`);
+  }
+  const data = await res.json();
+  // 展示结果
+  const analysis = data.analysis || {};
+  const html = `
+    <p><strong>学号：</strong> ${data.student_id || ''}</p>
+    <p><strong>期望姓名：</strong> ${data.expected_name || ''}</p>
+    <p><strong>GitHub 用户：</strong> ${data.github_username || ''}</p>
+    <p class="mt-2"><strong>分析结论：</strong> ${analysis.match ? '通过' : '不通过'}</p>
+    <p><strong>置信度：</strong> ${analysis.score ?? ''}</p>
+    <p><strong>理由：</strong> ${analysis.reason ?? ''}</p>
+  `;
+  showModal(html);
+}
+
+// 绑定每行的“处理”按钮
+document.querySelectorAll('button').forEach(btn => {
+  if(btn.textContent && btn.textContent.trim() === '处理'){
+    btn.addEventListener('click', (e)=>{
+      const tr = e.target.closest('tr');
+      const info = extractStudentInfoFromRow(tr);
+      if(!info.studentId) return showModal('<p class="text-red-500">无法提取学号</p>');
+      callVerifyApi(info.studentId);
+    });
+  }
+});
+
+// 绑定顶部“AI 实名审查”按钮（对当前表格所有行逐条调用）
+document.querySelectorAll('button').forEach(btn => {
+  if(btn.textContent && btn.textContent.includes('AI 实名审查')){
+    btn.addEventListener('click', async ()=>{
+      const token = ensureToken();
+      if(!token) return;
+      const rows = document.querySelectorAll('table tbody tr');
+      let total = 0, success = 0;
+      for(const tr of rows){
+        const info = extractStudentInfoFromRow(tr);
+        if(!info.studentId) continue;
+        total++;
+        try{
+          await callVerifyApi(info.studentId);
+          success++;
+        }catch(e){
+          console.error(e);
+        }
+        // 小间隔，避免过快
+        await new Promise(r=>setTimeout(r, 300));
+      }
+      showModal(`<p>已对 ${total} 名学生逐条触发 AI 审查（完成 ${success} 次请求）。</p>`);
+    });
+  }
+});
+</script>
 </body>
 </html>

@@ -244,6 +244,29 @@ def get_github_info(
     return info
 
 
+@router.post("/github-verify/{student_id}")
+async def github_verify(
+    student_id: str,
+    authorization: Optional[str] = Header(None),
+    request: Request = None
+):
+    _require_teacher(authorization)
+    ip_address, user_agent = _get_client_info(request)
+
+    result = await ReportService.verify_github_real_name(student_id)
+
+    ReportService.log_audit(
+        action="github_verify",
+        target_type="student",
+        target_id=student_id,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        details=str(result)
+    )
+
+    return result
+
+
 @router.post("/comments")
 def save_comment(
     req: SaveCommentRequest,

@@ -8,6 +8,7 @@ from app.models.report_models import (
     AttendanceSummary, CourseSummary, GitHubInfo, CourseSettings, AuditLogEntry, AuditLogResponse
 )
 from app.services.github_service import GitHubService
+from app.services.ai_review_service import analyze_name_match
 
 
 class ReportService:
@@ -463,3 +464,34 @@ class ReportService:
                 )
                 for row in rows
             ]
+
+    @staticmethod
+    async def verify_github_real_name(student_id: str) -> Dict[str, object]:
+        """Verify a student's GitHub profile name against the expected student name using heuristic analysis."""
+        student_info = ReportService.get_student_info(student_id)
+        if not student_info:
+            return {"ok": False, "reason": "学生不存在"}
+
+        github_info = ReportService.get_github_info(student_id)
+        if not github_info or not github_info.github_username:
+            return {"ok": False, "reason": "未绑定 GitHub 账号"}
+
+        token = github_info.github_token or ReportService.get_course_settings().github_token
+        github_service = GitHubService(token=token)
+        try:
+            profile = await github_service.get_user(github_info.github_username)
+        except Exception as e:
+            return {"ok": False, "reason": f"请求 GitHub 失败: {str(e)}"}
+
+        if profile is None:
+            return {"ok": False, "reason": "GitHub 用户不存在"}
+
+        analysis = analyze_name_match(student_info.name, profile)
+
+        return {
+            "ok": True,
+            "student_id": student_id,
+            "expected_name": student_info.name,
+            "github_username": github_info.github_username,
+            "analysis": analysis
+        }
