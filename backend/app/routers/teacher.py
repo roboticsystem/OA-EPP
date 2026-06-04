@@ -12,6 +12,7 @@ from app.sync_exams import sync_exams
 from pypinyin import lazy_pinyin, Style
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
+import json
 
 router = APIRouter()
 
@@ -23,7 +24,8 @@ def _require_teacher(authorization: Optional[str]):
         raise HTTPException(status_code=401, detail="请先登录")
     token = authorization.removeprefix("Bearer ").strip()
     try:
-        verify_teacher_token(token)
+        payload = verify_teacher_token(token)
+        return payload
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
 
@@ -322,6 +324,179 @@ def export_scores(exam_id: str = Query(...), authorization: Optional[str] = Head
     from urllib.parse import quote
     date_str = datetime.now().strftime("%Y%m%d")
     filename = f"成绩单_{exam['title']}_{date_str}.xlsx"
+    encoded_filename = quote(filename, safe="")
+
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
+    )
+
+
+class GradeExportRequest(BaseModel):
+    class_name: Optional[str] = None
+    course_name: Optional[str] = None
+    term: Optional[str] = None
+    weights: Optional[dict] = None
+    rows: Optional[list] = None
+
+
+def _compute_total(row: dict, weights: dict) -> float:
+    if not weights:
+        return None
+    total = 0.0
+    for k, w in weights.items():
+        try:
+            v = float(row.get(k, 0) or 0)
+        except Exception:
+            v = 0
+        total += v * float(w)
+    return round(total, 2)
+
+
+def _grade_letter(score: float) -> str:
+    if score is None:
+        return ""
+    try:
+        s = float(score)
+    except Exception:
+        return ""
+    if s >= 90:
+        return "A"
+    if s >= 80:
+        return "B"
+    if s >= 70:
+        return "C"
+    if s >= 60:
+        return "D"
+    return "F"
+
+
+@router.post("/api/teacher/grades/preview")
+def preview_grades(req: GradeExportRequest, authorization: Optional[str] = Header(None)):
+    """按筛选返回预览数据（可用于前端预览与手动修正）。
+    前端可在返回数据上修改个别单元格，然后将最终 rows 发回 /export 接口生成文件。
+    """
+    _require_teacher(authorization)
+
+    with db() as conn:
+        if req.class_name:
+            students = conn.execute(
+                "SELECT name, student_id, class_name FROM students WHERE class_name=? ORDER BY student_id",
+                (req.class_name,)
+            ).fetchall()
+        else:
+            students = conn.execute(
+                "SELECT name, student_id, class_name FROM students ORDER BY student_id"
+            ).fetchall()
+
+        # try to find an exam matching course_name to fill '考试得分'
+        exam_scores = {}
+        if req.course_name:
+            exam_row = conn.execute("SELECT id FROM exams WHERE title=?", (req.course_name,)).fetchone()
+            if exam_row:
+                eid = exam_row["id"]
+                for r in conn.execute("SELECT student_id, score FROM scores WHERE exam_id=?", (eid,)).fetchall():
+                    exam_scores[r["student_id"]] = r["score"]
+
+    # build rows
+    result_rows = []
+    provided_rows_map = {}
+    if req.rows:
+        for r in req.rows:
+            if r.get("student_id"):
+                provided_rows_map[str(r.get("student_id"))] = r
+
+    for s in students:
+        sid = s["student_id"]
+        base = {
+            "student_id": sid,
+            "name": s["name"],
+            "class_name": s["class_name"],
+            "course_name": req.course_name or "",
+            "attendance": None,
+            "exam": exam_scores.get(sid),
+            "code": None,
+            "pr": None,
+            "total": None,
+            "grade": "",
+            "remark": "",
+        }
+        if sid in provided_rows_map:
+            base.update(provided_rows_map[sid])
+
+        # compute total if weights provided
+        if req.weights:
+            base_total = _compute_total(base, req.weights)
+            base["total"] = base_total
+            base["grade"] = _grade_letter(base_total)
+
+        result_rows.append(base)
+
+    return {"rows": result_rows}
+
+
+@router.post("/api/teacher/grades/export")
+def export_grades(req: GradeExportRequest, authorization: Optional[str] = Header(None)):
+    """生成并下载最终的成绩单 Excel，同时写入审计日志。前端应传入最终确认的 `rows`（包含手动修正后的值）。"""
+    payload = _require_teacher(authorization)
+    actor = payload.get("name") if isinstance(payload, dict) else "teacher"
+
+    rows = req.rows or []
+    # ensure totals and grades
+    if req.weights:
+        for r in rows:
+            r["total"] = _compute_total(r, req.weights)
+            r["grade"] = _grade_letter(r.get("total"))
+
+    # create excel
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = (req.course_name or "成绩")[:31]
+
+    header_fill = PatternFill("solid", fgColor="4472C4")
+    header_font = Font(bold=True, color="FFFFFF")
+    headers = ["学号", "姓名", "班级", "课程名称", "出勤得分", "考试得分", "代码提交得分", "PR贡献得分", "总评成绩", "等级", "备注"]
+    widths = [14, 12, 20, 20, 10, 10, 10, 10, 10, 8, 20]
+
+    for col, (h, w) in enumerate(zip(headers, widths), 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center")
+        ws.column_dimensions[cell.column_letter].width = w
+
+    for i, r in enumerate(rows, 2):
+        ws.cell(row=i, column=1, value=r.get("student_id"))
+        ws.cell(row=i, column=2, value=r.get("name"))
+        ws.cell(row=i, column=3, value=r.get("class_name"))
+        ws.cell(row=i, column=4, value=r.get("course_name"))
+        ws.cell(row=i, column=5, value=r.get("attendance"))
+        ws.cell(row=i, column=6, value=r.get("exam"))
+        ws.cell(row=i, column=7, value=r.get("code"))
+        ws.cell(row=i, column=8, value=r.get("pr"))
+        ws.cell(row=i, column=9, value=r.get("total"))
+        ws.cell(row=i, column=10, value=r.get("grade"))
+        ws.cell(row=i, column=11, value=r.get("remark"))
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    # write audit log
+    filters = {"class_name": req.class_name, "course_name": req.course_name, "term": req.term}
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO export_logs (actor, filters, record_count) VALUES (?,?,?)",
+            (actor or "teacher", json.dumps(filters, ensure_ascii=False), len(rows))
+        )
+
+    from urllib.parse import quote
+    date_str = datetime.now().strftime("%Y%m%d")
+    safe_course = (req.course_name or "课程").replace("/", "-")
+    safe_class = (req.class_name or "全班").replace("/", "-")
+    safe_term = (req.term or "").replace("/", "-")
+    filename = f"{safe_course}_{safe_class}_{safe_term}_成绩单_{date_str}.xlsx"
     encoded_filename = quote(filename, safe="")
 
     return StreamingResponse(
