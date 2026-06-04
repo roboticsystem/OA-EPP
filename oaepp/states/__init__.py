@@ -1,6 +1,6 @@
-"""Reflex States 子包 — F-S-022 截止规则
+"""Reflex States 子包
 
-导出 DeadlineState 类。
+导出 DeadlineState、GradeExportState 类。
 """
 
 try:
@@ -8,4 +8,9 @@ try:
 except Exception:
     DeadlineState = None
 
-__all__ = ["DeadlineState"]
+try:
+    from .grade_export import GradeExportState
+except Exception:
+    GradeExportState = None
+
+__all__ = ["DeadlineState", "GradeExportState"]
