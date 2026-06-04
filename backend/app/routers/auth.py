@@ -21,7 +21,7 @@ def verify_identity(req: VerifyRequest):
     """
     with db() as conn:
         student = conn.execute(
-            "SELECT name, student_id, class_name FROM students WHERE student_id = %s",
+            "SELECT name, student_id, class_name FROM students WHERE student_id = ?",
             (req.student_id,)
         ).fetchone()
 
@@ -29,7 +29,7 @@ def verify_identity(req: VerifyRequest):
             raise HTTPException(status_code=403, detail="学号不在名单中，请联系老师确认")
 
         exam = conn.execute(
-            "SELECT id, title, is_active FROM exams WHERE id = %s",
+            "SELECT id, title, is_active FROM exams WHERE id = ?",
             (req.exam_id,)
         ).fetchone()
 
@@ -40,7 +40,7 @@ def verify_identity(req: VerifyRequest):
             raise HTTPException(status_code=403, detail="本次考试已关闭，无法答题")
 
         existing = conn.execute(
-            "SELECT score, total, submitted_at FROM scores WHERE student_id = %s AND exam_id = %s",
+            "SELECT score, total, submitted_at FROM scores WHERE student_id = ? AND exam_id = ?",
             (req.student_id, req.exam_id)
         ).fetchone()
 
