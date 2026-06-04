@@ -14,4 +14,10 @@ config = rx.Config(
         f"http://localhost:{os.environ.get('REFLEX_BACKEND_PORT', '8001')}",
     ),
     deploy_url=os.environ.get("REFLEX_DEPLOY_URL"),
+    frontend_vite_config={
+        "server": {
+            "allowedHosts": [".uwis.cn"],
+            "host": "0.0.0.0",
+        },
+    },
 )
