@@ -1,9 +1,11 @@
 import json
 import os
 
-_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "backend", "app", "data")
+import reflex as rx
+
+_OAEPP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_DATA_DIR = os.path.join(_OAEPP_DIR, ".oaepp_data")
 _CONFIG_PATH = os.path.join(_DATA_DIR, "vscode_config.json")
-_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 _SAFE_PATHS = {
     ".github/copilot-instructions.md",
@@ -13,7 +15,7 @@ _SAFE_PATHS = {
 EXTENSION_TYPES = ("required", "recommended", "banned")
 
 
-class VSCodeConfigState:
+class VSCodeConfigState(rx.State):
     EXTENSION_TYPES = EXTENSION_TYPES
 
     extensions: list = []
@@ -39,7 +41,7 @@ class VSCodeConfigState:
             "recommendations": [entry["id"] for entry in config.get("recommendations", [])],
             "unwantedRecommendations": [entry["id"] for entry in config.get("unwantedRecommendations", [])],
         }
-        vscode_dir = os.path.join(_REPO_ROOT, ".vscode")
+        vscode_dir = os.path.join(_OAEPP_DIR, ".vscode")
         os.makedirs(vscode_dir, exist_ok=True)
         output_path = os.path.join(vscode_dir, "extensions.json")
         with open(output_path, "w", encoding="utf-8") as f:
@@ -53,8 +55,8 @@ class VSCodeConfigState:
         normalized = path.replace("\\", "/")
         if normalized not in _SAFE_PATHS:
             raise ValueError(f"禁止访问路径: {path}")
-        full_path = os.path.normpath(os.path.join(_REPO_ROOT, path))
-        if not full_path.startswith(os.path.normpath(_REPO_ROOT)):
+        full_path = os.path.normpath(os.path.join(_OAEPP_DIR, path))
+        if not full_path.startswith(os.path.normpath(_OAEPP_DIR)):
             raise ValueError("路径遍历攻击")
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
         with open(full_path, "w", encoding="utf-8") as f:

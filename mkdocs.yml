@@ -59,7 +59,6 @@ plugins:
       lang:
         - zh
         - en
-  - mkdocs_quiz
   - kroki:
       fence_prefix: kroki-
       enable_mermaid: false
