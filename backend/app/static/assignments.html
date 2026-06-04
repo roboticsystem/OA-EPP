@@ -3,190 +3,386 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OA-EPP · 作业提交（截止规则演示）</title>
+  <title>OA-EPP · 作业提交</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50 min-h-screen flex">
 
-  <!-- 顶部 -->
-  <header class="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <div class="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">EPP</div>
+  <!-- Sidebar -->
+  <aside class="w-56 bg-white border-r border-gray-200 flex flex-col min-h-screen fixed left-0 top-0">
+    <div class="px-5 py-5 border-b border-gray-100">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+          </svg>
+        </div>
+        <span class="font-bold text-gray-800 text-sm">OA-EPP</span>
+      </div>
+    </div>
+    <nav class="flex-1 px-3 py-4 space-y-1">
+      <a href="dashboard.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        仪表盘
+      </a>
+      <a href="courses.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        课程列表
+      </a>
+      <a href="/assignments" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 font-medium text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        作业提交
+      </a>
+      <a href="grades.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        成绩与反馈
+      </a>
+      <a href="attendance.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+        课堂签到
+      </a>
+      <a href="exam.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+        在线考试
+      </a>
+      <a href="profile.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        个人资料
+      </a>
+    </nav>
+    <div class="px-4 py-4 border-t border-gray-100">
+      <div class="flex items-center gap-3">
+        <div id="avatar" class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">学</div>
+        <div class="flex-1 min-w-0">
+          <p id="user-name" class="text-sm font-medium text-gray-800 truncate">学生</p>
+          <p id="user-no" class="text-xs text-gray-400 truncate">--</p>
+        </div>
+      </div>
+      <a href="login.html" class="mt-3 block text-center text-xs text-gray-400 hover:text-red-500 transition">退出登录</a>
+    </div>
+  </aside>
+
+  <main class="ml-56 flex-1 p-8">
+    <!-- 页头 -->
+    <div class="mb-6 flex items-center justify-between">
       <div>
-        <h1 class="text-base font-bold text-gray-800">OA-EPP · 作业截止规则</h1>
-        <p class="text-xs text-gray-400">F-S-022 截止规则验证</p>
+        <h1 class="text-xl font-bold text-gray-800">作业提交</h1>
+        <p class="text-sm text-gray-400 mt-0.5">F-S-022 截止规则 · 截止后按课程策略处理</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <label class="text-xs text-gray-500">学号</label>
+        <input id="student-no" value="2024001"
+          class="border rounded-lg px-3 py-1.5 text-sm w-32 focus:outline-none focus:ring-2 focus:ring-blue-400"/>
+        <button onclick="loadAssignments()"
+          class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-1.5 rounded-lg transition">刷新</button>
       </div>
     </div>
-    <div class="flex items-center gap-3">
-      <label class="text-xs text-gray-500">学号</label>
-      <input id="student-no" value="2024001"
-        class="border rounded-lg px-3 py-1.5 text-sm w-32 focus:outline-none focus:ring-2 focus:ring-blue-400"/>
-      <button onclick="loadAssignments()"
-        class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-1.5 rounded-lg">刷新</button>
-    </div>
-  </header>
 
-  <main class="p-8">
-    <div id="status" class="mb-4 text-xs text-gray-500"></div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="cards"></div>
-
-    <!-- 提交弹窗 -->
-    <div id="modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div class="bg-white rounded-xl w-[420px] p-5 shadow-xl">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-semibold text-gray-800">提交作业</h3>
-          <button onclick="closeModal()" class="text-gray-400">✕</button>
+    <!-- 两栏布局 -->
+    <div class="flex gap-6">
+      <!-- 左侧：作业列表 -->
+      <div class="flex-1 min-w-0">
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm">
+          <!-- 筛选栏 -->
+          <div class="flex items-center gap-3 px-5 py-3 border-b border-gray-100">
+            <span class="text-xs font-medium text-gray-600">筛选：</span>
+            <button onclick="filterBy('all')" data-filter="all" class="filter-btn text-xs bg-blue-600 text-white px-3 py-1 rounded-full">全部</button>
+            <button onclick="filterBy('pending')" data-filter="pending" class="filter-btn text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full hover:bg-gray-200">待提交</button>
+            <button onclick="filterBy('submitted')" data-filter="submitted" class="filter-btn text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full hover:bg-gray-200">已提交</button>
+            <button onclick="filterBy('graded')" data-filter="graded" class="filter-btn text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full hover:bg-gray-200">已批改</button>
+            <button onclick="filterBy('late')" data-filter="late" class="filter-btn text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full hover:bg-gray-200">迟交</button>
+          </div>
+          <!-- 作业列表 -->
+          <div id="assignment-list" class="divide-y divide-gray-50">
+            <div class="px-5 py-8 text-center text-sm text-gray-400">点击"刷新"加载作业列表</div>
+          </div>
         </div>
-        <p id="modal-title" class="text-sm text-gray-600 mb-2"></p>
-        <p id="modal-policy" class="text-xs mb-3"></p>
-        <textarea id="text-content" rows="3" placeholder="提交说明 / 文本作业内容..."
-          class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"></textarea>
-        <div class="mt-3 flex justify-end gap-2">
-          <button onclick="closeModal()" class="text-sm px-3 py-1.5 rounded-lg border">取消</button>
-          <button onclick="doSubmit()" class="text-sm px-4 py-1.5 rounded-lg bg-blue-600 text-white">确认提交</button>
+      </div>
+
+      <!-- 右侧：提交面板 -->
+      <div class="w-80 flex-shrink-0" id="submit-panel">
+        <div id="panel-content" class="bg-white rounded-xl border-2 border-gray-200 shadow-sm p-5 sticky top-8">
+          <div class="text-center py-8 text-sm text-gray-400">
+            <svg class="w-12 h-12 text-gray-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+            选择左侧作业以提交
+          </div>
         </div>
-        <p id="submit-result" class="text-xs mt-3"></p>
+
+        <!-- 版本历史 -->
+        <div id="version-history" class="bg-white rounded-xl border border-gray-100 shadow-sm p-5 mt-4 hidden">
+          <h4 class="text-xs font-semibold text-gray-600 mb-3">提交版本记录</h4>
+          <div id="version-list" class="space-y-2"></div>
+        </div>
       </div>
     </div>
+
+    <div id="status-bar" class="mt-4 text-xs text-gray-500"></div>
   </main>
 
   <script>
-    const API = 'http://localhost:8000';
-    let currentAssignment = null;
+    const API = window.location.origin;
+    let allAssignments = [];
+    let currentFilter = 'all';
+    let selectedAssignment = null;
 
-    function policyBadge(p) {
-      const map = {
-        'allow':   { color: 'bg-blue-100 text-blue-700',     label: '允许迟交' },
-        'deny':    { color: 'bg-red-100 text-red-700',       label: '禁止迟交' },
-        'penalty': { color: 'bg-orange-100 text-orange-700', label: '迟交扣分' },
-      };
-      const o = map[p] || { color: 'bg-gray-100 text-gray-600', label: p };
-      return `<span class="text-xs ${o.color} px-2 py-0.5 rounded">${o.label}</span>`;
-    }
-
-    function statusBadge(s) {
-      const map = {
-        'pending':       'bg-yellow-100 text-yellow-700',
-        'submitted':     'bg-green-100 text-green-700',
-        'late':          'bg-orange-100 text-orange-700',
-        'late_allowed':  'bg-amber-100 text-amber-700',
-        'closed':        'bg-red-100 text-red-700',
-        'graded':        'bg-emerald-100 text-emerald-700',
-      };
-      return `<span class="text-xs ${map[s.status_code]||'bg-gray-100 text-gray-600'} px-2 py-0.5 rounded font-medium">${s.status_label}</span>`;
-    }
-
+    // ===== 工具函数 =====
     function fmt(d) {
       if (!d) return '';
       return d.replace('T', ' ').slice(0, 16);
     }
 
+    function policyInfo(p) {
+      const map = {
+        'allow':   { color: 'bg-blue-100 text-blue-700', label: '允许迟交', desc: '截止后仍可提交，标记为迟交' },
+        'deny':    { color: 'bg-red-100 text-red-700', label: '禁止迟交', desc: '截止后禁止提交' },
+        'penalty': { color: 'bg-orange-100 text-orange-700', label: '迟交扣分', desc: '截止后可提交但按规则扣分' },
+      };
+      return map[p] || { color: 'bg-gray-100 text-gray-600', label: p, desc: '' };
+    }
+
+    function statusStyle(code) {
+      const map = {
+        'pending':      { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: 'clock' },
+        'submitted':    { bg: 'bg-green-100', text: 'text-green-700', icon: 'check' },
+        'late':         { bg: 'bg-orange-100', text: 'text-orange-600', icon: 'warning' },
+        'late_allowed': { bg: 'bg-amber-100', text: 'text-amber-700', icon: 'clock' },
+        'closed':       { bg: 'bg-red-100', text: 'text-red-700', icon: 'x' },
+        'graded':       { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: 'check' },
+      };
+      return map[code] || { bg: 'bg-gray-100', text: 'text-gray-600', icon: 'info' };
+    }
+
+    // ===== 加载作业列表 =====
     async function loadAssignments() {
       const sn = document.getElementById('student-no').value.trim();
-      const status = document.getElementById('status');
-      status.textContent = '加载中...';
+      if (!sn) return;
+      document.getElementById('user-no').textContent = sn;
+      document.getElementById('status-bar').textContent = '加载中...';
+
       try {
         const r = await fetch(`${API}/api/assignments?student_no=${encodeURIComponent(sn)}`);
         if (!r.ok) {
           const e = await r.json();
-          status.innerHTML = `<span class="text-red-600">加载失败：${e.detail}</span>`;
-          document.getElementById('cards').innerHTML = '';
+          document.getElementById('status-bar').innerHTML = `<span class="text-red-600">错误：${e.detail}</span>`;
+          document.getElementById('assignment-list').innerHTML = '<div class="px-5 py-8 text-center text-sm text-red-400">加载失败</div>';
           return;
         }
         const data = await r.json();
-        status.textContent = `学号 ${data.student_no} · 共 ${data.assignments.length} 项作业`;
-        renderCards(data.assignments);
+        allAssignments = data.assignments;
+        document.getElementById('status-bar').textContent = `学号 ${data.student_no} · 共 ${allAssignments.length} 项作业`;
+        renderList();
       } catch (e) {
-        status.innerHTML = `<span class="text-red-600">网络错误：${e.message}</span>`;
+        document.getElementById('status-bar').innerHTML = `<span class="text-red-600">网络错误：${e.message}</span>`;
       }
     }
 
-    function renderCards(list) {
-      const html = list.map(a => {
-        const sub = a.submission;
+    // ===== 筛选 =====
+    function filterBy(code) {
+      currentFilter = code;
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        if (btn.dataset.filter === code) {
+          btn.className = 'filter-btn text-xs bg-blue-600 text-white px-3 py-1 rounded-full';
+        } else {
+          btn.className = 'filter-btn text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full hover:bg-gray-200';
+        }
+      });
+      renderList();
+    }
+
+    // ===== 渲染列表 =====
+    function renderList() {
+      const filtered = currentFilter === 'all'
+        ? allAssignments
+        : allAssignments.filter(a => a.status_code === currentFilter);
+
+      if (filtered.length === 0) {
+        document.getElementById('assignment-list').innerHTML = '<div class="px-5 py-8 text-center text-sm text-gray-400">暂无匹配的作业</div>';
+        return;
+      }
+
+      const html = filtered.map(a => {
+        const st = statusStyle(a.status_code);
+        const pi = policyInfo(a.late_policy);
         const past = a.is_past_deadline;
         const left = a.remaining_days;
-        const ddl = fmt(a.deadline);
+        const isSelected = selectedAssignment && selectedAssignment.id === a.id;
 
-        const subInfo = sub
-          ? `<div class="bg-gray-50 rounded p-2 text-xs text-gray-600 mt-2">
-              已提交 v${sub.version_no} · ${fmt(sub.submitted_at)} ${sub.is_late ? '<span class="text-orange-600 font-medium">· 迟交</span>' : ''}
-             </div>`
-          : '';
-
-        // 按规则决定按钮
-        let btn = '';
-        if (a.status_code === 'closed') {
-          btn = `<button disabled class="text-xs bg-gray-200 text-gray-500 px-3 py-1.5 rounded-lg cursor-not-allowed">已截止·禁止提交</button>`;
+        let timeText = '';
+        if (past) {
+          timeText = `<span class="text-red-500">已超期 ${Math.abs(left)} 天</span>`;
         } else {
-          const label = sub ? '重新提交' : (past ? '迟交提交' : '提交作业');
-          const cls = past ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-600 hover:bg-blue-700';
-          btn = `<button onclick='openModal(${JSON.stringify(a).replace(/'/g, "&#39;")})' class="text-xs ${cls} text-white px-3 py-1.5 rounded-lg">${label}</button>`;
+          timeText = `剩余 ${left} 天`;
         }
 
+        let subNote = '';
+        if (a.submission) {
+          subNote = `<span class="text-xs text-gray-400 ml-2">v${a.submission.version_no} · ${fmt(a.submission.submitted_at)}</span>`;
+          if (a.submission.is_late) {
+            subNote += `<span class="text-xs text-orange-500 ml-1">· 迟交</span>`;
+          }
+        }
+
+        // 图标颜色选择
+        let iconBg = 'bg-yellow-100';
+        let iconColor = 'text-yellow-500';
+        if (a.status_code === 'submitted') { iconBg = 'bg-green-100'; iconColor = 'text-green-500'; }
+        else if (a.status_code === 'graded') { iconBg = 'bg-green-100'; iconColor = 'text-green-500'; }
+        else if (a.status_code === 'late') { iconBg = 'bg-orange-100'; iconColor = 'text-orange-500'; }
+        else if (a.status_code === 'closed') { iconBg = 'bg-red-100'; iconColor = 'text-red-500'; }
+        else if (a.status_code === 'pending' && past) { iconBg = 'bg-red-100'; iconColor = 'text-red-500'; }
+
         return `
-          <div class="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
-            <div class="flex items-start justify-between gap-2">
-              <div class="flex-1">
-                <h3 class="text-sm font-semibold text-gray-800">${a.title}</h3>
-                <p class="text-xs text-gray-400 mt-0.5">${a.course.name} · ${a.course.term}</p>
+          <div onclick="selectAssignment(${a.id})" class="flex items-center gap-4 px-5 py-4 hover:bg-blue-50 transition cursor-pointer ${isSelected ? 'bg-blue-50 border-l-4 border-blue-500' : ''}">
+            <div class="flex-shrink-0 w-10 h-10 rounded-lg ${iconBg} flex items-center justify-center">
+              <svg class="w-5 h-5 ${iconColor}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-0.5">
+                <p class="text-sm font-semibold text-gray-800 truncate">${a.title}</p>
+                <span class="text-xs ${st.bg} ${st.text} px-1.5 py-0.5 rounded">${a.status_label}</span>
               </div>
-              ${statusBadge({status_code: a.status_code, status_label: a.status_label})}
+              <p class="text-xs text-gray-500">截止：${fmt(a.deadline)} · ${timeText}</p>
+              <div class="flex items-center mt-0.5">
+                <span class="text-xs ${pi.color} px-1.5 py-0.5 rounded">${pi.label}</span>
+                ${subNote}
+              </div>
             </div>
-            <div class="flex items-center gap-2 mt-3">
-              ${policyBadge(a.late_policy)}
-              <span class="text-xs ${past ? 'text-red-500' : 'text-gray-500'}">
-                截止：${ddl} · ${past ? `已超期 ${-left} 天` : `剩余 ${left} 天`}
-              </span>
-            </div>
-            ${subInfo}
-            <div class="mt-3 flex justify-end">
-              ${btn}
-            </div>
-          </div>
-        `;
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </div>`;
       }).join('');
-      document.getElementById('cards').innerHTML = html || '<p class="text-sm text-gray-400">该学生暂无作业</p>';
+
+      document.getElementById('assignment-list').innerHTML = html;
     }
 
-    function openModal(a) {
-      currentAssignment = a;
-      document.getElementById('modal-title').textContent = a.title;
-      const policyText = {
-        'allow':   '本作业策略：截止后<b>允许迟交</b>，将自动标记为"迟交"',
-        'deny':    '本作业策略：截止后<b>禁止提交</b>，请按时完成',
-        'penalty': '本作业策略：截止后<b>允许迟交但扣分</b>',
-      };
-      document.getElementById('modal-policy').innerHTML =
-        `<span class="text-gray-600">${policyText[a.late_policy]||''}</span>`;
-      document.getElementById('text-content').value = '';
-      document.getElementById('submit-result').textContent = '';
-      document.getElementById('modal').classList.remove('hidden');
+    // ===== 选择作业 =====
+    function selectAssignment(id) {
+      selectedAssignment = allAssignments.find(a => a.id === id);
+      if (!selectedAssignment) return;
+      renderList(); // 高亮选中
+      renderPanel();
+      loadVersions();
     }
 
-    function closeModal() {
-      document.getElementById('modal').classList.add('hidden');
-      currentAssignment = null;
+    // ===== 渲染提交面板 =====
+    function renderPanel() {
+      const a = selectedAssignment;
+      if (!a) return;
+      const pi = policyInfo(a.late_policy);
+      const st = statusStyle(a.status_code);
+      const past = a.is_past_deadline;
+      const isClosed = a.status_code === 'closed';
+
+      let deadlineMark = '';
+      if (past) {
+        deadlineMark = `<span class="w-2 h-2 rounded-full bg-red-500"></span>`;
+      } else {
+        deadlineMark = `<span class="w-2 h-2 rounded-full bg-green-500"></span>`;
+      }
+
+      let btnHtml = '';
+      if (isClosed) {
+        btnHtml = `<button disabled class="w-full bg-gray-300 text-gray-500 text-sm font-semibold py-2.5 rounded-lg cursor-not-allowed">已截止 · 禁止提交</button>
+                   <p class="text-xs text-red-400 text-center mt-2">本作业已超过截止时间，按课程策略禁止提交</p>`;
+      } else {
+        const label = a.submission ? '重新提交' : (past ? '迟交提交' : '确认提交');
+        const cls = past ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-600 hover:bg-blue-700';
+        btnHtml = `<button onclick="doSubmit()" class="w-full ${cls} text-white text-sm font-semibold py-2.5 rounded-lg transition">${label}</button>`;
+        if (past) {
+          btnHtml += `<p class="text-xs text-orange-500 text-center mt-2">注意：当前已超过截止时间，提交将标记为迟交</p>`;
+        } else {
+          btnHtml += `<p class="text-xs text-gray-400 text-center mt-2">提交后可在截止前重新上传</p>`;
+        }
+      }
+
+      const versionNote = a.submission
+        ? `当前版本：<span class="font-medium text-gray-700">v${a.submission.version_no}</span> · ${a.allow_resubmit ? '允许重新提交' : '不允许重新提交'}`
+        : `当前版本：<span class="font-medium text-gray-700">v1（首次提交）</span> · ${a.allow_resubmit ? '允许多次重新提交' : '仅允许提交一次'}`;
+
+      document.getElementById('panel-content').innerHTML = `
+        <div class="flex items-center gap-2 mb-1">
+          ${deadlineMark}
+          <h3 class="text-sm font-semibold text-gray-800">提交作业</h3>
+          <span class="text-xs ${st.bg} ${st.text} px-1.5 py-0.5 rounded ml-auto">${a.status_label}</span>
+        </div>
+        <p class="text-xs text-gray-500 mb-2">${a.title}</p>
+        <p class="text-xs text-gray-500 mb-3">截止：${fmt(a.deadline)}</p>
+        <div class="flex items-center gap-2 mb-4">
+          <span class="text-xs ${pi.color} px-2 py-0.5 rounded">${pi.label}</span>
+          <span class="text-xs text-gray-400">${pi.desc}</span>
+        </div>
+
+        <!-- 提交说明 -->
+        <div class="mb-4">
+          <label class="block text-xs font-medium text-gray-600 mb-1">说明（可选）</label>
+          <textarea id="text-content" rows="3" placeholder="填写提交说明或备注..."
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" ${isClosed ? 'disabled' : ''}></textarea>
+        </div>
+
+        <!-- 文件上传区域 -->
+        <div class="border-2 border-dashed ${isClosed ? 'border-gray-100 bg-gray-50' : 'border-gray-200 hover:border-blue-300'} rounded-lg p-5 text-center mb-4 transition">
+          <svg class="w-8 h-8 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+          </svg>
+          <p class="text-xs text-gray-400">拖拽文件到此处，或</p>
+          <label class="mt-1 text-xs text-blue-500 hover:underline cursor-pointer">
+            选择文件
+            <input type="file" id="file-input" class="hidden" ${isClosed ? 'disabled' : ''} onchange="onFileSelected(this)"/>
+          </label>
+          <p id="file-name" class="text-xs text-gray-500 mt-1 hidden"></p>
+          <p class="text-xs text-gray-300 mt-1">支持 pdf · docx · zip · 最大 50MB</p>
+        </div>
+
+        <!-- 版本信息 -->
+        <div class="bg-gray-50 rounded-lg px-3 py-2 mb-4 text-xs text-gray-500">${versionNote}</div>
+
+        <!-- 提交按钮 -->
+        ${btnHtml}
+        <p id="submit-result" class="text-xs mt-3 text-center"></p>
+      `;
+
+      document.getElementById('panel-content').parentElement.querySelector('.border-2').classList.replace('border-gray-200', 'border-blue-200');
     }
 
+    function onFileSelected(input) {
+      const label = document.getElementById('file-name');
+      if (input.files.length > 0) {
+        label.textContent = '已选择：' + input.files[0].name;
+        label.classList.remove('hidden');
+      }
+    }
+
+    // ===== 提交作业 =====
     async function doSubmit() {
-      if (!currentAssignment) return;
+      if (!selectedAssignment) return;
       const sn = document.getElementById('student-no').value.trim();
       const text = document.getElementById('text-content').value;
+      const fileInput = document.getElementById('file-input');
+
       const fd = new FormData();
-      fd.append('assignment_id', currentAssignment.id);
+      fd.append('assignment_id', selectedAssignment.id);
       fd.append('student_no', sn);
       fd.append('text_content', text);
+      if (fileInput && fileInput.files.length > 0) {
+        fd.append('file', fileInput.files[0]);
+      }
+
       const result = document.getElementById('submit-result');
       result.textContent = '提交中...';
+      result.className = 'text-xs mt-3 text-center text-gray-500';
+
       try {
         const r = await fetch(`${API}/api/assignments/submit`, { method: 'POST', body: fd });
         const data = await r.json();
         if (r.ok) {
           const cls = data.is_late ? 'text-orange-600' : 'text-green-600';
           result.innerHTML = `<span class="${cls}">✓ ${data.message}（v${data.version_no}）</span>`;
-          setTimeout(() => { closeModal(); loadAssignments(); }, 1200);
+          setTimeout(() => { loadAssignments(); }, 1200);
         } else {
           result.innerHTML = `<span class="text-red-600">✗ ${data.detail}</span>`;
         }
@@ -195,6 +391,34 @@
       }
     }
 
+    // ===== 加载版本历史 =====
+    async function loadVersions() {
+      if (!selectedAssignment) return;
+      const sn = document.getElementById('student-no').value.trim();
+      const container = document.getElementById('version-history');
+      const list = document.getElementById('version-list');
+
+      try {
+        const r = await fetch(`${API}/api/assignments/${selectedAssignment.id}/submissions?student_no=${encodeURIComponent(sn)}`);
+        if (!r.ok) { container.classList.add('hidden'); return; }
+        const data = await r.json();
+        if (data.versions.length === 0) { container.classList.add('hidden'); return; }
+
+        container.classList.remove('hidden');
+        list.innerHTML = data.versions.map(v => `
+          <div class="flex items-center gap-3 text-xs ${v.is_late ? 'text-orange-600' : 'text-gray-600'}">
+            <span class="font-medium">v${v.version_no}</span>
+            <span class="flex-1 truncate">${v.file_url || '文本提交'}</span>
+            <span class="text-gray-400 flex-shrink-0">${fmt(v.submitted_at)}</span>
+            ${v.is_late ? '<span class="text-orange-500 font-medium">迟交</span>' : ''}
+          </div>
+        `).join('');
+      } catch (e) {
+        container.classList.add('hidden');
+      }
+    }
+
+    // 页面加载时自动尝试加载
     loadAssignments();
   </script>
 </body>

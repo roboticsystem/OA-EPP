@@ -155,9 +155,6 @@ def init_db():
 def init_mysql_tables():
     """初始化 MySQL 作业模块相关表（与 assignment.py 路由对齐）
     适配真实数据库表结构：
-    - courses: id, code, name, term, status
-    - enrollments: id, course_id, student_user_id, enrolled_at
-    - users: id, role, student_no, email, full_name
     - assignments: id, course_id, chapter_id, title, description_md, allow_resubmit, late_policy, deadline, created_by, created_at
     - submissions: id, assignment_id, student_user_id, version_no, file_url, text_content, is_late, grading_status, submitted_at
     """
