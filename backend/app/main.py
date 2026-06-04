@@ -24,6 +24,7 @@ from app.routers import (
     chapters,
     timeline,
     profile,
+    student_scores,
 )
 # classroom_exam 是 feature 分支新增的路由，若存在则包含
 try:
@@ -52,6 +53,7 @@ app.include_router(notifications.router)
 app.include_router(chapters.router)
 app.include_router(timeline.router)
 app.include_router(profile.router)
+app.include_router(student_scores.router)
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 

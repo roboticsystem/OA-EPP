@@ -3,257 +3,350 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>学生登录与成绩查询 — 研究生课程《机器人系统》</title>
+<title>学生成绩看板 — OA-EPP</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; background: #f0f4f8; color: #333; min-height: 100vh; }
-  .header { background: #1565c0; color: #fff; padding: 16px 24px; }
+  .header { background: linear-gradient(135deg, #1565c0, #1976d2); color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
   .header h1 { font-size: 1.2rem; }
-  .header p { font-size: .85rem; opacity: .85; margin-top: 4px; }
-  .container { max-width: 680px; margin: 32px auto; padding: 0 16px; }
-  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.1); overflow: hidden; margin-bottom: 20px; }
-  .panel { padding: 28px; }
-  .panel h2 { font-size: 1.1rem; margin-bottom: 16px; color: #1565c0; }
-  .input-column { display: flex; flex-direction: column; gap: 12px; }
-  input[type=text], input[type=password] { width: 100%; padding: 12px 16px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
-  input[type=text]:focus, input[type=password]:focus { outline: none; border-color: #1565c0; box-shadow: 0 0 0 3px rgba(21,101,192,.1); }
-  .btn { padding: 12px 24px; background: #1565c0; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; white-space: nowrap; }
+  .header .subtitle { font-size: .8rem; opacity: .85; margin-top: 2px; }
+  .header .logout-btn { background: rgba(255,255,255,.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: .85rem; }
+  .header .logout-btn:hover { background: rgba(255,255,255,.35); }
+  .container { max-width: 800px; margin: 24px auto; padding: 0 16px; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.1); margin-bottom: 16px; overflow: hidden; }
+  .card-header { padding: 16px 20px; border-bottom: 1px solid #f0f0f0; font-weight: bold; color: #1565c0; display: flex; align-items: center; gap: 8px; }
+  .card-body { padding: 20px; }
+
+  /* Login */
+  .login-wrap { max-width: 400px; margin: 60px auto 0; text-align: center; }
+  .login-logo { width: 64px; height: 64px; background: #1565c0; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin: 0 auto 16px; }
+  .form-group { margin-bottom: 14px; text-align: left; }
+  .form-group label { display: block; font-size: .85rem; color: #555; margin-bottom: 4px; }
+  .form-group input { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: .95rem; }
+  .form-group input:focus { outline: none; border-color: #1565c0; box-shadow: 0 0 0 3px rgba(21,101,192,.1); }
+  .btn { padding: 10px 20px; background: #1565c0; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: .95rem; }
   .btn:hover { background: #0d47a1; }
-  .btn-danger { background: #d32f2f; }
-  .btn-danger:hover { background: #b71c1c; }
-  .status-line { font-size: .9rem; color: #888; margin-top: 10px; }
-  .hint { font-size: .85rem; color: #888; margin-top: 10px; text-align: center; }
-  .empty { padding: 32px; text-align: center; color: #bbb; }
-  .student-info { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
-  .avatar { width: 48px; height: 48px; background: #1565c0; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; flex-shrink: 0; }
+  .btn:disabled { background: #90caf9; cursor: not-allowed; }
+  .error-msg { color: #d32f2f; font-size: .85rem; display: none; text-align: center; }
+
+  /* Student Info */
+  .student-header { display: flex; align-items: center; gap: 16px; }
+  .avatar { width: 48px; height: 48px; border-radius: 50%; background: #1565c0; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: bold; flex-shrink: 0; }
   .student-detail h3 { font-size: 1.1rem; }
-  .student-detail p { font-size: .88rem; color: #888; margin-top: 2px; }
-  .score-list { display: flex; flex-direction: column; gap: 10px; }
-  .score-item { border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; }
-  .score-item.submitted { border-color: #a5d6a7; background: #f1f8e9; }
-  .score-item.pending { opacity: .65; }
-  .exam-title { font-weight: bold; font-size: .95rem; }
-  .exam-time { font-size: .8rem; color: #888; margin-top: 2px; }
-  .score-badge { text-align: right; }
-  .score-value { font-size: 1.4rem; font-weight: bold; color: #1565c0; }
-  .score-total { font-size: .85rem; color: #888; }
-  .score-pending { font-size: .9rem; color: #bbb; }
-  @media (max-width: 560px) {
-    .student-info { flex-direction: column; align-items: flex-start; }
+  .student-detail p { font-size: .85rem; color: #888; }
+
+  /* Total Score */
+  .total-score-wrap { text-align: center; padding: 24px; }
+  .total-score-circle { width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #1565c0, #1976d2); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 12px; }
+  .total-score-number { font-size: 2.4rem; font-weight: bold; line-height: 1; }
+  .total-score-label { font-size: .8rem; opacity: .85; margin-top: 4px; }
+  .total-score-hint { font-size: .85rem; color: #888; }
+
+  /* Dimension Grid */
+  .dim-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .dim-card { border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px; }
+  .dim-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .dim-name { font-weight: bold; font-size: .95rem; }
+  .dim-weight { font-size: .8rem; color: #999; }
+  .dim-score { font-size: 1.5rem; font-weight: bold; color: #1565c0; }
+  .dim-score-label { font-size: .8rem; color: #888; }
+  .dim-pending-badge { display: inline-block; background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 4px; font-size: .75rem; font-weight: 500; }
+
+  /* Score Items Table */
+  .score-table { width: 100%; border-collapse: collapse; }
+  .score-table th, .score-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #f0f0f0; font-size: .88rem; }
+  .score-table th { color: #888; font-weight: 500; background: #fafafa; }
+  .score-table td:last-child { text-align: right; }
+  .dim-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: .75rem; font-weight: 500; }
+  .dim-badge-attendance { background: #e3f2fd; color: #1565c0; }
+  .dim-badge-exam { background: #fce4ec; color: #c62828; }
+  .dim-badge-code { background: #e8f5e9; color: #2e7d32; }
+  .dim-badge-pr { background: #f3e5f5; color: #6a1b9a; }
+  .pending-row td { color: #bbb; font-style: italic; }
+  .pending-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ff9800; margin-right: 6px; }
+  .scorer-name { color: #666; font-size: .82rem; }
+  .scored-at { color: #999; font-size: .8rem; }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .dim-grid { grid-template-columns: 1fr; }
+    .header { flex-direction: column; gap: 8px; text-align: center; }
   }
 </style>
 </head>
 <body>
-<div class="header">
-  <h1>📊 学生成绩查询</h1>
-  <p>研究生课程《机器人系统》 — 成都信息工程大学软件工程学院</p>
+
+<div id="app-header" class="header" style="display:none">
+  <div>
+    <h1>学生成绩看板</h1>
+    <div class="subtitle" id="header-subtitle"></div>
+  </div>
+  <button class="logout-btn" onclick="doLogout()">退出登录</button>
 </div>
+
 <div class="container">
-  <div id="login-card" class="card">
-    <div class="panel">
-      <h2>🔐 学生登录</h2>
-      <div class="input-column">
-        <input type="text" id="identifier" placeholder="请输入学号或邮箱" onkeydown="if(event.key==='Enter')doLogin()">
-        <input type="password" id="password" placeholder="请输入密码" onkeydown="if(event.key==='Enter')doLogin()">
+
+  <!-- ====== 登录页面 ====== -->
+  <div id="section-login" class="login-wrap">
+    <div class="card">
+      <div class="card-body">
+        <div class="login-logo">📊</div>
+        <h2 style="font-size:1.15rem;margin-bottom:4px">OA-EPP 成绩看板</h2>
+        <p style="color:#888;font-size:.85rem;margin-bottom:20px">登录查看综合得分与各维度成绩</p>
+        <div class="form-group">
+          <label>邮箱</label>
+          <input type="text" id="login-email" placeholder="学号@stu.oaepp.dev" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" id="login-password" placeholder="输入密码" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <div class="error-msg" id="login-error"></div>
+        <button class="btn" id="login-btn" onclick="doLogin()" style="width:100%;margin-top:8px">登录</button>
+        <p style="font-size:.8rem;color:#aaa;margin-top:12px">首次登录默认密码为学号</p>
       </div>
-      <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-        <button class="btn" onclick="doLogin()">登录</button>
-        <span id="login-msg" class="status-line"></span>
-      </div>
-      <p class="hint">首次登录默认密码为学号；连续登录失败 5 次后会暂时锁定账户 5 分钟。</p>
     </div>
   </div>
 
-  <div id="results-card" class="card" style="display:none;">
-    <div class="panel">
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:20px;">
-        <div>
-          <div style="font-size:1rem; color:#1565c0;">已登录：<span id="user-name"></span></div>
-          <div style="font-size:.9rem; color:#888;" id="user-meta"></div>
-        </div>
-        <button class="btn btn-danger" onclick="logout()">退出登录</button>
-      </div>
+  <!-- ====== 看板 ====== -->
+  <div id="section-dashboard" style="display:none">
 
-      <div class="student-info">
-        <div class="avatar" id="avatar-text">?</div>
-        <div class="student-detail">
-          <h3 id="result-name"></h3>
-          <p id="result-meta"></p>
+    <!-- 学生信息 -->
+    <div class="card">
+      <div class="card-body">
+        <div class="student-header">
+          <div class="avatar" id="avatar-text">?</div>
+          <div class="student-detail">
+            <h3 id="student-name"></h3>
+            <p id="student-meta"></p>
+          </div>
         </div>
-      </div>
-      <div class="score-list" id="score-list"></div>
-      <p class="hint">成绩由服务器记录，如有疑问请联系授课教师。</p>
-    </div>
-  </div>
-
-  <!-- 公告通知模块 -->
-  <div id="notif-module" class="card" style="display:none">
-    <div class="notif-section" style="padding:4px 20px 20px 20px;">
-      <div class="notif-header" id="notif-toggle" onclick="toggleNotifications()">
-        <span style="font-weight:bold;font-size:.95rem;">📢 公告与通知</span>
-        <span id="notif-badge-wrap" style="display:none"><span class="badge-unread" id="notif-badge">0</span></span>
-      </div>
-      <div class="notif-list-wrap" id="notif-list-wrap">
-        <div class="notif-tabs" id="notif-tabs">
-          <button class="notif-tab active" data-cat="all" onclick="switchNotifCat('all')">全部</button>
-          <button class="notif-tab" data-cat="announcement" onclick="switchNotifCat('announcement')">📋 公告</button>
-          <button class="notif-tab" data-cat="deadline" onclick="switchNotifCat('deadline')">⏰ 截止提醒</button>
-          <button class="notif-tab" data-cat="grade" onclick="switchNotifCat('grade')">📊 成绩通知</button>
-        </div>
-        <div id="notif-list" style="max-height:360px;overflow-y:auto;">加载中…</div>
-        <button class="btn" style="margin-top:10px;width:100%;background:#e0e0e0;color:#333;font-size:.85rem" onclick="markAllNotificationsRead()">全部标记已读</button>
       </div>
     </div>
+
+    <!-- 综合得分 -->
+    <div class="card">
+      <div class="card-body">
+        <div class="total-score-wrap">
+          <div class="total-score-circle">
+            <div class="total-score-number" id="total-score">0</div>
+            <div class="total-score-label">综合得分</div>
+          </div>
+          <div class="total-score-hint">基于各维度加权计算</div>
+        </div>
+        <div class="dim-grid" id="dim-grid"></div>
+      </div>
+    </div>
+
+    <!-- 评分明细 -->
+    <div class="card">
+      <div class="card-header">评分明细</div>
+      <div class="card-body" style="padding:0">
+        <table class="score-table" id="score-table">
+          <thead>
+            <tr>
+              <th>项目</th>
+              <th>维度</th>
+              <th>分数</th>
+              <th>评分人</th>
+              <th>评分时间</th>
+            </tr>
+          </thead>
+          <tbody id="score-tbody"></tbody>
+        </table>
+        <div id="score-empty" style="padding:32px;text-align:center;color:#bbb;display:none">暂无评分记录</div>
+      </div>
+    </div>
+
   </div>
+
 </div>
 
 <script>
 const API = '';
-let currentToken = '';
+let currentToken = null;
+let refreshTimer = null;
 
-function showMessage(msg, isError = false) {
-  const el = document.getElementById('login-msg');
-  el.textContent = msg;
-  el.style.color = isError ? '#d32f2f' : '#1565c0';
-}
-
-function showLogin() {
-  document.getElementById('login-card').style.display = 'block';
-  document.getElementById('results-card').style.display = 'none';
-  showMessage('');
-}
-
-function showResultsCard() {
-  document.getElementById('login-card').style.display = 'none';
-  document.getElementById('results-card').style.display = 'block';
-}
-
-async function init() {
-  const token = sessionStorage.getItem('student_token');
-  if (token) {
-    currentToken = token;
-    await loadProfile();
-  } else {
-    showLogin();
-  }
-}
-
-async function loadProfile() {
-  try {
-    const resp = await fetch(`${API}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${currentToken}` },
-    });
-    if (!resp.ok) {
-      sessionStorage.removeItem('student_token');
-      showLogin();
-      return;
-    }
-    const profile = await resp.json();
-    document.getElementById('user-name').textContent = profile.name;
-    document.getElementById('user-meta').textContent = `学号：${profile.student_id}`;
-    await fetchScores(profile.student_id, profile.name, profile.class_name || '');
-  } catch (err) {
-    showLogin();
-  }
-}
-
+/* ====== 登录 ====== */
 async function doLogin() {
-  const identifier = document.getElementById('identifier').value.trim();
-  const password = document.getElementById('password').value;
-  if (!identifier || !password) {
-    showMessage('请填写学号/邮箱和密码', true);
-    return;
-  }
-  showMessage('正在登录...');
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('login-btn');
+
+  errEl.style.display = 'none';
+  if (!email || !password) { showErr(errEl, '请输入邮箱和密码'); return; }
+
+  btn.disabled = true;
+  btn.textContent = '登录中...';
   try {
-    const resp = await fetch(`${API}/api/auth/login`, {
+    const r = await fetch(`${API}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier, password }),
+      body: JSON.stringify({ email, password })
     });
-    const data = await resp.json();
-    if (!resp.ok) {
-      showMessage(data.detail || '登录失败，请检查学号/邮箱和密码', true);
-      return;
-    }
-    currentToken = data.token;
-    sessionStorage.setItem('student_token', currentToken);
-    document.getElementById('user-name').textContent = data.name;
-    document.getElementById('user-meta').textContent = `学号：${data.student_id}${data.class_name ? ' · ' + data.class_name : ''}`;
-    await fetchScores(data.student_id, data.name, data.class_name || '');
-  } catch (err) {
-    showMessage('网络错误，请稍后再试', true);
+    const d = await r.json();
+    if (!r.ok) { showErr(errEl, d.detail || '登录失败'); btn.disabled = false; btn.textContent = '登录'; return; }
+    currentToken = d.token;
+    localStorage.setItem('oaepp_score_token', currentToken);
+    await loadDashboard();
+  } catch (e) {
+    showErr(errEl, '网络错误：' + e.message);
   }
+  btn.disabled = false;
+  btn.textContent = '登录';
 }
 
-async function fetchScores(studentId, studentName, className) {
+/* ====== 加载看板数据 ====== */
+async function loadDashboard() {
   try {
-    const resp = await fetch(`${API}/api/scores?student_id=${encodeURIComponent(studentId)}`, {
-      headers: { Authorization: `Bearer ${currentToken}` },
+    const r = await fetch(`${API}/api/student/dashboard`, {
+      headers: { Authorization: `Bearer ${currentToken}` }
     });
-    if (!resp.ok) {
-      showMessage('无法获取成绩，请稍后重试', true);
-      return;
-    }
-    const data = await resp.json();
-    renderResults({
-      student: {
-        name: studentName,
-        student_id: studentId,
-        class_name: className,
-      },
-      scores: data.scores || [],
-    });
-  } catch (err) {
-    showMessage('网络错误，请稍后再试', true);
+    if (r.status === 401) { doLogout(); return; }
+    if (!r.ok) { showToast('获取数据失败'); return; }
+    const data = await r.json();
+    renderDashboard(data);
+  } catch (e) {
+    showToast('网络错误');
   }
 }
 
-function renderResults(data) {
-  showResultsCard();
-  const s = data.student;
-  document.getElementById('avatar-text').textContent = s.name ? s.name.slice(-1) : '?';
-  document.getElementById('result-name').textContent = s.name || '学生';
-  document.getElementById('result-meta').textContent = `学号：${s.student_id}${s.class_name ? ' · ' + s.class_name : ''}`;
+function renderDashboard(data) {
+  document.getElementById('section-login').style.display = 'none';
+  document.getElementById('section-dashboard').style.display = 'block';
+  document.getElementById('app-header').style.display = 'flex';
 
-  if (!data.scores || !data.scores.length) {
-    document.getElementById('score-list').innerHTML = '<div class="empty">当前暂无成绩记录。</div>';
+  const s = data.student;
+  const course = data.course || {};
+  document.getElementById('avatar-text').textContent = s.name ? s.name.slice(-1) : '?';
+  document.getElementById('student-name').textContent = s.name || '';
+  document.getElementById('student-meta').textContent = `学号：${s.student_id}${s.class_name ? ' · ' + s.class_name : ''} · ${course.name || ''}`;
+  document.getElementById('header-subtitle').textContent = `${s.name} · ${s.student_id} · ${course.name || ''}`;
+
+  document.getElementById('total-score').textContent = data.total_score;
+  renderDimensionCards(data);
+  renderScoreItems(data);
+}
+
+/* ====== 维度卡片 ====== */
+const DIM_COLORS = { attendance: '#1565c0', exam: '#c62828', code: '#2e7d32', pr: '#6a1b9a' };
+const DIM_ICONS = { attendance: '📋', exam: '📝', code: '💻', pr: '🔀' };
+
+function renderDimensionCards(data) {
+  const grid = document.getElementById('dim-grid');
+  grid.innerHTML = '';
+
+  for (const [key, dim] of Object.entries(data.dimensions)) {
+    const hasItems = dim.count > 0;
+    const pendingBadge = dim.pending_count > 0
+      ? `<span class="dim-pending-badge">${dim.pending_count} 项待评</span>` : '';
+
+    grid.innerHTML += `
+      <div class="dim-card">
+        <div class="dim-card-header">
+          <span class="dim-name">${DIM_ICONS[key]} ${dim.label}</span>
+          <span class="dim-weight">权重 ${dim.weight}%</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-end">
+          <div>
+            <div class="dim-score">${hasItems ? dim.total_score : '-'}</div>
+            <div class="dim-score-label">${pendingBadge}</div>
+          </div>
+          <div style="text-align:right;font-size:.8rem;color:#999">
+            ${hasItems ? dim.count + ' 项评分' : ''}
+          </div>
+        </div>
+        <div style="margin-top:8px;height:4px;background:#e0e0e0;border-radius:2px;overflow:hidden">
+          <div style="height:100%;width:${hasItems ? Math.min(dim.total_score, 100) : 0}%;background:${DIM_COLORS[key]};border-radius:2px;transition:width .5s"></div>
+        </div>
+      </div>`;
+  }
+}
+
+/* ====== 评分明细表 ====== */
+function renderScoreItems(data) {
+  const tbody = document.getElementById('score-tbody');
+  const empty = document.getElementById('score-empty');
+  const allItems = [];
+
+  for (const [key, dim] of Object.entries(data.dimensions)) {
+    for (const item of dim.items) {
+      allItems.push({ ...item, dim_key: key, dim_label: dim.label });
+    }
+  }
+  allItems.sort((a, b) => (b.scored_at || '').localeCompare(a.scored_at || ''));
+
+  if (allItems.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
     return;
   }
+  empty.style.display = 'none';
 
-  const scoreHtml = data.scores.map(item => {
-    if (item.score !== null && item.score !== undefined) {
-      return `
-        <div class="score-item submitted">
-          <div>
-            <div class="exam-title">${item.exam_title}</div>
-            <div class="exam-time">${item.submitted_at || ''}</div>
-          </div>
-          <div class="score-badge">
-            <div class="score-value">${item.score}</div>
-            <div class="score-total">/ ${item.total} 分</div>
-          </div>
-        </div>`;
-    }
-    return `
-        <div class="score-item pending">
-          <div><div class="exam-title">${item.exam_title}</div></div>
-          <div class="score-pending">未参加</div>
-        </div>`;
+  tbody.innerHTML = allItems.map(item => {
+    const name = item.exam_name || (item.dim_key === 'exam' ? '考试' : '') || '-';
+    return `<tr>
+      <td style="font-size:.85rem">${name}</td>
+      <td><span class="dim-badge dim-badge-${item.dim_key}">${item.dim_label}</span></td>
+      <td><strong>${item.score}</strong></td>
+      <td><span class="scorer-name">${item.scorer_name}</span></td>
+      <td><span class="scored-at">${item.scored_at || '-'}</span></td>
+    </tr>`;
   }).join('');
 
-  document.getElementById('score-list').innerHTML = scoreHtml;
+  /* 附加待评项 */
+  let pendingHtml = '';
+  for (const [key, dim] of Object.entries(data.dimensions)) {
+    for (const p of dim.pending_items) {
+      pendingHtml += `
+        <tr class="pending-row">
+          <td><span class="pending-dot"></span>${p.name}</td>
+          <td><span class="dim-badge dim-badge-${key}">${dim.label}</span></td>
+          <td colspan="3">待评分</td>
+        </tr>`;
+    }
+  }
+  if (pendingHtml) {
+    tbody.innerHTML += `<tr><td colspan="5" style="padding:6px 12px;background:#fafafa;font-size:.82rem;color:#888">待评分项</td></tr>`;
+    tbody.innerHTML += pendingHtml;
+  }
 }
 
-function logout() {
-  sessionStorage.removeItem('student_token');
-  currentToken = '';
-  document.getElementById('identifier').value = '';
-  document.getElementById('password').value = '';
-  showLogin();
+/* ====== 自动刷新 ====== */
+function startAutoRefresh() {
+  stopAutoRefresh();
+  refreshTimer = setInterval(loadDashboard, 15000);
 }
 
-window.addEventListener('DOMContentLoaded', init);
+function stopAutoRefresh() {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+}
+
+/* ====== 退出 ====== */
+function doLogout() {
+  stopAutoRefresh();
+  currentToken = null;
+  localStorage.removeItem('oaepp_score_token');
+  document.getElementById('section-login').style.display = 'block';
+  document.getElementById('section-dashboard').style.display = 'none';
+  document.getElementById('app-header').style.display = 'none';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
+}
+
+/* ====== 工具 ====== */
+function showErr(el, msg) { el.textContent = msg; el.style.display = 'block'; }
+function showToast(msg) { /* placeholder */ }
+
+/* ====== 初始化 ====== */
+(function init() {
+  const saved = localStorage.getItem('oaepp_score_token');
+  if (saved) {
+    currentToken = saved;
+    loadDashboard().then(startAutoRefresh);
+  }
+})();
 </script>
 </body>
 </html>

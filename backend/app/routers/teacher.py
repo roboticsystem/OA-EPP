@@ -38,60 +38,6 @@ def _name_to_pinyin(name: str):
 class LoginRequest(BaseModel):
     password: str
 
-                cur.execute("""
-                    SELECT AVG(gr.exam_score) AS avg
-                    FROM grading_records gr
-                    JOIN submissions sub ON gr.submission_id = sub.id
-                    JOIN assignments a ON sub.assignment_id = a.id
-                    WHERE a.course_id = %s AND a.title LIKE CONCAT('exam_', %s, '%%')
-                """, (COURSE_ID, str(e["id"])))
-                avg_row = cur.fetchone()
-                avg = avg_row["avg"]
-            except Exception:
-                # 回退到 legacy 的 scores 表
-                try:
-                    cur.execute("SELECT COUNT(*) AS cnt FROM scores WHERE exam_id = %s", (e["id"],))
-                    submitted = cur.fetchone()["cnt"] or 0
-                except Exception:
-                    submitted = 0
-                try:
-                    cur.execute("SELECT AVG(score) AS avg FROM scores WHERE exam_id = %s", (e["id"],))
-                    avg_row = cur.fetchone()
-                    avg = avg_row["avg"]
-                except Exception:
-                    avg = None
-
-            # 尝试根据 classroom_exams 的时间判断状态（开放中 / 已关闭），找不到则以 is_active 回退
-            status = None
-            try:
-                cur.execute("SELECT start_at, end_at FROM classroom_exams WHERE id = %s", (e["id"],))
-                ce = cur.fetchone()
-                if ce and ce.get("start_at") and ce.get("end_at"):
-                    try:
-                        now = datetime.now()
-                        start = datetime.strptime(str(ce["start_at"]), "%Y-%m-%d %H:%M:%S")
-                        end = datetime.strptime(str(ce["end_at"]), "%Y-%m-%d %H:%M:%S")
-                        status = "active" if (now >= start and now <= end) else "ended"
-                    except Exception:
-                        status = "unknown"
-                else:
-                    status = "active" if e.get("is_active", 1) == 1 else "ended"
-            except Exception:
-                status = "active" if e.get("is_active", 1) == 1 else "ended"
-
-            result.append({
-                "id": str(e["id"]),
-                "title": e["title"],
-                "is_active": 1,
-                "exam_type": e["exam_type"],
-                "start_at": e["start_at"].strftime("%Y-%m-%d %H:%M:%S") if e["start_at"] else None,
-                "end_at": e["end_at"].strftime("%Y-%m-%d %H:%M:%S") if e["end_at"] else None,
-                "submitted": submitted,
-                "total_students": total_students,
-                "avg_score": round(float(avg), 1) if avg else None,
-                "status": status,
-            })
-
 @router.post("/api/teacher/students")
 async def upload_students(
     file: UploadFile = File(...),
