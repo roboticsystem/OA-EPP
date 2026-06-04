@@ -14,7 +14,7 @@ from typing import Optional
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_REPO  = os.environ.get("GITHUB_REPO", "uwislab/robotics-systems-course")
-GIT_BRANCH   = os.environ.get("GIT_BRANCH", "main")
+GIT_BRANCH   = os.environ.get("GIT_BRANCH", "F-D-009]-Commit-消息格式自动校验")
 
 _API_BASE = "https://api.github.com"
 
@@ -58,20 +58,22 @@ def _encode_content(text: str) -> str:
     return base64.b64encode(text.encode("utf-8")).decode("ascii")
 
 
-def file_exists(path: str) -> bool:
+def file_exists(path: str, branch: Optional[str] = None) -> bool:
     """检查仓库中是否存在指定路径的文件。"""
+    ref = branch or GIT_BRANCH
     try:
-        _github_request("GET", _api_url(f"/contents/{path}?ref={GIT_BRANCH}"))
+        _github_request("GET", _api_url(f"/contents/{path}?ref={ref}"))
         return True
     except RuntimeError:
         return False
 
 
-def get_file_sha(path: str) -> Optional[str]:
+def get_file_sha(path: str, branch: Optional[str] = None) -> Optional[str]:
     """获取仓库中已有文件的 SHA（用于更新文件）。返回 None 表示文件不存在。"""
+    ref = branch or GIT_BRANCH
     try:
         resp = _github_request(
-            "GET", _api_url(f"/contents/{path}?ref={GIT_BRANCH}")
+            "GET", _api_url(f"/contents/{path}?ref={ref}")
         )
         return resp.get("sha")
     except RuntimeError:
@@ -109,61 +111,28 @@ def push_files(
     branch: Optional[str] = None,
 ) -> dict:
     """
-    通过 Git Tree API 批量推送多个文件（单个 commit）。
-    files: [{"path": "...", "content": "..."}, ...]
-    返回 {"commit_sha": "...", "commit_url": "...", "html_url": "..."}
+    通过 Content API 推送文件（逐文件 PUT /contents/{path}）。
+    返回 {"commit_sha": "...", "commit_url": "..."}
     """
     branch = branch or GIT_BRANCH
 
-    # 1. 获取最新 commit SHA
-    ref_resp = _github_request(
-        "GET", _api_url(f"/git/ref/heads/{branch}")
-    )
-    latest_commit_sha = ref_resp["object"]["sha"]
-
-    # 2. 获取 base tree SHA
-    commit_resp = _github_request(
-        "GET", _api_url(f"/git/commits/{latest_commit_sha}")
-    )
-    base_tree_sha = commit_resp["tree"]["sha"]
-
-    # 3. 创建 blob 并构建 tree items
-    tree_items = []
+    last_sha = None
     for f in files:
-        blob_resp = _github_request("POST", _api_url("/git/blobs"), {
-            "content": f["content"],
-            "encoding": "utf-8",
-        })
-        tree_items.append({
-            "path": f["path"],
-            "mode": "100644",
-            "type": "blob",
-            "sha": blob_resp["sha"],
-        })
+        data = {
+            "message": commit_message,
+            "content": _encode_content(f["content"]),
+            "branch": branch,
+        }
+        sha = get_file_sha(f["path"], branch)
+        if sha:
+            data["sha"] = sha
 
-    # 4. 创建 tree
-    tree_resp = _github_request("POST", _api_url("/git/trees"), {
-        "base_tree": base_tree_sha,
-        "tree": tree_items,
-    })
-    new_tree_sha = tree_resp["sha"]
+        resp = _github_request("PUT", _api_url(f"/contents/{f['path']}"), data)
+        last_sha = resp["commit"]["sha"]
 
-    # 5. 创建 commit
-    new_commit = _github_request("POST", _api_url("/git/commits"), {
-        "message": commit_message,
-        "tree": new_tree_sha,
-        "parents": [latest_commit_sha],
-    })
-    new_commit_sha = new_commit["sha"]
-
-    # 6. 更新分支引用
-    _github_request("PATCH", _api_url(f"/git/refs/heads/{branch}"), {
-        "sha": new_commit_sha,
-    })
-
-    commit_url = f"https://github.com/{GITHUB_REPO}/commit/{new_commit_sha}"
+    commit_url = f"https://github.com/{GITHUB_REPO}/commit/{last_sha}"
     return {
-        "commit_sha": new_commit_sha,
+        "commit_sha": last_sha,
         "commit_url": commit_url,
         "html_url": commit_url,
     }
@@ -183,14 +152,35 @@ def check_token() -> dict:
         return {"ok": False, "error": str(e)}
 
 
-def get_repo_file_content(path: str) -> Optional[str]:
+def get_repo_file_content(path: str, branch: Optional[str] = None) -> Optional[str]:
     """读取仓库中文件的内容（用于比对版本）。"""
+    ref = branch or GIT_BRANCH
     try:
         resp = _github_request(
-            "GET", _api_url(f"/contents/{path}?ref={GIT_BRANCH}")
+            "GET", _api_url(f"/contents/{path}?ref={ref}")
         )
         if resp.get("encoding") == "base64":
             return base64.b64decode(resp["content"]).decode("utf-8")
         return resp.get("content")
     except RuntimeError:
         return None
+
+
+def list_branches() -> list[dict]:
+    """获取仓库所有分支列表。返回 [{"name": "...", "default": bool}, ...]"""
+    try:
+        # 获取默认分支
+        repo = _github_request("GET", _api_url(""))
+        default_branch = repo.get("default_branch", "main")
+        # 获取所有分支
+        resp = _github_request("GET", _api_url("/branches") + "?per_page=100")
+        branches = []
+        for b in resp:
+            branches.append({
+                "name": b["name"],
+                "default": b["name"] == default_branch,
+            })
+        return branches
+    except RuntimeError as e:
+        return []
+

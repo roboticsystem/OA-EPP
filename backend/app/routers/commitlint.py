@@ -1,9 +1,9 @@
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Query
 from typing import Optional
 from pydantic import BaseModel, field_validator
 import json
 from app.auth_utils import verify_teacher_token
-from app.github_client import push_files, check_token, file_exists
+from app.github_client import push_files, check_token, file_exists, GIT_BRANCH, list_branches
 from app.mysql_db import mysql_db, COMMITLINT_COURSE_ID, COMMITLINT_UPDATED_BY
 from app.failures_store import get_failures, add_failure
 from oaepp.states.commitlint_engine import build_commitlintrc, generate_workflow_yml
@@ -289,10 +289,26 @@ def generate_commitlint_config(authorization: Optional[str] = Header(None)):
     }
 
 
+# ─── 获取分支列表 ────────────────────────────────────────────────────────────
+
+@router.get("/api/teacher/commitlint/branches")
+def get_commitlint_branches(authorization: Optional[str] = Header(None)):
+    _require_teacher(authorization)
+    branches = list_branches()
+    if not branches:
+        raise HTTPException(status_code=502, detail="获取分支列表失败，请检查 GITHUB_TOKEN")
+    # 找到实际仓库的默认分支
+    actual_default = next((b["name"] for b in branches if b["default"]), GIT_BRANCH)
+    return {"branches": branches, "default_branch": actual_default}
+
+
 # ─── 一键提交至仓库（Git 版本控制）──────────────────────────────────────────
 
 @router.post("/api/teacher/commitlint/push")
-def push_commitlint_config(authorization: Optional[str] = Header(None)):
+def push_commitlint_config(
+    branch: str = Query(default=None, description="目标分支，默认使用 GIT_BRANCH"),
+    authorization: Optional[str] = Header(None)
+):
     _require_teacher(authorization)
 
     with mysql_db() as conn:
@@ -305,6 +321,7 @@ def push_commitlint_config(authorization: Optional[str] = Header(None)):
     if not config:
         raise HTTPException(status_code=404, detail="请先保存配置")
 
+    target_branch = branch or GIT_BRANCH
     cfg = _load_config(config)
     commitlintrc = build_commitlintrc(**cfg)
     workflow_yml = generate_workflow_yml()
@@ -327,7 +344,7 @@ def push_commitlint_config(authorization: Optional[str] = Header(None)):
     )
 
     try:
-        result = push_files(files, commit_message.strip())
+        result = push_files(files, commit_message.strip(), branch=target_branch)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"提交至仓库失败: {e}")
 
@@ -337,6 +354,11 @@ def push_commitlint_config(authorization: Optional[str] = Header(None)):
         "commit_url": result["commit_url"],
         "version": str(version),
         "enabled": is_enabled,
+        "branch": target_branch,
+        "git_history_url": (
+            f"https://github.com/uwislab/robotics-systems-course/"
+            f"commits/{target_branch}/.commitlintrc.json"
+        ),
         "files": [
             {"path": ".github/workflows/commitlint.yml", "status": "已提交"},
             {"path": ".commitlintrc.json", "status": "已提交"},
@@ -351,6 +373,7 @@ class SaveAndPushRequest(BaseModel):
     type_enum: list[str] = ["feat", "fix", "refactor", "style", "test", "docs", "chore"]
     header_max_length: int = 100
     subject_min_length: int = 5
+    branch: Optional[str] = None
 
 
 @router.post("/api/teacher/commitlint/save-and-push")
@@ -359,6 +382,8 @@ def save_and_push_commitlint(
     authorization: Optional[str] = Header(None)
 ):
     _require_teacher(authorization)
+
+    target_branch = req.branch or GIT_BRANCH
 
     with mysql_db() as conn:
         with conn.cursor() as cur:
@@ -407,16 +432,17 @@ def save_and_push_commitlint(
     )
 
     try:
-        push_result = push_files(files, commit_message.strip())
+        push_result = push_files(files, commit_message.strip(), branch=target_branch)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"提交至仓库失败: {e}")
 
     result = _row_to_frontend(config)
     result["commit_sha"] = push_result["commit_sha"]
     result["commit_url"] = push_result["commit_url"]
+    result["branch"] = target_branch
     result["git_history_url"] = (
         f"https://github.com/uwislab/robotics-systems-course/"
-        f"commits/main/.commitlintrc.json"
+        f"commits/{target_branch}/.commitlintrc.json"
     )
 
     return result

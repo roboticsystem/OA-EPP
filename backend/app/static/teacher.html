@@ -211,13 +211,21 @@
 
         <!-- 启用/禁用切换 -->
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:12px 16px;background:#f8f9fa;border-radius:8px">
-          <span style="font-size:.9rem;font-weight:bold">Commitlint 检查：</span>
-          <label class="switch">
-            <input type="checkbox" id="cl-toggle" onchange="toggleCommitlint(this.checked)">
-            <span class="slider"></span>
-          </label>
-          <span id="cl-toggle-label" style="font-size:.9rem">—</span>
-          <span style="font-size:.78rem;color:#888;margin-left:8px">关闭后 CI 工作流将跳过 commit 消息校验</span>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex:1">
+            <span style="font-size:.9rem;font-weight:bold">Commitlint 检查：</span>
+            <label class="switch">
+              <input type="checkbox" id="cl-toggle" onchange="toggleCommitlint(this.checked)">
+              <span class="slider"></span>
+            </label>
+            <span id="cl-toggle-label" style="font-size:.9rem">—</span>
+            <span style="font-size:.78rem;color:#888;margin-left:8px">关闭后 CI 工作流将跳过 commit 消息校验</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:.82rem;color:#555;white-space:nowrap">目标分支：</span>
+            <select id="cl-branch-select" style="padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:.82rem;max-width:220px" onchange="onBranchChange()">
+              <option value="">加载中…</option>
+            </select>
+          </div>
         </div>
 
         <!-- 配置编辑 -->
@@ -282,7 +290,7 @@
               提交记录：
               <a id="cl-commit-link" href="#" target="_blank" style="color:#1565c0;text-decoration:underline">查看 commit</a>
               <span style="margin:0 8px;color:#ccc">|</span>
-              <a id="cl-history-link" href="https://github.com/uwislab/robotics-systems-course/commits/main/.commitlintrc.json" target="_blank" style="color:#1565c0;text-decoration:underline">查看 Git 历史</a>
+              <a id="cl-history-link" href="#" target="_blank" style="color:#1565c0;text-decoration:underline">查看 Git 历史</a>
             </p>
           </div>
         </div>
@@ -615,6 +623,7 @@ function showConfirmDialog(title, message, onConfirm) {
 // ───── Commitlint 配置管理（F-D-009）─────
 
 let clTypeList = [];
+let clBranches = [];
 
 async function loadCommitlintStatus() {
   const r = await fetch(`${API}/api/teacher/commitlint/status`, {
@@ -628,6 +637,33 @@ async function loadCommitlintStatus() {
   const data = await r.json();
   renderCommitlintStatus(data);
   loadRepoStatus();
+  loadBranches();
+}
+
+async function loadBranches() {
+  const sel = document.getElementById('cl-branch-select');
+  try {
+    const r = await fetch(`${API}/api/teacher/commitlint/branches`, {
+      headers: {'Authorization': `Bearer ${TOKEN}`}
+    });
+    if (!r.ok) { sel.innerHTML = '<option value="">加载失败</option>'; return; }
+    const d = await r.json();
+    clBranches = d.branches || [];
+    const defaultBranch = d.default_branch || '';
+    sel.innerHTML = clBranches.map(b =>
+      `<option value="${b.name}" ${b.name === defaultBranch ? 'selected' : ''}>${b.name}${b.default ? ' ⭐' : ''}</option>`
+    ).join('');
+    // If no default match from server, use our configured default
+    if (!clBranches.find(b => b.name === defaultBranch)) {
+      sel.value = defaultBranch;
+    }
+  } catch(e) {
+    sel.innerHTML = '<option value="">加载失败</option>';
+  }
+}
+
+function onBranchChange() {
+  // Branch selection visual-only, value read on push/save-and-push
 }
 
 function renderCommitlintStatus(data) {
@@ -744,14 +780,16 @@ async function pushCommitlintConfig() {
   const btn = document.getElementById('cl-push-btn');
   btn.disabled = true;
   btn.textContent = '⏳ 提交中…';
+  const branch = document.getElementById('cl-branch-select').value;
   try {
-    const r = await fetch(`${API}/api/teacher/commitlint/push`, {
+    const r = await fetch(`${API}/api/teacher/commitlint/push?branch=${encodeURIComponent(branch)}`, {
       method: 'POST',
       headers: {'Authorization': `Bearer ${TOKEN}`}
     });
     const d = await r.json();
     if (!r.ok) { showMsg('cl-msg', d.detail || '提交失败', 'error'); btn.disabled = false; btn.textContent = '⬆ 提交到仓库'; return; }
     document.getElementById('cl-commit-link').href = d.commit_url;
+    document.getElementById('cl-history-link').href = d.git_history_url || '#';
     document.getElementById('cl-push-result').style.display = 'block';
     showMsg('cl-msg', `✅ 已提交至仓库，commit: ${d.commit_sha.slice(0, 7)}`, 'success');
     loadRepoStatus();
@@ -762,11 +800,13 @@ async function pushCommitlintConfig() {
 
 async function saveAndPushCommitlint() {
   const typeEnum = [...clTypeList];
+  const branch = document.getElementById('cl-branch-select').value;
   const data = {
     rule_type: document.getElementById('cl-rule-type').value,
     type_enum: typeEnum,
     header_max_length: parseInt(document.getElementById('cl-header-max').value) || 100,
-    subject_min_length: parseInt(document.getElementById('cl-subject-min').value) || 5
+    subject_min_length: parseInt(document.getElementById('cl-subject-min').value) || 5,
+    branch: branch
   };
   try {
     const r = await fetch(`${API}/api/teacher/commitlint/save-and-push`, {
@@ -777,6 +817,7 @@ async function saveAndPushCommitlint() {
     const d = await r.json();
     if (!r.ok) { showMsg('cl-msg', d.detail || '提交失败', 'error'); return; }
     document.getElementById('cl-commit-link').href = d.commit_url;
+    document.getElementById('cl-history-link').href = d.git_history_url || '#';
     document.getElementById('cl-push-result').style.display = 'block';
     showMsg('cl-msg', `✅ 配置已保存并提交至仓库，版本 v${d.rule_version}，commit: ${d.commit_sha.slice(0, 7)}`, 'success');
     loadCommitlintStatus();
