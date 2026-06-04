@@ -4,5 +4,6 @@
 """
 
 from .exam import ExamState
+from .deadline import DeadlineState
 
-__all__ = ["ExamState"]
+__all__ = ["ExamState", "DeadlineState"]
