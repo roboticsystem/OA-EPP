@@ -63,7 +63,19 @@ if app is not None and login_mod is not None:
     except Exception:
         pass
 
-
+try:
+    from pages import teacher_github_bindings as github_bindings_mod
+except Exception:
+    try:
+        from oaepp.pages import teacher_github_bindings as github_bindings_mod
+    except Exception:
+        github_bindings_mod = None
+if app is not None and github_bindings_mod is not None:
+    if hasattr(github_bindings_mod, "github_bindings_page") and callable(getattr(github_bindings_mod, "github_bindings_page")):
+        app.add_page(github_bindings_mod.github_bindings_page, route="/teacher/github-bindings")
+        print("[APP] GitHub绑定页面已注册: /teacher/github-bindings")
+    else:
+        print("[APP] 警告: 未找到 github_bindings_page 函数")
 def run(port: int = 3000):
     """Run Reflex dev server (prefer `reflex` CLI, fallback to python -m reflex)."""
     if rx is None or app is None:
