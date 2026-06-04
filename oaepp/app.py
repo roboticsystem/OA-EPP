@@ -14,11 +14,14 @@ except Exception:
 # fallback to `oaepp.pages.login` when running from repo root.
 try:
     from pages import login as login_mod
+    from pages import grading as grading_mod
 except Exception:
     try:
         from oaepp.pages import login as login_mod
+        from oaepp.pages import grading as grading_mod
     except Exception:
         login_mod = None
+        grading_mod = None
 
 app = None
 if rx is not None:
@@ -60,6 +63,18 @@ if app is not None and login_mod is not None:
                 app.add_page(login_mod.login_page)
         elif hasattr(login_mod, "page"):
             app.add_page(login_mod.page)
+    except Exception:
+        pass
+
+if app is not None and grading_mod is not None:
+    try:
+        if hasattr(grading_mod, "grading_page") and callable(getattr(grading_mod, "grading_page")):
+            try:
+                app.add_page(grading_mod.grading_page, route="/grading")
+            except Exception:
+                app.add_page(grading_mod.grading_page)
+        elif hasattr(grading_mod, "page"):
+            app.add_page(grading_mod.page)
     except Exception:
         pass
 

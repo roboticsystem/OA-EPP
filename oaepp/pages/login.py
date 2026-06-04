@@ -44,7 +44,7 @@ if rx is not None:
           ),
           rx.hstack(
             rx.link("学生端", href="/dashboard"),
-            rx.link("教师端", href="/admin_students.html"),
+            rx.link("教师端", href="/grading"),
             spacing="5",
             justify="center",
           ),
