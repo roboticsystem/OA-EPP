@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OA-EPP · 公告与通知</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .animate-fade-in { animation: fadeIn 0.35s ease-out; }
+    .animate-pulse-dot { animation: pulse 2s ease-in-out infinite; }
+    .animate-slide-in { animation: slideIn 0.3s ease-out; }
+    .notification-card { transition: all 0.25s ease; }
+    .notification-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .notification-card.read { opacity: 0.75; }
+    .tab-active { position: relative; }
+    .tab-active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #2563eb;
+      border-radius: 2px 2px 0 0;
+    }
+    .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+    .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex">
+
+  <!-- Sidebar -->
+  <aside class="w-56 bg-white border-r border-gray-200 flex flex-col min-h-screen fixed left-0 top-0 z-20">
+    <div class="px-5 py-5 border-b border-gray-100">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+          </svg>
+        </div>
+        <span class="font-bold text-gray-800 text-sm">OA-EPP</span>
+      </div>
+    </div>
+    <nav class="flex-1 px-3 py-4 space-y-1">
+      <a href="dashboard.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        仪表盘
+      </a>
+      <a href="courses.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        课程列表
+      </a>
+      <a href="assignments.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        作业提交
+      </a>
+      <a href="grades.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        成绩与反馈
+      </a>
+      <a href="attendance.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+        课堂签到
+      </a>
+      <a href="exam.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+        在线考试
+      </a>
+      <a href="notifications.html" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 font-medium text-sm relative">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        公告与通知
+        <span id="sidebar-badge" class="absolute right-2 top-1/2 -translate-y-1/2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+      </a>
+      <a href="profile.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        个人资料
+      </a>
+    </nav>
+    <div class="px-4 py-4 border-t border-gray-100">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">张</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-800 truncate">张三</p>
+          <p class="text-xs text-gray-400 truncate">2021001001</p>
+        </div>
+      </div>
+      <a href="login.html" class="mt-3 block text-center text-xs text-gray-400 hover:text-red-500 transition">退出登录</a>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="ml-56 flex-1 p-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-xl font-bold text-gray-800">公告与通知</h1>
+        <p class="text-sm text-gray-400 mt-0.5">课程公告 · 作业截止提醒 · 成绩发布通知</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="btn-mark-all-read" onclick="markAllRead()"
+          class="text-xs text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition font-medium hidden">
+          全部标为已读
+        </button>
+      </div>
+    </div>
+
+    <!-- Category Tabs -->
+    <div class="flex items-center gap-1 mb-6 border-b border-gray-200">
+      <button onclick="switchTab('all')" id="tab-all"
+        class="tab-active px-4 py-2.5 text-sm font-medium text-blue-600 transition">
+        <span class="flex items-center gap-2">
+          全部
+          <span id="count-all" class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">0</span>
+        </span>
+      </button>
+      <button onclick="switchTab('announcement')" id="tab-announcement"
+        class="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 transition">
+        <span class="flex items-center gap-2">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+          课程公告
+          <span id="count-announcement" class="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">0</span>
+        </span>
+      </button>
+      <button onclick="switchTab('deadline')" id="tab-deadline"
+        class="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 transition">
+        <span class="flex items-center gap-2">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          截止提醒
+          <span id="count-deadline" class="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full">0</span>
+        </span>
+      </button>
+      <button onclick="switchTab('grade')" id="tab-grade"
+        class="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 transition">
+        <span class="flex items-center gap-2">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          成绩通知
+          <span id="count-grade" class="text-xs bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full">0</span>
+        </span>
+      </button>
+      <button onclick="switchTab('unread')" id="tab-unread"
+        class="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 transition">
+        <span class="flex items-center gap-2">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          未读
+          <span id="count-unread" class="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">0</span>
+        </span>
+      </button>
+    </div>
+
+    <!-- Notification List -->
+    <div id="notification-list" class="space-y-3 max-h-[calc(100vh-240px)] overflow-y-auto scrollbar-thin pr-1">
+      <!-- Loading -->
+      <div id="loading" class="flex flex-col items-center justify-center py-20">
+        <div class="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+        <p class="text-sm text-gray-400">加载通知中…</p>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="hidden flex flex-col items-center justify-center py-20">
+      <svg class="w-16 h-16 text-gray-200 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+      </svg>
+      <p class="text-sm text-gray-400">暂无通知</p>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination" class="hidden flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+      <p id="page-info" class="text-xs text-gray-400"></p>
+      <div class="flex gap-1">
+        <button id="btn-prev" onclick="goPage(currentPage - 1)"
+          class="px-3 py-1.5 text-xs text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed">
+          上一页
+        </button>
+        <button id="btn-next" onclick="goPage(currentPage + 1)"
+          class="px-3 py-1.5 text-xs text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed">
+          下一页
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-6 right-6 bg-gray-800 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg z-50 transition-all duration-300 translate-y-20 opacity-0 pointer-events-none">
+    <span id="toast-msg"></span>
+  </div>
+
+<script>
+// ──────────────────── State ────────────────────
+const API_BASE = 'http://127.0.0.1:8009';
+let currentTab = 'all';
+let currentPage = 1;
+const PAGE_SIZE = 15;
+let totalPages = 1;
+let globalUnreadCount = 0;
+
+// ──────────────────── Auth ────────────────────
+function getToken() {
+  // 尝试从 URL 参数或 localStorage 获取学生 token
+  const params = new URLSearchParams(window.location.search);
+  const t = params.get('token') || localStorage.getItem('student_token') || '';
+  if (t) localStorage.setItem('student_token', t);
+  return t;
+}
+
+// ──────────────────── Toast ────────────────────
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  el.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    el.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+  }, 2200);
+}
+
+// ──────────────────── API ────────────────────
+async function fetchNotifications() {
+  const params = new URLSearchParams();
+  if (currentTab === 'unread') {
+    params.set('unread_only', 'true');
+  } else if (currentTab !== 'all') {
+    params.set('category', currentTab);
+  }
+  params.set('page', currentPage);
+  params.set('page_size', PAGE_SIZE);
+
+  const token = getToken();
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/notifications?${params}`, { headers });
+  if (!res.ok) throw new Error('加载失败');
+  return res.json();
+}
+
+async function fetchUnreadCount() {
+  const token = getToken();
+  if (!token) return 0;
+  const headers = { 'Authorization': `Bearer ${token}` };
+  try {
+    const res = await fetch(`${API_BASE}/api/notifications/unread-count`, { headers });
+    const data = await res.json();
+    return data.unread_count || 0;
+  } catch { return 0; }
+}
+
+async function markRead(nid) {
+  const token = getToken();
+  if (!token) return;
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
+  try {
+    const res = await fetch(`${API_BASE}/api/notifications/${nid}/read`, { method: 'POST', headers });
+    const data = await res.json();
+    globalUnreadCount = data.unread_count;
+    updateBadge();
+    showToast('已标记为已读');
+  } catch { showToast('操作失败'); }
+}
+
+async function markAllRead() {
+  const token = getToken();
+  if (!token) return;
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
+  try {
+    const res = await fetch(`${API_BASE}/api/notifications/read-all`, { method: 'POST', headers });
+    const data = await res.json();
+    globalUnreadCount = 0;
+    updateBadge();
+    document.getElementById('btn-mark-all-read').classList.add('hidden');
+    showToast(`已标记 ${data.marked_count} 条通知为已读`);
+    await loadNotifications();
+  } catch { showToast('操作失败'); }
+}
+
+// ──────────────────── Render ────────────────────
+const CATEGORY_CONFIG = {
+  announcement: { label: '课程公告', icon: '📢', bg: 'bg-blue-50 border-blue-200', text: 'text-blue-700', dot: 'bg-blue-500', badge: 'bg-blue-100 text-blue-700' },
+  deadline:     { label: '截止提醒', icon: '⏰', bg: 'bg-orange-50 border-orange-200', text: 'text-orange-700', dot: 'bg-orange-500', badge: 'bg-orange-100 text-orange-700' },
+  grade:        { label: '成绩通知', icon: '📊', bg: 'bg-green-50 border-green-200', text: 'text-green-700', dot: 'bg-green-500', badge: 'bg-green-100 text-green-700' },
+};
+
+const PRIORITY_CONFIG = {
+  urgent:    { label: '紧急', cls: 'bg-red-100 text-red-700 border-red-200' },
+  important: { label: '重要', cls: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+  normal:    { label: '', cls: '' },
+};
+
+function renderNotifications(data) {
+  const list = document.getElementById('notification-list');
+  const empty = document.getElementById('empty-state');
+  const pagination = document.getElementById('pagination');
+  const loading = document.getElementById('loading');
+  const btnAll = document.getElementById('btn-mark-all-read');
+
+  loading.classList.add('hidden');
+
+  if (!data.items || data.items.length === 0) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    pagination.classList.add('hidden');
+    btnAll.classList.add('hidden');
+    return;
+  }
+
+  empty.classList.add('hidden');
+  pagination.classList.remove('hidden');
+  if (globalUnreadCount > 0) {
+    btnAll.classList.remove('hidden');
+  } else {
+    btnAll.classList.add('hidden');
+  }
+
+  totalPages = Math.ceil(data.total / PAGE_SIZE);
+  document.getElementById('page-info').textContent = `共 ${data.total} 条通知 · 第 ${currentPage}/${totalPages} 页`;
+  document.getElementById('btn-prev').disabled = currentPage <= 1;
+  document.getElementById('btn-next').disabled = currentPage >= totalPages;
+
+  list.innerHTML = data.items.map((n, i) => {
+    const cat = CATEGORY_CONFIG[n.category] || CATEGORY_CONFIG.announcement;
+    const pri = PRIORITY_CONFIG[n.priority] || PRIORITY_CONFIG.normal;
+    const isRead = n.is_read;
+
+    return `
+    <div class="notification-card ${isRead ? 'read' : ''} bg-white rounded-xl border ${isRead ? 'border-gray-100' : 'border-gray-200 shadow-sm'} p-5 animate-fade-in cursor-pointer"
+         style="animation-delay: ${i * 0.05}s"
+         onclick="${isRead ? '' : `markRead(${n.id}); this.classList.add('read'); this.querySelector('.unread-dot').classList.add('hidden'); this.querySelector('.unread-indicator').classList.add('hidden');`}">
+      <div class="flex items-start gap-4">
+        <!-- Icon -->
+        <div class="flex-shrink-0 w-10 h-10 rounded-xl ${cat.bg} flex items-center justify-center text-lg">
+          ${cat.icon}
+        </div>
+        <!-- Content -->
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs px-2 py-0.5 rounded-full border ${cat.badge} font-medium">${cat.label}</span>
+            ${pri.label ? `<span class="text-xs px-2 py-0.5 rounded-full border ${pri.cls} font-medium">${pri.label}</span>` : ''}
+            <span class="unread-indicator ${isRead ? 'hidden' : ''} text-xs text-red-500 font-medium animate-pulse-dot">● 未读</span>
+          </div>
+          <h3 class="text-sm font-semibold ${isRead ? 'text-gray-600' : 'text-gray-800'} mb-1">${escapeHtml(n.title)}</h3>
+          ${n.content ? `<p class="text-xs ${isRead ? 'text-gray-400' : 'text-gray-500'} leading-relaxed mb-2 line-clamp-2">${escapeHtml(n.content)}</p>` : ''}
+          <div class="flex items-center gap-3 text-xs text-gray-400">
+            <span>${formatTime(n.created_at)}</span>
+            ${n.course_name ? `<span class="flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>${escapeHtml(n.course_name)}</span>` : ''}
+          </div>
+        </div>
+        <!-- Unread Dot -->
+        <div class="unread-dot flex-shrink-0 ${isRead ? 'hidden' : ''}">
+          <span class="inline-block w-2.5 h-2.5 rounded-full ${cat.dot} animate-pulse-dot"></span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateBadge() {
+  const badge = document.getElementById('sidebar-badge');
+  if (globalUnreadCount > 0) {
+    badge.textContent = globalUnreadCount > 99 ? '99+' : globalUnreadCount;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+function updateCategoryCounts(data) {
+  // 使用后端返回的 category_counts
+  const cc = data.category_counts || {};
+  document.getElementById('count-all').textContent = data.total || 0;
+  document.getElementById('count-announcement').textContent = cc.announcement || 0;
+  document.getElementById('count-deadline').textContent = cc.deadline || 0;
+  document.getElementById('count-grade').textContent = cc.grade || 0;
+  document.getElementById('count-unread').textContent = data.unread_count || 0;
+}
+
+async function refreshCategoryCounts() {
+  const token = getToken();
+  if (!token) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/notifications/category-stats`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    const cc = data.category_counts || {};
+    document.getElementById('count-all').textContent = cc.all || 0;
+    document.getElementById('count-announcement').textContent = cc.announcement || 0;
+    document.getElementById('count-deadline').textContent = cc.deadline || 0;
+    document.getElementById('count-grade').textContent = cc.grade || 0;
+  } catch {}
+}
+
+// ──────────────────── Tab Switch ────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  currentPage = 1;
+  // Update tab styles
+  document.querySelectorAll('[id^="tab-"]').forEach(el => {
+    el.classList.remove('tab-active', 'text-blue-600');
+    el.classList.add('text-gray-500');
+  });
+  const activeTab = document.getElementById(`tab-${tab}`);
+  if (activeTab) {
+    activeTab.classList.add('tab-active', 'text-blue-600');
+    activeTab.classList.remove('text-gray-500');
+  }
+  loadNotifications();
+}
+
+// ──────────────────── Pagination ────────────────────
+function goPage(p) {
+  if (p < 1 || p > totalPages) return;
+  currentPage = p;
+  document.getElementById('notification-list').scrollTop = 0;
+  loadNotifications();
+}
+
+// ──────────────────── Load ────────────────────
+async function loadNotifications() {
+  const list = document.getElementById('notification-list');
+  const loading = document.getElementById('loading');
+  loading.classList.remove('hidden');
+  list.innerHTML = '';
+
+  try {
+    const data = await fetchNotifications();
+    globalUnreadCount = data.unread_count || 0;
+    updateBadge();
+    updateCategoryCounts(data);
+    renderNotifications(data);
+  } catch (err) {
+    list.innerHTML = `
+      <div class="flex flex-col items-center justify-center py-20">
+        <svg class="w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+        <p class="text-sm text-gray-400 mb-2">加载失败，请检查网络连接</p>
+        <button onclick="loadNotifications()" class="text-xs text-blue-500 hover:underline">重新加载</button>
+      </div>`;
+  }
+}
+
+// ──────────────────── Helpers ────────────────────
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function formatTime(dt) {
+  if (!dt) return '';
+  const d = new Date(dt + (dt.includes('T') ? '' : 'T00:00:00'));
+  const now = new Date();
+  const diff = now - d;
+  if (diff < 60000) return '刚刚';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
+  if (diff < 604800000) return `${Math.floor(diff / 86400000)} 天前`;
+  return d.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+}
+
+// ──────────────────── Init ────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  // 先获取未读数和分类计数
+  const token = getToken();
+  if (token) {
+    globalUnreadCount = await fetchUnreadCount();
+    updateBadge();
+    await refreshCategoryCounts();
+  }
+  loadNotifications();
+});
+
+// 页面切换回来时自动刷新未读计数
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible') {
+    const token = getToken();
+    if (token) {
+      globalUnreadCount = await fetchUnreadCount();
+      updateBadge();
+    }
+  }
+});
+</script>
+</body>
+</html>

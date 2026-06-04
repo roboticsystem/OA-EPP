@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学生中心 — OA-EPP</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; background: #f0f4f8; color: #333; min-height: 100vh; }
+  .header { background: #1565c0; color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-size: 1.2rem; }
+  .header .logout-btn { background: rgba(255,255,255,.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: .85rem; }
+  .header .logout-btn:hover { background: rgba(255,255,255,.35); }
+  .container { max-width: 560px; margin: 32px auto; padding: 0 16px; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.1); overflow: hidden; margin-bottom: 20px; }
+  .card-header { padding: 20px 24px; border-bottom: 1px solid #f0f0f0; font-size: 1.05rem; font-weight: bold; color: #1565c0; display: flex; align-items: center; gap: 8px; }
+  .card-body { padding: 24px; }
+
+  /* 登录 */
+  .login-avatar { width: 56px; height: 56px; background: #1565c0; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 20px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: .88rem; color: #555; margin-bottom: 6px; font-weight: 500; }
+  .form-group input { width: 100%; padding: 11px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: .95rem; transition: border-color .2s; }
+  .form-group input:focus { outline: none; border-color: #1565c0; box-shadow: 0 0 0 3px rgba(21,101,192,.1); }
+  .form-group input:disabled { background: #f5f5f5; color: #888; }
+  .btn { width: 100%; padding: 12px; background: #1565c0; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 500; }
+  .btn:hover { background: #0d47a1; }
+  .btn:disabled { background: #90caf9; cursor: not-allowed; }
+  .btn-outline { background: #fff; color: #1565c0; border: 1px solid #1565c0; }
+  .btn-outline:hover { background: #e3f2fd; }
+  .error-msg { color: #d32f2f; font-size: .85rem; margin-top: 4px; display: none; }
+  .success-msg { color: #2e7d32; font-size: .88rem; text-align: center; padding: 8px; background: #e8f5e9; border-radius: 6px; margin-bottom: 16px; display: none; }
+  .info-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f5f5f5; }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { font-size: .88rem; color: #888; }
+  .info-value { font-size: .95rem; font-weight: 500; text-align: right; }
+  .section { display: none; }
+  .section.active { display: block; }
+  .edit-hint { font-size: .8rem; color: #999; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<!-- 登录后显示的顶栏 -->
+<div id="app-header" class="header" style="display:none">
+  <div>
+    <h1>学生中心</h1>
+    <p style="font-size:.8rem;opacity:.85" id="header-name"></p>
+  </div>
+  <button class="logout-btn" onclick="doLogout()">退出登录</button>
+</div>
+
+<div class="container">
+
+  <!-- ===== 登录卡片 ===== -->
+  <div id="section-login" class="section active">
+    <div class="card">
+      <div class="card-body" style="text-align:center">
+        <div class="login-avatar">📚</div>
+        <h2 style="font-size:1.15rem;margin-bottom:4px">OA-EPP 考试系统</h2>
+        <p style="color:#888;font-size:.88rem;margin-bottom:24px">使用学号邮箱登录</p>
+        <div class="form-group" style="text-align:left">
+          <label>邮箱</label>
+          <input type="text" id="login-email" placeholder="例如：9999001@stu.oaepp.dev" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <div class="form-group" style="text-align:left">
+          <label>密码</label>
+          <input type="password" id="login-password" placeholder="输入密码" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <div class="error-msg" id="login-error"></div>
+        <button class="btn" id="login-btn" onclick="doLogin()">登 录</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 个人信息卡片 ===== -->
+  <div id="section-profile" class="section">
+    <div class="success-msg" id="profile-success"></div>
+    <div class="card">
+      <div class="card-header">👤 个人信息</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>姓名</label>
+          <input type="text" id="edit-name" placeholder="姓名">
+        </div>
+        <div class="form-group">
+          <label>学号</label>
+          <input type="text" id="edit-student-no" disabled>
+          <div class="edit-hint">学号由系统设定，不可修改</div>
+        </div>
+        <div class="form-group">
+          <label>邮箱</label>
+          <input type="text" id="edit-email" disabled>
+          <div class="edit-hint">邮箱由系统设定，不可修改</div>
+        </div>
+        <div class="form-group">
+          <label>班级</label>
+          <input type="text" id="edit-class" placeholder="班级">
+        </div>
+        <div class="form-group">
+          <label>联系方式</label>
+          <input type="text" id="edit-phone" placeholder="手机号码">
+        </div>
+        <div class="error-msg" id="profile-error"></div>
+        <button class="btn" id="save-profile-btn" onclick="saveProfile()">保存修改</button>
+      </div>
+    </div>
+
+    <!-- ===== 修改密码卡片 ===== -->
+    <div class="card">
+      <div class="card-header">🔒 修改密码</div>
+      <div class="card-body">
+        <div class="success-msg" id="pwd-success"></div>
+        <div class="form-group">
+          <label>旧密码</label>
+          <input type="password" id="old-password" placeholder="输入旧密码">
+        </div>
+        <div class="form-group">
+          <label>新密码</label>
+          <input type="password" id="new-password" placeholder="至少6位">
+        </div>
+        <div class="form-group">
+          <label>确认新密码</label>
+          <input type="password" id="confirm-password" placeholder="再次输入新密码">
+        </div>
+        <div class="error-msg" id="pwd-error"></div>
+        <button class="btn" id="change-pwd-btn" onclick="changePassword()">修改密码</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = '';
+let token = '';
+
+// ===== 登录 =====
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('login-btn');
+
+  if (!email || !password) { showErr(errEl, '请输入邮箱和密码'); return; }
+
+  btn.disabled = true;
+  btn.textContent = '登录中...';
+  errEl.style.display = 'none';
+
+  try {
+    const r = await fetch(`${API}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const d = await r.json();
+    if (!r.ok) { showErr(errEl, d.detail || '登录失败'); btn.disabled = false; btn.textContent = '登 录'; return; }
+
+    token = d.token;
+    localStorage.setItem('oaepp_token', token);
+    localStorage.setItem('oaepp_user', JSON.stringify(d.user));
+    document.getElementById('header-name').textContent = d.user.full_name + ' (' + d.user.email + ')';
+    showProfile();
+    loadProfile();
+  } catch(e) {
+    showErr(errEl, '网络错误：' + e.message);
+    btn.disabled = false;
+    btn.textContent = '登 录';
+  }
+}
+
+// ===== 加载个人信息 =====
+async function loadProfile() {
+  try {
+    const r = await fetch(`${API}/api/student/profile`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const d = await r.json();
+    if (!r.ok) { if (r.status === 401) doLogout(); return; }
+
+    document.getElementById('edit-name').value = d.full_name;
+    document.getElementById('edit-student-no').value = d.student_no;
+    document.getElementById('edit-email').value = d.email;
+    document.getElementById('edit-class').value = d.class_name || '';
+    document.getElementById('edit-phone').value = d.phone || '';
+    document.getElementById('header-name').textContent = d.full_name + ' (' + d.email + ')';
+  } catch(e) { console.error(e); }
+}
+
+// ===== 保存个人信息 =====
+async function saveProfile() {
+  const errEl = document.getElementById('profile-error');
+  const btn = document.getElementById('save-profile-btn');
+  const full_name = document.getElementById('edit-name').value.trim();
+  const class_name = document.getElementById('edit-class').value.trim();
+  const phone = document.getElementById('edit-phone').value.trim();
+
+  if (!full_name) { showErr(errEl, '姓名不能为空'); return; }
+
+  btn.disabled = true;
+  btn.textContent = '保存中...';
+  errEl.style.display = 'none';
+  document.getElementById('profile-success').style.display = 'none';
+
+  try {
+    const r = await fetch(`${API}/api/student/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ full_name, class_name, phone })
+    });
+    const d = await r.json();
+    if (!r.ok) { showErr(errEl, d.detail || '保存失败'); btn.disabled = false; btn.textContent = '保存修改'; return; }
+
+    document.getElementById('profile-success').textContent = '个人信息已更新';
+    document.getElementById('profile-success').style.display = 'block';
+    document.getElementById('header-name').textContent = d.full_name + ' (' + document.getElementById('edit-email').value + ')';
+
+    // 更新 localStorage
+    const user = JSON.parse(localStorage.getItem('oaepp_user') || '{}');
+    user.full_name = d.full_name;
+    localStorage.setItem('oaepp_user', JSON.stringify(user));
+  } catch(e) {
+    showErr(errEl, '网络错误：' + e.message);
+  }
+  btn.disabled = false;
+  btn.textContent = '保存修改';
+}
+
+// ===== 修改密码 =====
+async function changePassword() {
+  const errEl = document.getElementById('pwd-error');
+  const successEl = document.getElementById('pwd-success');
+  const btn = document.getElementById('change-pwd-btn');
+  const old_password = document.getElementById('old-password').value;
+  const new_password = document.getElementById('new-password').value;
+  const confirm_password = document.getElementById('confirm-password').value;
+
+  errEl.style.display = 'none';
+  successEl.style.display = 'none';
+
+  if (!old_password) { showErr(errEl, '请输入旧密码'); return; }
+  if (new_password.length < 6) { showErr(errEl, '新密码长度不能少于6位'); return; }
+  if (new_password !== confirm_password) { showErr(errEl, '两次输入的新密码不一致'); return; }
+  if (old_password === new_password) { showErr(errEl, '新密码不能与旧密码相同'); return; }
+
+  btn.disabled = true;
+  btn.textContent = '修改中...';
+
+  try {
+    const r = await fetch(`${API}/api/student/password`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ old_password, new_password })
+    });
+    const d = await r.json();
+    if (!r.ok) { showErr(errEl, d.detail || '修改失败'); btn.disabled = false; btn.textContent = '修改密码'; return; }
+
+    successEl.textContent = '密码修改成功';
+    successEl.style.display = 'block';
+    document.getElementById('old-password').value = '';
+    document.getElementById('new-password').value = '';
+    document.getElementById('confirm-password').value = '';
+  } catch(e) {
+    showErr(errEl, '网络错误：' + e.message);
+  }
+  btn.disabled = false;
+  btn.textContent = '修改密码';
+}
+
+// ===== 界面切换 =====
+function showProfile() {
+  document.getElementById('section-login').classList.remove('active');
+  document.getElementById('section-profile').classList.add('active');
+  document.getElementById('app-header').style.display = 'flex';
+}
+
+function doLogout() {
+  token = '';
+  localStorage.removeItem('oaepp_token');
+  localStorage.removeItem('oaepp_user');
+  document.getElementById('section-login').classList.add('active');
+  document.getElementById('section-profile').classList.remove('active');
+  document.getElementById('app-header').style.display = 'none';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
+}
+
+function showErr(el, msg) {
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ===== 初始化：检查已登录状态 =====
+(function init() {
+  const savedToken = localStorage.getItem('oaepp_token');
+  const savedUser = localStorage.getItem('oaepp_user');
+  if (savedToken && savedUser) {
+    token = savedToken;
+    const user = JSON.parse(savedUser);
+    document.getElementById('header-name').textContent = user.full_name + ' (' + user.email + ')';
+    showProfile();
+    loadProfile();
+  }
+})();
+</script>
+</body>
+</html>

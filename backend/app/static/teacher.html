@@ -50,8 +50,7 @@
   .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: .8rem; }
   .badge-green { background: #e8f5e9; color: #2e7d32; }
   .badge-gray { background: #f5f5f5; color: #888; }
-  .upload-area { border: 2px dashed #bbdefb; border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: border-color .2s; }
-  .upload-area:hover { border-color: #1565c0; }
+  .upload-area { border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: border-color .2s; }
   .upload-area input { display: none; }
   .upload-hint { color: #888; font-size: .9rem; margin-top: 8px; }
   .alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 12px; font-size: .9rem; }
@@ -65,11 +64,9 @@
   .slider:before { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: .3s; }
   input:checked + .slider { background: #1565c0; }
   input:checked + .slider:before { transform: translateX(18px); }
-  /* 添加学生表单 */
   .add-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; align-items: end; }
   .add-form input { margin-bottom: 0; }
   .form-label { font-size: .8rem; color: #555; margin-bottom: 4px; display: block; }
-  /* 确认弹窗 */
   .confirm-dialog-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9999; display: flex; align-items: center; justify-content: center; }
   .confirm-dialog { background: #fff; border-radius: 10px; padding: 28px 24px; max-width: 400px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,.2); text-align: center; }
   .confirm-dialog h3 { margin-bottom: 10px; }
@@ -80,7 +77,6 @@
 </head>
 <body>
 
-<!-- 登录页 -->
 <div id="login-page" class="login-wrap">
   <div class="login-box">
     <h2>🎓 教师管理后台</h2>
@@ -91,35 +87,63 @@
   </div>
 </div>
 
-<!-- 主界面 -->
 <div id="app">
   <div class="header">
     <h1>🎓 教师管理后台 — 研究生课程《机器人系统》</h1>
-    <button onclick="logout()">退出登录</button>
+    <div style="display:flex;gap:10px;align-items:center">
+      <a href="/classroom-exam/admin" style="color:#fff;font-size:.85rem;text-decoration:underline">课堂在线考试</a>
+      <button onclick="logout()">退出登录</button>
+    </div>
   </div>
   <div class="container">
 
-    <!-- 上传名单 -->
     <div class="card">
       <div class="card-title">📋 上传学生名单（批量）</div>
       <div class="card-body">
         <div id="upload-msg"></div>
         <p style="font-size:.88rem;color:#888;margin-bottom:12px">
-          CSV 格式：<code>姓名,学号,班级</code>（第一行为表头，编码 UTF-8 或 GBK 均支持）
+          CSV 格式：<code>姓名,学号,班级,课程</code>
         </p>
+        
+        <div style="margin-bottom:16px;">
+          <label class="form-label" style="font-weight:bold;margin-bottom:8px;display:block;">导入模式</label>
+          <div style="display:flex;gap:16px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="radio" name="import-mode" id="mode-incremental" value="incremental" checked>
+              <span><strong>增量导入</strong>（重复学号跳过，新增追加）</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="radio" name="import-mode" id="mode-full" value="full">
+              <span><strong>全量覆盖</strong>（清空现有数据后导入）</span>
+            </label>
+          </div>
+        </div>
+        
         <label class="upload-area" id="upload-area">
           <input type="file" id="csv-file" accept=".csv" onchange="handleFile(this)">
           <div style="font-size:2rem">📂</div>
           <div>点击选择 CSV 文件</div>
           <div class="upload-hint" id="file-name">未选择文件</div>
         </label>
-        <div style="margin-top:12px">
+        <div style="margin-top:12px;text-align:center;">
           <button class="btn btn-success" onclick="uploadStudents()">上传名单</button>
+        </div>
+        
+        <div id="upload-result" style="margin-top:16px;display:none;">
         </div>
       </div>
     </div>
+    
+    <div class="card">
+      <div class="card-title">
+        <span>📜 导入日志</span>
+        <button class="btn btn-outline btn-sm" onclick="loadImportLogs()">刷新</button>
+      </div>
+      <div class="card-body">
+        <div id="import-logs">加载中…</div>
+      </div>
+    </div>
 
-    <!-- 学生名单管理 -->
     <div class="card">
       <div class="card-title">
         <span>👤 学生名单管理</span>
@@ -131,7 +155,6 @@
       <div class="card-body">
         <div id="student-msg"></div>
 
-        <!-- 添加单个学生 -->
         <div style="margin-bottom:16px;">
           <p style="font-size:.88rem;font-weight:bold;margin-bottom:8px;color:#555">➕ 添加单个学生</p>
           <div class="add-form">
@@ -151,84 +174,207 @@
           </div>
         </div>
 
-        <!-- 学生列表 -->
         <div id="student-list">加载中…</div>
       </div>
     </div>
 
-    <!-- GitHub 账号映射管理 -->
-    <div class="card">
-      <div class="card-title">
-        <span>🔗 学生-GitHub账号对应表</span>
-        <button class="btn btn-primary btn-sm" onclick="downloadGitHubBindings()">⬇ 导出 CSV</button>
-      </div>
-      <div class="card-body">
-        <div id="github-msg"></div>
-
-        <!-- CSV批量导入 -->
-        <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #eee">
-          <p style="font-size:.88rem;font-weight:bold;margin-bottom:8px;color:#555">📥 批量导入（CSV）</p>
-          <p style="font-size:.82rem;color:#888;margin-bottom:12px">
-            CSV 格式：<code>学号,姓名,GitHub用户名</code>（第一行为表头，编码 UTF-8 或 GBK，班级从学生名单自动获取）
-          </p>
-          <label class="upload-area" id="github-upload-area" style="max-width:400px">
-            <input type="file" id="github-csv-file" accept=".csv" onchange="handleGitHubFile(this)">
-            <div style="font-size:1.5rem">📂</div>
-            <div>点击选择 CSV 文件</div>
-            <div class="upload-hint" id="github-file-name">未选择文件</div>
-          </label>
-          <div style="margin-top:12px">
-            <button class="btn btn-success" onclick="uploadGitHubBindings()">上传绑定</button>
-          </div>
-        </div>
-
-        <!-- 筛选条件 -->
-        <div style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap">
-          <div>
-            <label class="form-label">班级筛选</label>
-            <select id="github-filter-class" onchange="loadGitHubBindings()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px">
-              <option value="">全部班级</option>
-            </select>
-          </div>
-          <div>
-            <label class="form-label">课程筛选</label>
-            <select id="github-filter-course" onchange="loadGitHubBindings()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px">
-              <option value="">全部课程</option>
-            </select>
-          </div>
-          <button class="btn btn-outline btn-sm" onclick="clearGitHubFilters()" style="margin-top:20px">清除筛选</button>
-        </div>
-
-        <!-- 手动添加单个绑定 -->
-        <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #eee">
-          <p style="font-size:.88rem;font-weight:bold;margin-bottom:8px;color:#555">➕ 添加单个绑定</p>
-          <div class="add-form">
-            <div>
-              <label class="form-label">学号 *</label>
-              <input type="text" id="github-add-sid" placeholder="如：2024001">
-            </div>
-            <div>
-              <label class="form-label">姓名 *</label>
-              <input type="text" id="github-add-name" placeholder="如：张三">
-            </div>
-            <div>
-              <label class="form-label">GitHub 用户名 *</label>
-              <input type="text" id="github-add-github" placeholder="如：username">
-            </div>
-            <button class="btn btn-primary btn-sm" style="height:42px;white-space:nowrap" onclick="addGitHubBinding()">添加</button>
-          </div>
-        </div>
-
-        <!-- 映射列表 -->
-        <div id="github-bindings-list">加载中…</div>
-      </div>
-    </div>
-
-    <!-- 考试管理 -->
     <div class="card">
       <div class="card-title">📝 考试管理 & 成绩查看</div>
       <div class="card-body">
         <div id="exams-content">加载中…</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📊 开发日志报告</div>
+      <div class="card-body">
+        <div id="report-content">
+          <div class="flex-row" style="margin-bottom: 16px;">
+            <div style="flex: 1;">
+              <label class="form-label">选择学生</label>
+              <select id="report-student-select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+                <option value="">-- 请选择学生 --</option>
+              </select>
+            </div>
+            <div style="flex: 0 0 120px;">
+              <label class="form-label">导出格式</label>
+              <select id="report-format" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+                <option value="pdf">PDF</option>
+                <option value="html">HTML</option>
+                <option value="excel">Excel</option>
+              </select>
+            </div>
+            <div style="flex: 0 0 auto; align-self: flex-end;">
+              <button class="btn btn-primary" onclick="exportReport()">📥 导出报告</button>
+            </div>
+          </div>
+          <div id="report-preview" style="display: none;">
+            <div id="report-stats" class="stats-grid"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📢 公告与通知管理</div>
+      <div class="card-body">
+        <div id="notif-msg"></div>
+
+        <div id="notif-form" style="margin-bottom:20px;padding:16px;background:#f8f9fa;border-radius:8px;">
+          <p style="font-size:.9rem;font-weight:bold;margin-bottom:12px;color:#555">✉️ 发送新通知</p>
+          <div class="notif-form-row">
+            <div class="field" style="flex:2;min-width:200px;">
+              <label class="form-label">标题 *</label>
+              <input type="text" id="notif-title" placeholder="如：期末考试成绩已公布" maxlength="200" onkeydown="if(event.key==='Enter' && event.ctrlKey)sendNotification()">
+            </div>
+            <div class="field" style="min-width:140px;">
+              <label class="form-label">分类</label>
+              <select id="notif-category">
+                <option value="announcement">📋 公告</option>
+                <option value="deadline">⏰ 截止提醒</option>
+                <option value="grade">📊 成绩通知</option>
+              </select>
+            </div>
+            <button class="btn btn-primary btn-sm" style="height:42px;align-self:flex-end;white-space:nowrap" onclick="sendNotification()">发送通知</button>
+          </div>
+          <div class="field" style="margin-top:8px;">
+            <label class="form-label">通知内容 *</label>
+            <textarea id="notif-content" rows="3" placeholder="输入通知正文…（Ctrl+Enter 快速发送）"></textarea>
+          </div>
+          <p style="font-size:.78rem;color:#888;margin-top:6px">通知将发送给所有已注册的学生 · Ctrl+Enter 快速发送</p>
+        </div>
+
+        <div>
+          <p style="font-size:.9rem;font-weight:bold;margin-bottom:8px;color:#555">📋 已发送的通知</p>
+          <div class="notif-tabs" id="tnotif-tabs">
+            <button class="notif-tab active" data-cat="all" onclick="switchTeacherNotifCat('all')">全部</button>
+            <button class="notif-tab" data-cat="announcement" onclick="switchTeacherNotifCat('announcement')">📋 公告</button>
+            <button class="notif-tab" data-cat="deadline" onclick="switchTeacherNotifCat('deadline')">⏰ 截止提醒</button>
+            <button class="notif-tab" data-cat="grade" onclick="switchTeacherNotifCat('grade')">📊 成绩通知</button>
+          </div>
+          <div id="notif-list" style="max-height:400px;overflow-y:auto;">加载中…</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="progress-board-card">
+      <div class="card-title" style="cursor:pointer;background:linear-gradient(135deg, #e3f2fd, #bbdefb);" onclick="toggleProgressBoard()">
+        <span>📊 进度看板 — 全班任务完成状态总览</span>
+        <span id="progress-toggle-icon" style="font-size:1.2rem;">▼</span>
+      </div>
+      <div class="card-body" id="progress-board-body" style="display:none;padding:0;">
+        <div style="padding:16px 20px;border-bottom:1px solid #e0e0e0;background:#fafafa;">
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
+            <label style="font-size:.85rem;font-weight:bold;color:#555;">📋 排序：</label>
+            <select id="pb-sort-order" onchange="refreshProgressBoard()" style="padding:6px 10px;border:1px solid #d0d0d0;border-radius:6px;font-size:.85rem;">
+              <option value="completion_asc">按完成率升序（落后置顶）</option>
+              <option value="name_asc">按姓名升序</option>
+            </select>
+            <span style="width:1px;height:20px;background:#e0e0e0;"></span>
+            <label style="font-size:.85rem;font-weight:bold;color:#555;">🔴 置顶倒数前</label>
+            <input type="number" id="pb-bottom-n" value="5" min="0" max="50" onchange="refreshProgressBoard()" style="width:60px;text-align:center;padding:6px;border:1px solid #d0d0d0;border-radius:6px;font-size:.85rem;">
+            <span style="font-size:.83rem;color:#888;">名</span>
+          </div>
+          <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:.83rem;align-items:center;">
+            <span style="font-weight:bold;color:#555;">图例：</span>
+            <div style="display:flex;align-items:center;gap:6px;"><span style="width:16px;height:16px;border-radius:3px;background:#4caf50;border:1px solid rgba(0,0,0,.1);"></span>已提交（准时）</div>
+            <div style="display:flex;align-items:center;gap:6px;"><span style="width:16px;height:16px;border-radius:3px;background:#ff9800;border:1px solid rgba(0,0,0,.1);"></span>迟交</div>
+            <div style="display:flex;align-items:center;gap:6px;"><span style="width:16px;height:16px;border-radius:3px;background:#ef5350;border:1px solid rgba(0,0,0,.1);"></span>未提交</div>
+            <div style="display:flex;align-items:center;gap:6px;"><span style="width:16px;height:16px;border-radius:3px;background:#cfd8dc;border:1px solid rgba(0,0,0,.1);"></span>任务未发布</div>
+            <span style="font-size:.78rem;color:#bbb;margin-left:6px;">（点击单元格查看提交详情）</span>
+          </div>
+        </div>
+        <div style="padding:16px 20px;border-bottom:1px solid #e0e0e0;">
+          <div style="font-weight:bold;font-size:.95rem;margin-bottom:12px;color:#333;">🔥 学生 × 任务 完成状态热力图</div>
+          <div id="pb-heatmap-container">
+            <div style="text-align:center;padding:30px;color:#888;">加载中…</div>
+          </div>
+        </div>
+        <div style="padding:16px 20px;">
+          <div style="font-weight:bold;font-size:.95rem;margin-bottom:12px;color:#333;">📊 各任务完成率趋势</div>
+          <div id="pb-barchart-container">
+            <canvas id="pb-barChart" style="display:block;width:100%;max-height:320px;"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📦 批量导出</div>
+      <div class="card-body">
+        <div class="flex-row" style="margin-bottom: 16px;">
+          <div style="flex: 1;">
+            <label class="form-label">选择班级</label>
+            <select id="batch-class-select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;" onchange="loadClassStudents()">
+              <option value="">-- 请选择班级 --</option>
+            </select>
+          </div>
+          <div style="flex: 0 0 120px;">
+            <label class="form-label">导出格式</label>
+            <select id="batch-format" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+              <option value="pdf">PDF</option>
+              <option value="html">HTML</option>
+              <option value="excel">Excel</option>
+            </select>
+          </div>
+          <div style="flex: 0 0 auto; align-self: flex-end;">
+            <button class="btn btn-success" onclick="batchExport()">📦 批量导出ZIP</button>
+          </div>
+        </div>
+        <div id="batch-student-list"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">💬 教师评语管理</div>
+      <div class="card-body">
+        <div class="flex-row" style="margin-bottom: 16px;">
+          <div style="flex: 1;">
+            <label class="form-label">选择学生</label>
+            <select id="comment-student-select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;" onchange="loadStudentComment()">
+              <option value="">-- 请选择学生 --</option>
+            </select>
+          </div>
+        </div>
+        <div id="comment-editor" style="display: none;">
+          <textarea id="comment-text" placeholder="输入教师评语..." style="width: 100%; min-height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 10px;"></textarea>
+          <button class="btn btn-primary" onclick="saveComment()">💾 保存评语</button>
+        </div>
+        <div id="comment-list"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 审计日志</div>
+      <div class="card-body">
+        <div class="flex-row" style="margin-bottom: 16px; gap: 12px;">
+          <div style="flex: 0 0 200px;">
+            <label class="form-label">起始日期</label>
+            <input type="date" id="log-start-date" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+          </div>
+          <div style="flex: 0 0 200px;">
+            <label class="form-label">结束日期</label>
+            <input type="date" id="log-end-date" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+          </div>
+          <div style="flex: 0 0 150px;">
+            <label class="form-label">操作类型</label>
+            <select id="log-action" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+              <option value="">全部</option>
+              <option value="export_pdf">导出PDF</option>
+              <option value="export_html">导出HTML</option>
+              <option value="export_excel">导出Excel</option>
+              <option value="export_batch_pdf">批量导出PDF</option>
+              <option value="export_batch_html">批量导出HTML</option>
+              <option value="export_batch_excel">批量导出Excel</option>
+              <option value="save_comment">保存评语</option>
+            </select>
+          </div>
+          <div style="flex: 0 0 auto; align-self: flex-end;">
+            <button class="btn btn-outline" onclick="loadAuditLogs()">🔍 查询</button>
+            <button class="btn btn-primary" onclick="exportAuditLogs()">📥 导出日志</button>
+          </div>
+        </div>
+        <div id="audit-log-list">加载中…</div>
       </div>
     </div>
 
@@ -261,6 +407,10 @@ async function doLogin() {
     document.getElementById('app').style.display = 'block';
     loadExams();
     loadStudentList();
+    loadStudentsForReport();
+    loadAuditLogs();
+    loadNotificationList();
+    loadBindingDashboard();
   } catch(e) { showMsg('login-msg', '网络错误：' + e, 'error'); }
 }
 
@@ -277,8 +427,13 @@ function handleFile(input) {
 async function uploadStudents() {
   const file = document.getElementById('csv-file').files[0];
   if (!file) { showMsg('upload-msg', '请先选择 CSV 文件', 'error'); return; }
+  
+  const importMode = document.querySelector('input[name="import-mode"]:checked').value;
+  
   const fd = new FormData();
   fd.append('file', file);
+  fd.append('import_mode', importMode);
+  
   try {
     const r = await fetch(`${API}/api/teacher/students`, {
       method: 'POST',
@@ -286,11 +441,139 @@ async function uploadStudents() {
       body: fd
     });
     const d = await r.json();
-    if (!r.ok) { showMsg('upload-msg', d.detail || '上传失败', 'error'); return; }
-    showMsg('upload-msg', `✅ 成功导入 ${d.count} 名学生`, 'success');
+    if (!r.ok) { 
+      showMsg('upload-msg', d.detail || '上传失败', 'error'); 
+      return; 
+    }
+    
+    showMsg('upload-msg', `✅ 批次 ${d.batch_id} 导入完成：成功 ${d.success_count} 条，错误 ${d.error_count} 条`, 
+            d.error_count > 0 ? 'error' : 'success');
+    
+    const resultDiv = document.getElementById('upload-result');
+    resultDiv.style.display = 'block';
+    
+    let resultHtml = `
+      <div style="padding:16px;background:${d.error_count>0?'#fff3f3':'#e8f5e9'};border-radius:8px;">
+        <p style="font-weight:bold;margin-bottom:8px;">
+          导入模式：${d.import_mode === 'incremental' ? '增量导入' : '全量覆盖'}
+        </p>
+        <p style="margin-bottom:8px;">
+          总记录：${d.total} | 成功：<span style="color:#2e7d32;">${d.success_count}</span> | 
+          错误：<span style="color:#c62828;">${d.error_count}</span>
+        </p>
+    `;
+    
+    if (d.errors && d.errors.length > 0) {
+      resultHtml += `
+        <div style="margin-top:12px;">
+          <p style="font-weight:bold;color:#c62828;margin-bottom:8px;">⚠️ 错误详情（可修正后重新导入）：</p>
+          <table style="width:100%;font-size:.85rem;border-collapse:collapse;">
+            <thead>
+              <tr style="background:#ffebee;">
+                <th style="padding:8px;text-align:left;border:1px solid #ffcdd2;">行号</th>
+                <th style="padding:8px;text-align:left;border:1px solid #ffcdd2;">原始数据</th>
+                <th style="padding:8px;text-align:left;border:1px solid #ffcdd2;">错误信息</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      for (const err of d.errors.slice(0, 20)) {
+        const rawDataStr = Object.entries(err.raw || {}).map(([k,v]) => `${k}:${v}`).join(', ');
+        resultHtml += `
+          <tr style="background:#fff5f5;">
+            <td style="padding:8px;border:1px solid #ffcdd2;font-weight:bold;color:#c62828;">${err.line}</td>
+            <td style="padding:8px;border:1px solid #ffcdd2;font-family:monospace;font-size:.8rem;">${rawDataStr}</td>
+            <td style="padding:8px;border:1px solid #ffcdd2;color:#c62828;">${err.errors.join('; ')}</td>
+          </tr>
+        `;
+      }
+      if (d.errors.length > 20) {
+        resultHtml += `<tr><td colspan="3" style="padding:8px;border:1px solid #ffcdd2;text-align:center;color:#888;">...还有 ${d.errors.length - 20} 条错误</td></tr>`;
+      }
+      resultHtml += `</tbody></table></div>`;
+    }
+    
+    resultHtml += `</div>`;
+    resultDiv.innerHTML = resultHtml;
+    
     loadExams();
     loadStudentList();
-  } catch(e) { showMsg('upload-msg', '网络错误：' + e, 'error'); }
+    loadImportLogs();
+  } catch(e) { 
+    showMsg('upload-msg', '网络错误：' + e, 'error'); 
+  }
+}
+
+async function loadImportLogs() {
+  try {
+    const r = await fetch(`${API}/api/teacher/import-logs`, {
+      headers: {'Authorization': `Bearer ${TOKEN}`}
+    });
+    if (r.status === 401) { logout(); return; }
+    const d = await r.json();
+    const logsDiv = document.getElementById('import-logs');
+    
+    if (!d.data || d.data.length === 0) {
+      logsDiv.innerHTML = '<p style="color:#888">暂无导入记录</p>';
+      return;
+    }
+    
+    let html = `
+      <table style="width:100%;font-size:.85rem;">
+        <thead>
+          <tr style="background:#e3f2fd;">
+            <th style="padding:10px 12px;text-align:left;">批次号</th>
+            <th style="padding:10px 12px;text-align:left;">导入模式</th>
+            <th style="padding:10px 12px;text-align:left;">操作人</th>
+            <th style="padding:10px 12px;text-align:left;">总记录</th>
+            <th style="padding:10px 12px;text-align:left;">成功</th>
+            <th style="padding:10px 12px;text-align:left;">失败</th>
+            <th style="padding:10px 12px;text-align:left;">时间</th>
+            <th style="padding:10px 12px;text-align:left;">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    
+    for (const log of d.data) {
+      const modeLabel = log.import_mode === 'incremental' ? '增量导入' : '全量覆盖';
+      const hasErrors = log.error_count > 0;
+      html += `
+        <tr style="border-bottom:1px solid #f0f0f0;">
+          <td style="padding:10px 12px;font-family:monospace;font-weight:bold;">${log.batch_id}</td>
+          <td style="padding:10px 12px;">
+            <span class="badge badge-${log.import_mode==='incremental'?'green':'gray'}">${modeLabel}</span>
+          </td>
+          <td style="padding:10px 12px;">${log.operator || 'teacher'}</td>
+          <td style="padding:10px 12px;">${log.total_records}</td>
+          <td style="padding:10px 12px;color:#2e7d32;font-weight:bold;">${log.success_count}</td>
+          <td style="padding:10px 12px;color:${hasErrors?'#c62828':'#888'};font-weight:bold;">${log.error_count}</td>
+          <td style="padding:10px 12px;font-size:.8rem;color:#666;">${new Date(log.created_at).toLocaleString('zh-CN')}</td>
+          <td style="padding:10px 12px;">
+            <button class="btn btn-outline btn-sm" onclick="showImportErrors(${log.id})">查看详情</button>
+          </td>
+        </tr>
+      `;
+    }
+    
+    html += `</tbody></table>`;
+    logsDiv.innerHTML = html;
+  } catch(e) {
+    document.getElementById('import-logs').innerHTML = '<p style="color:#c62828">加载失败</p>';
+  }
+}
+
+async function showImportErrors(logId) {
+  try {
+    const r = await fetch(`${API}/api/teacher/import-logs/${logId}/errors`, {
+      headers: {'Authorization': `Bearer ${TOKEN}`}
+    });
+    const d = await r.json();
+    
+    showConfirmDialog('导入日志详情', `<div style="white-space:pre-wrap;max-height:400px;overflow-y:auto;">${d.log_content}</div>`, () => {});
+  } catch(e) {
+    alert('加载日志详情失败：' + e);
+  }
 }
 
 let currentExamId = null;
@@ -317,7 +600,7 @@ function renderExams() {
   `).join('');
 
   const exam = examsData.find(e => e.id === currentExamId) || examsData[0];
-  const isActive = exam.is_active === 1;
+  const isActive = exam.status === 'active' || (exam.is_active === 1 && exam.status !== 'ended');
 
   document.getElementById('exams-content').innerHTML = `
     <div class="exam-tabs">${tabs}</div>
@@ -328,15 +611,9 @@ function renderExams() {
       <div class="stat-item"><div class="stat-value">${exam.total_students ? Math.round(exam.submitted/exam.total_students*100) : 0}%</div><div class="stat-label">完成率</div></div>
     </div>
     <div class="flex-row" style="margin-bottom:16px">
-      <div class="toggle-switch">
-        <span style="font-size:.9rem">考试状态：</span>
-        <label class="switch">
-          <input type="checkbox" ${isActive?'checked':''} onchange="toggleExam('${exam.id}', this.checked)">
-          <span class="slider"></span>
-        </label>
-        <span style="font-size:.9rem;color:${isActive?'#2e7d32':'#888'}">${isActive?'开放中':'已关闭'}</span>
-      </div>
+        <div style="font-size:.9rem">考试状态： <strong style="color:${isActive?'#2e7d32':'#888'}">${isActive?'开放中':'已关闭'}</strong></div>
       <button class="btn btn-primary btn-sm" onclick="downloadExcel('${exam.id}', '${exam.title}')">⬇ 下载 Excel 成绩单</button>
+      <button class="btn btn-outline-danger btn-sm" onclick="confirmDeleteExam('${exam.id}','${exam.title}')">🗑 删除考试</button>
     </div>
     <div id="scores-table">加载成绩中…</div>
   `;
@@ -397,7 +674,27 @@ async function downloadExcel(examId, title) {
   a.click();
 }
 
-// ───── 学生名单管理 ─────
+async function deleteExam(examId) {
+  const r = await fetch(`${API}/api/teacher/exams/${examId}`, {
+    method: 'DELETE',
+    headers: {'Authorization': `Bearer ${TOKEN}`}
+  });
+  let d = {};
+  try { d = await r.json(); } catch(e) {}
+  if (!r.ok) { showMsg('exams-content', d.detail || '删除失败', 'error'); return false; }
+  showMsg('exams-content', `✅ 已删除考试（影响记录：${d.deleted ?? d.affected ?? 0}）`);
+  currentExamId = null;
+  await loadExams();
+  return true;
+}
+
+function confirmDeleteExam(examId, title) {
+  showConfirmDialog(
+    '删除考试',
+    `确认删除考试 <strong>${title}</strong> 及其所有成绩与相关记录？此操作不可恢复。`,
+    async () => { await deleteExam(examId); }
+  );
+}
 
 async function loadStudentList() {
   const r = await fetch(`${API}/api/teacher/students/list`, {
@@ -506,217 +803,352 @@ function confirmNewSemester() {
   );
 }
 
-// ───── 确认对话框 ─────
-
 function showConfirmDialog(title, message, onConfirm) {
   const backdrop = document.createElement('div');
   backdrop.className = 'confirm-dialog-backdrop';
+  
+  const hasConfirm = typeof onConfirm === 'function';
+  
   backdrop.innerHTML = `
-    <div class="confirm-dialog">
+    <div class="confirm-dialog" style="${!hasConfirm ? 'max-width:600px;' : ''}">
       <h3>${title}</h3>
       <p>${message}</p>
       <div class="btn-row">
-        <button class="btn btn-outline btn-sm" id="confirm-cancel">取消</button>
-        <button class="btn btn-danger btn-sm" id="confirm-ok">确认执行</button>
+        ${hasConfirm ? `
+          <button class="btn btn-outline btn-sm" id="confirm-cancel">取消</button>
+          <button class="btn btn-danger btn-sm" id="confirm-ok">确认执行</button>
+        ` : `
+          <button class="btn btn-primary btn-sm" id="confirm-ok">关闭</button>
+        `}
       </div>
     </div>
   `;
   document.body.appendChild(backdrop);
-  backdrop.querySelector('#confirm-cancel').onclick = () => backdrop.remove();
-  backdrop.querySelector('#confirm-ok').onclick = () => { backdrop.remove(); onConfirm(); };
-}
-
-// ───── GitHub 账号映射管理 ─────
-
-function handleGitHubFile(input) {
-  document.getElementById('github-file-name').textContent = input.files[0]?.name || '未选择文件';
-}
-
-async function uploadGitHubBindings() {
-  const file = document.getElementById('github-csv-file').files[0];
-  if (!file) { showMsg('github-msg', '请先选择 CSV 文件', 'error'); return; }
-  const fd = new FormData();
-  fd.append('file', file);
-  try {
-    const r = await fetch(`${API}/api/teacher/github/bindings`, {
-      method: 'POST',
-      headers: {'Authorization': `Bearer ${TOKEN}`},
-      body: fd
-    });
-    const d = await r.json();
-    if (!r.ok) { showMsg('github-msg', d.detail || '上传失败', 'error'); return; }
-    showMsg('github-msg', d.message, 'success');
-    if (d.conflicts && d.conflicts.length > 0) {
-      showMsg('github-msg', `⚠️ 冲突提示：${d.conflicts.join('; ')}`, 'error');
-    }
-    // 显示成绩重算结果
-    if (d.recalculated && d.recalculated > 0) {
-      showMsg('github-msg', `🔄 已自动关联 ${d.recalculated} 条提交记录，相关成绩已更新`, 'success');
-    }
-    loadGitHubBindings();
-  } catch(e) { showMsg('github-msg', '网络错误：' + e, 'error'); }
-}
-
-async function loadGitHubBindings() {
-  const class_name = document.getElementById('github-filter-class').value;
-  const course_name = document.getElementById('github-filter-course').value;
-  const params = new URLSearchParams();
-  if (class_name) params.append('class_name', class_name);
-  if (course_name) params.append('course_name', course_name);
   
-  const r = await fetch(`${API}/api/teacher/github/bindings?${params}`, {
+  const cancelBtn = backdrop.querySelector('#confirm-cancel');
+  const okBtn = backdrop.querySelector('#confirm-ok');
+  
+  if (cancelBtn) {
+    cancelBtn.onclick = () => backdrop.remove();
+  }
+  if (okBtn) {
+    okBtn.onclick = () => { backdrop.remove(); if (onConfirm) onConfirm(); };
+  }
+}
+
+async function loadStudentsForReport() {
+  const r = await fetch(`${API}/api/teacher/students/list`, {
     headers: {'Authorization': `Bearer ${TOKEN}`}
   });
-  if (!r.ok) { document.getElementById('github-bindings-list').innerHTML = '<p style="color:#c62828">加载失败</p>'; return; }
-  const bindings = await r.json();
-  
-  await loadGitHubFilters();
-  
-  if (!bindings.length) {
-    document.getElementById('github-bindings-list').innerHTML = '<p style="color:#888;font-size:.9rem">暂无绑定记录</p>';
+  if (!r.ok) return;
+  const students = await r.json();
+
+  const options = students.map(s =>
+    `<option value="${s.student_id}" data-name="${s.name}" data-class="${s.class_name || ''}">${s.name} (${s.student_id})</option>`
+  ).join('');
+
+  document.getElementById('report-student-select').innerHTML =
+    '<option value="">-- 请选择学生 --</option>' + options;
+  document.getElementById('comment-student-select').innerHTML =
+    '<option value="">-- 请选择学生 --</option>' + options;
+
+  await loadClasses();
+}
+
+async function loadClasses() {
+  const r = await fetch(`${API}/api/teacher/report/classes`, {
+    headers: {'Authorization': `Bearer ${TOKEN}`}
+  });
+  if (!r.ok) return;
+  const classes = await r.json();
+
+  const options = classes.map(c =>
+    `<option value="${c}">${c}</option>`
+  ).join('');
+
+  document.getElementById('batch-class-select').innerHTML =
+    '<option value="">-- 请选择班级 --</option>' + options;
+}
+
+async function loadClassStudents() {
+  const className = document.getElementById('batch-class-select').value;
+  if (!className) {
+    document.getElementById('batch-student-list').innerHTML = '';
     return;
   }
-  
-  const rows = bindings.map(b => `
+
+  const r = await fetch(`${API}/api/teacher/report/classes/${encodeURIComponent(className)}/students`, {
+    headers: {'Authorization': `Bearer ${TOKEN}`}
+  });
+  if (!r.ok) return;
+  const students = await r.json();
+
+  const rows = students.map(s => `
     <tr>
-      <td>${b.name || '-'}</td>
-      <td>${b.student_user_id}</td>
-      <td><input type="text" value="${b.github_username}" class="github-username-input" data-sid="${b.student_user_id}" style="width:140px;padding:4px 6px;border:1px solid #ddd;border-radius:4px"/></td>
-      <td>${b.class_name || '-'}</td>
-      <td>${b.course_name || '-'}</td>
-      <td>
-        <button class="btn btn-outline btn-sm" onclick="updateGitHubBinding('${b.student_user_id}')">✓ 保存</button>
-        <button class="btn btn-outline-danger btn-sm" onclick="deleteGitHubBinding('${b.student_user_id}','${b.name || b.student_user_id}')">删除</button>
-      </td>
+      <td>${s.name}</td>
+      <td>${s.student_id}</td>
+      <td>${s.class_name || '-'}</td>
     </tr>
   `).join('');
-  
-  document.getElementById('github-bindings-list').innerHTML = `
-    <p style="font-size:.85rem;color:#888;margin-bottom:8px">共 ${bindings.length} 条绑定记录</p>
+
+  document.getElementById('batch-student-list').innerHTML = `
+    <p style="margin-bottom: 8px;">班级共 ${students.length} 名学生</p>
     <table>
-      <thead><tr><th>姓名</th><th>学号</th><th>GitHub用户名</th><th>班级</th><th>课程</th><th>操作</th></tr></thead>
+      <thead><tr><th>姓名</th><th>学号</th><th>班级</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   `;
 }
 
-async function loadGitHubFilters() {
-  const [classes, courses] = await Promise.all([
-    fetch(`${API}/api/teacher/github/classes`, { headers: {'Authorization': `Bearer ${TOKEN}`} }).then(r => r.json()),
-    fetch(`${API}/api/teacher/github/courses`, { headers: {'Authorization': `Bearer ${TOKEN}`} }).then(r => r.json())
-  ]);
-  
-  const classSelect = document.getElementById('github-filter-class');
-  const currentClass = classSelect.value;
-  classSelect.innerHTML = '<option value="">全部班级</option>' + 
-    classes.map(c => `<option value="${c}" ${c===currentClass?'selected':''}>${c}</option>`).join('');
-  
-  const courseSelect = document.getElementById('github-filter-course');
-  const currentCourse = courseSelect.value;
-  courseSelect.innerHTML = '<option value="">全部课程</option>' + 
-    courses.map(c => `<option value="${c}" ${c===currentCourse?'selected':''}>${c}</option>`).join('');
-}
+async function exportReport() {
+  const studentId = document.getElementById('report-student-select').value;
+  const format = document.getElementById('report-format').value;
 
-function clearGitHubFilters() {
-  document.getElementById('github-filter-class').value = '';
-  document.getElementById('github-filter-course').value = '';
-  loadGitHubBindings();
-}
+  if (!studentId) {
+    alert('请选择学生');
+    return;
+  }
 
-async function addGitHubBinding() {
-  const sid = document.getElementById('github-add-sid').value.trim();
-  const name = document.getElementById('github-add-name').value.trim();
-  const github = document.getElementById('github-add-github').value.trim();
-  if (!sid || !name || !github) { showMsg('github-msg', '学号、姓名和 GitHub 用户名不能为空', 'error'); return; }
-  try {
-    const r = await fetch(`${API}/api/teacher/github/bindings/add`, {
-      method: 'POST',
-      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
-      body: JSON.stringify({student_user_id: sid, name: name, github_username: github})
-    });
-    const d = await r.json();
-    if (!r.ok) { showMsg('github-msg', d.detail || '添加失败', 'error'); return; }
-    showMsg('github-msg', d.message, 'success');
-    document.getElementById('github-add-sid').value = '';
-    document.getElementById('github-add-name').value = '';
-    document.getElementById('github-add-github').value = '';
-    loadGitHubBindings();
-  } catch(e) { showMsg('github-msg', '网络错误：' + e, 'error'); }
-}
-
-async function updateGitHubBinding(studentId) {
-  const input = document.querySelector(`.github-username-input[data-sid="${studentId}"]`);
-  const githubUsername = input.value.trim();
-  if (!githubUsername) { showMsg('github-msg', 'GitHub 用户名不能为空', 'error'); return; }
-  try {
-    const r = await fetch(`${API}/api/teacher/github/bindings/${studentId}?github_username=${encodeURIComponent(githubUsername)}`, {
-      method: 'PUT',
-      headers: {'Authorization': `Bearer ${TOKEN}`}
-    });
-    const text = await r.text();
-    let d;
-    try {
-      d = JSON.parse(text);
-    } catch (parseErr) {
-      showMsg('github-msg', '服务器返回错误：' + text.substring(0, 100), 'error');
-      return;
-    }
-    if (!r.ok) { showMsg('github-msg', d.detail || '更新失败', 'error'); return; }
-    showMsg('github-msg', d.message || '更新成功', 'success');
-    loadGitHubBindings();
-  } catch(e) { showMsg('github-msg', '网络错误：' + e, 'error'); }
-}
-
-async function deleteGitHubBinding(studentId, name) {
-  showConfirmDialog(
-    '删除绑定',
-    `确认解除 <strong>${name}</strong> 的 GitHub 账号绑定？`,
-    async () => {
-      const r = await fetch(`${API}/api/teacher/github/bindings/${studentId}`, {
-        method: 'DELETE',
-        headers: {'Authorization': `Bearer ${TOKEN}`}
-      });
-      const d = await r.json();
-      if (!r.ok) { showMsg('github-msg', d.detail || '删除失败', 'error'); return; }
-      showMsg('github-msg', d.message, 'success');
-      loadGitHubBindings();
-    }
-  );
-}
-
-async function downloadGitHubBindings() {
-  const class_name = document.getElementById('github-filter-class').value;
-  const course_name = document.getElementById('github-filter-course').value;
-  const params = new URLSearchParams();
-  if (class_name) params.append('class_name', class_name);
-  if (course_name) params.append('course_name', course_name);
-  
-  const url = `${API}/api/teacher/github/bindings/export?${params}`;
+  const url = `${API}/api/teacher/report/export?student_id=${encodeURIComponent(studentId)}&format=${format}`;
   const r = await fetch(url, { headers: {'Authorization': `Bearer ${TOKEN}`} });
-  if (!r.ok) { alert('导出失败'); return; }
+
+  if (!r.ok) {
+    const e = await r.json();
+    alert('导出失败: ' + (e.detail || '未知错误'));
+    return;
+  }
+
   const blob = await r.blob();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
-  a.download = `GitHub绑定_${date}.csv`;
+  a.download = `开发日志报告.${format === 'excel' ? 'xlsx' : format}`;
   a.click();
 }
 
-// ───── 初始化：检查已有 token ─────
-if (TOKEN) {
-  fetch(`${API}/api/teacher/exams`, { headers: {'Authorization': `Bearer ${TOKEN}`} })
-    .then(r => {
-      if (r.ok) {
-        document.getElementById('login-page').style.display = 'none';
-        document.getElementById('app').style.display = 'block';
-        loadExams();
-        loadStudentList();
-        loadGitHubBindings();
-      } else {
-        TOKEN = ''; sessionStorage.removeItem('teacher_token');
-      }
-    }).catch(() => {});
+async function batchExport() {
+  const className = document.getElementById('batch-class-select').value;
+  const format = document.getElementById('batch-format').value;
+
+  if (!className) {
+    alert('请选择班级');
+    return;
+  }
+
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '导出中...';
+
+  try {
+    const r = await fetch(`${API}/api/teacher/report/batch`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ class_name: className, format: format })
+    });
+
+    if (!r.ok) {
+      const e = await r.json();
+      alert('批量导出失败: ' + (e.detail || '未知错误'));
+      return;
+    }
+
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    a.download = `开发日志报告_批量导出_${className}_${date}.zip`;
+    a.click();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📦 批量导出ZIP';
+  }
 }
-</script>
-</body>
-</html>
+
+async function loadStudentComment() {
+  const studentId = document.getElementById('comment-student-select').value;
+
+  if (!studentId) {
+    document.getElementById('comment-editor').style.display = 'none';
+    document.getElementById('comment-list').innerHTML = '';
+    return;
+  }
+
+  const r = await fetch(`${API}/api/teacher/report/comments/${encodeURIComponent(studentId)}`, {
+    headers: {'Authorization': `Bearer ${TOKEN}`}
+  });
+  if (!r.ok) return;
+  const comments = await r.json();
+
+  document.getElementById('comment-editor').style.display = 'block';
+
+  if (comments.length > 0) {
+    document.getElementById('comment-text').value = comments[0].comment;
+  } else {
+    document.getElementById('comment-text').value = '';
+  }
+
+  const listItems = comments.map(c => `
+    <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #1565c0;">
+      <div style="font-size: 0.8rem; color: #888; margin-bottom: 4px;">${c.created_at || ''}</div>
+      <div>${c.comment}</div>
+    </div>
+  `).join('');
+
+  document.getElementById('comment-list').innerHTML = listItems || '<p style="color: #888;">暂无评语</p>';
+}
+
+async function saveComment() {
+  const studentId = document.getElementById('comment-student-select').value;
+  const comment = document.getElementById('comment-text').value.trim();
+
+  if (!studentId) {
+    alert('请选择学生');
+    return;
+  }
+
+  if (!comment) {
+    alert('请输入评语');
+    return;
+  }
+
+  const r = await fetch(`${API}/api/teacher/report/comments`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${TOKEN}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ student_id: studentId, comment: comment })
+  });
+
+  if (!r.ok) {
+    const e = await r.json();
+    alert('保存失败: ' + (e.detail || '未知错误'));
+    return;
+  }
+
+  alert('评语已保存');
+  loadStudentComment();
+}
+
+let currentLogPage = 1;
+
+async function loadAuditLogs(page = 1) {
+  currentLogPage = page;
+
+  const startDate = document.getElementById('log-start-date').value;
+  const endDate = document.getElementById('log-end-date').value;
+  const action = document.getElementById('log-action').value;
+
+  let url = `${API}/api/teacher/report/logs?page=${page}&page_size=20`;
+  if (startDate) url += `&start_date=${startDate}`;
+  if (endDate) url += `&end_date=${endDate}`;
+  if (action) url += `&action=${action}`;
+
+  const r = await fetch(url, { headers: {'Authorization': `Bearer ${TOKEN}`} });
+  if (!r.ok) return;
+  const data = await r.json();
+
+  const rows = data.logs.map(log => `
+    <tr>
+      <td>${log.id}</td>
+      <td><span class="badge badge-info">${log.action}</span></td>
+      <td>${log.target_type}</td>
+      <td>${log.target_id || '-'}</td>
+      <td>${log.format || '-'}</td>
+      <td style="font-size: 0.8rem; color: #888;">${log.created_at || ''}</td>
+    </tr>
+  `).join('');
+
+  const totalPages = Math.ceil(data.total / data.page_size);
+  const pagination = totalPages > 1 ? `
+    <div style="margin-top: 16px; display: flex; justify-content: center; gap: 8px;">
+      <button class="btn btn-outline btn-sm" onclick="loadAuditLogs(${page - 1})" ${page <= 1 ? 'disabled' : ''}>上一页</button>
+      <span style="padding: 6px 12px;">第 ${page} / ${totalPages} 页 (共 ${data.total} 条)</span>
+      <button class="btn btn-outline btn-sm" onclick="loadAuditLogs(${page + 1})" ${page >= totalPages ? 'disabled' : ''}>下一页</button>
+    </div>
+  ` : '';
+
+  document.getElementById('audit-log-list').innerHTML = `
+    <table>
+      <thead><tr><th>ID</th><th>操作</th><th>对象类型</th><th>对象ID</th><th>格式</th><th>时间</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="6" style="text-align: center; color: #888;">暂无日志记录</td></tr>'}</tbody>
+    </table>
+    ${pagination}
+  `;
+}
+
+async function exportAuditLogs() {
+  const startDate = document.getElementById('log-start-date').value;
+  const endDate = document.getElementById('log-end-date').value;
+  const action = document.getElementById('log-action').value;
+
+  let url = `${API}/api/teacher/report/logs?page_size=1000`;
+  if (startDate) url += `&start_date=${startDate}`;
+  if (endDate) url += `&end_date=${endDate}`;
+  if (action) url += `&action=${action}`;
+
+  const r = await fetch(url, { headers: {'Authorization': `Bearer ${TOKEN}`} });
+  if (!r.ok) {
+    alert('获取日志失败');
+    return;
+  }
+  const data = await r.json();
+
+  const csv = ['ID,操作,对象类型,对象ID,格式,时间'];
+  data.logs.forEach(log => {
+    csv.push(`${log.id},"${log.action}",${log.target_type},${log.target_id || ''},${log.format || ''},${log.created_at || ''}`);
+  });
+
+  const blob = new Blob(['\ufeff' + csv.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  a.download = `审计日志_${date}.csv`;
+  a.click();
+}
+
+const CATEGORY_LABELS = {
+  announcement: '公告', deadline: '截止提醒', grade: '成绩通知',
+  system: '系统', graded: '已批改'
+};
+
+let isSendingNotification = false;
+
+async function sendNotification() {
+  if (isSendingNotification) return;
+
+  const title = document.getElementById('notif-title').value.trim();
+  const content = document.getElementById('notif-content').value.trim();
+  const category = document.getElementById('notif-category').value;
+  if (!title) { showMsg('notif-msg', '请输入通知标题', 'error'); return; }
+  if (!content) { showMsg('notif-msg', '请输入通知内容', 'error'); return; }
+
+  if (title.length > 200) { showMsg('notif-msg', '标题不能超过 200 个字符', 'error'); return; }
+  if (content.length > 5000) { showMsg('notif-msg', '内容不能超过 5000 个字符', 'error'); return; }
+
+  isSendingNotification = true;
+  const sendBtn = document.querySelector('#notif-form button.btn-primary');
+  const originalText = sendBtn.textContent;
+  sendBtn.textContent = '发送中…';
+  sendBtn.disabled = true;
+  sendBtn.style.opacity = '0.6';
+  sendBtn.style.cursor = 'not-allowed';
+
+  try {
+    const r = await fetch(`${API}/api/teacher/notifications`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify({ title, content, category })
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      if (r.status === 409) {
+        showMsg('notif-msg', d.detail || '请勿重复提交相同通知', 'error');
+      } else {
+        showMsg('notif-msg', d.detail || '发送失败', 'error');
+      }
+      return;
+    }
+    showMsg('notif-msg', `✅ 通知已发送，覆盖 ${d.sent_count} 名学生`);

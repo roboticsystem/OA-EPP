@@ -5,6 +5,14 @@
 #       默认端口：8088
 # ============================================================
 
+# 激活虚拟环境（确保 python 可用）
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -f "$SCRIPT_DIR/.venv/Scripts/activate" ]; then
+  source "$SCRIPT_DIR/.venv/Scripts/activate"
+elif [ -f "$SCRIPT_DIR/.venv/bin/activate" ]; then
+  source "$SCRIPT_DIR/.venv/bin/activate"
+fi
+
 PORT=${1:-8088}
 PROTO_DIR="$(cd "$(dirname "$0")/prototype" && pwd)"
 
@@ -16,7 +24,7 @@ fi
 
 # ── 启动 HTTP 服务器 ──────────────────────────────────────
 cd "$PROTO_DIR" || { echo "❌ 找不到 prototype/ 目录"; exit 1; }
-python3 -m http.server "$PORT" --bind 0.0.0.0 &
+python -m http.server "$PORT" --bind 0.0.0.0 &
 SERVER_PID=$!
 echo "Server PID: $SERVER_PID"
 echo ""

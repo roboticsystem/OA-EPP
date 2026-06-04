@@ -1,9 +1,22 @@
 import os
 from datetime import datetime, timedelta
+from typing import Optional
 from jose import jwt, JWTError
+from fastapi import HTTPException
+import bcrypt
 
 SECRET_KEY = os.environ.get("JWT_SECRET", "change-me-in-production-secret-key")
 ALGORITHM = "HS256"
+
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    if not password_hash:
+        return False
+    return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
 
 
 def create_token(data: dict, expires_hours: int = 2) -> str:
@@ -16,15 +29,29 @@ def decode_token(token: str) -> dict:
     return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
 
+def verify_token(token: str) -> dict:
+    try:
+        return decode_token(token)
+    except JWTError as e:
+        raise ValueError(f"invalid token: {e}")
+
+
+def require_role(token: str, role: str) -> dict:
+    payload = verify_token(token)
+    if payload.get("role") != role:
+        raise ValueError(f"not a {role} token")
+    return payload
+
+
 def verify_student_token(token: str) -> dict:
-    """解码学生 token，返回 {student_id, name}，失败抛出异常"""
+    """解码学生 token，返回 payload，失败抛出异常"""
     try:
         payload = decode_token(token)
         if payload.get("role") != "student":
             raise ValueError("not a student token")
         return payload
-    except JWTError as e:
-        raise ValueError(f"invalid token: {e}")
+    except JWTError:
+        raise ValueError("invalid token")
 
 
 def verify_teacher_token(token: str) -> dict:
@@ -34,5 +61,27 @@ def verify_teacher_token(token: str) -> dict:
         if payload.get("role") != "teacher":
             raise ValueError("not a teacher token")
         return payload
-    except JWTError as e:
-        raise ValueError(f"invalid token: {e}")
+    except JWTError:
+        raise ValueError("invalid token")
+
+
+def require_teacher(authorization: Optional[str]):
+    """提取并验证教师 Bearer token，失败抛出 HTTPException"""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="请先登录")
+    token = authorization.removeprefix("Bearer ").strip()
+    try:
+        verify_teacher_token(token)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="无效的登录凭证")
+
+
+def get_student_from_token(authorization: Optional[str]) -> Optional[dict]:
+    """解码学生 token，返回 payload，失败返回 None"""
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    token = authorization.removeprefix("Bearer ").strip()
+    try:
+        return verify_student_token(token)
+    except ValueError:
+        return None

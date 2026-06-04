@@ -180,7 +180,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO student_role;
 -- 注意：无 CREATE / ALTER / DROP 权限
 ```'''
-new_sql = '''```sql
+python3 deploy_local_or_coolify.pynew_sql = '''```sql
 -- 创建学生专用账号（仅 DML 权限，无 DDL 权限）
 CREATE USER IF NOT EXISTS 'student_role'@'%' IDENTIFIED BY 'changeme';
 GRANT SELECT, INSERT, UPDATE, DELETE ON oaepp_dev.* TO 'student_role'@'%';
