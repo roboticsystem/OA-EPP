@@ -16,8 +16,6 @@
   .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.1); margin-bottom: 16px; overflow: hidden; }
   .card-header { padding: 16px 20px; border-bottom: 1px solid #f0f0f0; font-weight: bold; color: #1565c0; display: flex; align-items: center; gap: 8px; }
   .card-body { padding: 20px; }
-
-  /* Login */
   .login-wrap { max-width: 400px; margin: 60px auto 0; text-align: center; }
   .login-logo { width: 64px; height: 64px; background: #1565c0; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin: 0 auto 16px; }
   .form-group { margin-bottom: 14px; text-align: left; }
@@ -28,21 +26,15 @@
   .btn:hover { background: #0d47a1; }
   .btn:disabled { background: #90caf9; cursor: not-allowed; }
   .error-msg { color: #d32f2f; font-size: .85rem; display: none; text-align: center; }
-
-  /* Student Info */
   .student-header { display: flex; align-items: center; gap: 16px; }
   .avatar { width: 48px; height: 48px; border-radius: 50%; background: #1565c0; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: bold; flex-shrink: 0; }
   .student-detail h3 { font-size: 1.1rem; }
   .student-detail p { font-size: .85rem; color: #888; }
-
-  /* Total Score */
   .total-score-wrap { text-align: center; padding: 24px; }
   .total-score-circle { width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #1565c0, #1976d2); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 12px; }
   .total-score-number { font-size: 2.4rem; font-weight: bold; line-height: 1; }
   .total-score-label { font-size: .8rem; opacity: .85; margin-top: 4px; }
   .total-score-hint { font-size: .85rem; color: #888; }
-
-  /* Dimension Grid */
   .dim-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .dim-card { border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px; }
   .dim-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
@@ -51,8 +43,6 @@
   .dim-score { font-size: 1.5rem; font-weight: bold; color: #1565c0; }
   .dim-score-label { font-size: .8rem; color: #888; }
   .dim-pending-badge { display: inline-block; background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 4px; font-size: .75rem; font-weight: 500; }
-
-  /* Score Items Table */
   .score-table { width: 100%; border-collapse: collapse; }
   .score-table th, .score-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #f0f0f0; font-size: .88rem; }
   .score-table th { color: #888; font-weight: 500; background: #fafafa; }
@@ -66,8 +56,6 @@
   .pending-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ff9800; margin-right: 6px; }
   .scorer-name { color: #666; font-size: .82rem; }
   .scored-at { color: #999; font-size: .8rem; }
-
-  /* Responsive */
   @media (max-width: 600px) {
     .dim-grid { grid-template-columns: 1fr; }
     .header { flex-direction: column; gap: 8px; text-align: center; }
@@ -86,11 +74,10 @@
 
 <div class="container">
 
-  <!-- ====== 登录页面 ====== -->
   <div id="section-login" class="login-wrap">
     <div class="card">
       <div class="card-body">
-        <div class="login-logo">📊</div>
+        <div class="login-logo">S</div>
         <h2 style="font-size:1.15rem;margin-bottom:4px">OA-EPP 成绩看板</h2>
         <p style="color:#888;font-size:.85rem;margin-bottom:20px">登录查看综合得分与各维度成绩</p>
         <div class="form-group">
@@ -108,10 +95,8 @@
     </div>
   </div>
 
-  <!-- ====== 看板 ====== -->
   <div id="section-dashboard" style="display:none">
 
-    <!-- 学生信息 -->
     <div class="card">
       <div class="card-body">
         <div class="student-header">
@@ -124,7 +109,6 @@
       </div>
     </div>
 
-    <!-- 综合得分 -->
     <div class="card">
       <div class="card-body">
         <div class="total-score-wrap">
@@ -138,7 +122,6 @@
       </div>
     </div>
 
-    <!-- 评分明细 -->
     <div class="card">
       <div class="card-header">评分明细</div>
       <div class="card-body" style="padding:0">
@@ -167,7 +150,6 @@ const API = '';
 let currentToken = null;
 let refreshTimer = null;
 
-/* ====== 登录 ====== */
 async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
@@ -197,19 +179,16 @@ async function doLogin() {
   btn.textContent = '登录';
 }
 
-/* ====== 加载看板数据 ====== */
 async function loadDashboard() {
   try {
     const r = await fetch(`${API}/api/student/dashboard`, {
       headers: { Authorization: `Bearer ${currentToken}` }
     });
     if (r.status === 401) { doLogout(); return; }
-    if (!r.ok) { showToast('获取数据失败'); return; }
+    if (!r.ok) { return; }
     const data = await r.json();
     renderDashboard(data);
-  } catch (e) {
-    showToast('网络错误');
-  }
+  } catch (e) {}
 }
 
 function renderDashboard(data) {
@@ -221,17 +200,16 @@ function renderDashboard(data) {
   const course = data.course || {};
   document.getElementById('avatar-text').textContent = s.name ? s.name.slice(-1) : '?';
   document.getElementById('student-name').textContent = s.name || '';
-  document.getElementById('student-meta').textContent = `学号：${s.student_id}${s.class_name ? ' · ' + s.class_name : ''} · ${course.name || ''}`;
-  document.getElementById('header-subtitle').textContent = `${s.name} · ${s.student_id} · ${course.name || ''}`;
+  document.getElementById('student-meta').textContent = `学号：${s.student_id}${s.class_name ? ' - ' + s.class_name : ''} - ${course.name || ''}`;
+  document.getElementById('header-subtitle').textContent = `${s.name} - ${s.student_id} - ${course.name || ''}`;
 
   document.getElementById('total-score').textContent = data.total_score;
   renderDimensionCards(data);
   renderScoreItems(data);
 }
 
-/* ====== 维度卡片 ====== */
 const DIM_COLORS = { attendance: '#1565c0', exam: '#c62828', code: '#2e7d32', pr: '#6a1b9a' };
-const DIM_ICONS = { attendance: '📋', exam: '📝', code: '💻', pr: '🔀' };
+const DIM_ICONS = { attendance: 'A', exam: 'E', code: 'C', pr: 'P' };
 
 function renderDimensionCards(data) {
   const grid = document.getElementById('dim-grid');
@@ -264,7 +242,6 @@ function renderDimensionCards(data) {
   }
 }
 
-/* ====== 评分明细表 ====== */
 function renderScoreItems(data) {
   const tbody = document.getElementById('score-tbody');
   const empty = document.getElementById('score-empty');
@@ -295,7 +272,6 @@ function renderScoreItems(data) {
     </tr>`;
   }).join('');
 
-  /* 附加待评项 */
   let pendingHtml = '';
   for (const [key, dim] of Object.entries(data.dimensions)) {
     for (const p of dim.pending_items) {
@@ -308,12 +284,11 @@ function renderScoreItems(data) {
     }
   }
   if (pendingHtml) {
-    tbody.innerHTML += `<tr><td colspan="5" style="padding:6px 12px;background:#fafafa;font-size:.82rem;color:#888">待评分项</td></tr>`;
+    tbody.innerHTML += '<tr><td colspan="5" style="padding:6px 12px;background:#fafafa;font-size:.82rem;color:#888">待评分项</td></tr>';
     tbody.innerHTML += pendingHtml;
   }
 }
 
-/* ====== 自动刷新 ====== */
 function startAutoRefresh() {
   stopAutoRefresh();
   refreshTimer = setInterval(loadDashboard, 15000);
@@ -323,7 +298,6 @@ function stopAutoRefresh() {
   if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
 }
 
-/* ====== 退出 ====== */
 function doLogout() {
   stopAutoRefresh();
   currentToken = null;
@@ -335,11 +309,8 @@ function doLogout() {
   document.getElementById('login-password').value = '';
 }
 
-/* ====== 工具 ====== */
 function showErr(el, msg) { el.textContent = msg; el.style.display = 'block'; }
-function showToast(msg) { /* placeholder */ }
 
-/* ====== 初始化 ====== */
 (function init() {
   const saved = localStorage.getItem('oaepp_score_token');
   if (saved) {

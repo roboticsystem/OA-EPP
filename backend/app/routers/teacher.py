@@ -29,6 +29,29 @@ def _require_teacher(authorization: Optional[str]):
         raise HTTPException(status_code=401, detail=str(e))
 
 
+COURSE_ID = int(os.environ.get("COURSE_ID", "2"))
+
+
+def _get_enrolled_student_count(conn):
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) AS cnt FROM enrollments WHERE course_id = %s", (COURSE_ID,))
+    return cur.fetchone()["cnt"]
+
+
+def _list_students_with_class(conn):
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT u.id AS user_id, u.full_name AS name, u.student_no AS student_id,
+               COALESCE(s.class_name, '') AS class_name
+        FROM users u
+        JOIN students s ON u.id = s.user_id
+        JOIN enrollments e ON e.student_user_id = u.id
+        WHERE e.course_id = %s AND u.role = 'student'
+        ORDER BY u.student_no
+    """, (COURSE_ID,))
+    return cur.fetchall()
+
+
 def _name_to_pinyin(name: str):
     full = "".join(lazy_pinyin(name, style=Style.NORMAL))
     abbr = "".join(lazy_pinyin(name, style=Style.FIRST_LETTER))
@@ -38,13 +61,22 @@ def _name_to_pinyin(name: str):
 class LoginRequest(BaseModel):
     password: str
 
+
+@router.post("/api/teacher/login")
+def teacher_login(req: LoginRequest):
+    if req.password != TEACHER_PASSWORD:
+        raise HTTPException(status_code=401, detail="密码错误")
+    token = create_token({"role": "teacher"}, expires_hours=8)
+    return {"token": token}
+
+
 @router.post("/api/teacher/students")
 async def upload_students(
     file: UploadFile = File(...),
     authorization: Optional[str] = Header(None)
 ):
     """上传学生名单 CSV，同步到远程 users/students/enrollments 表"""
-    require_teacher(authorization)
+    _require_teacher(authorization)
 
     raw = await file.read()
     encoding = chardet.detect(raw)["encoding"] or "utf-8"
@@ -113,7 +145,7 @@ class AddStudentRequest(BaseModel):
 @router.post("/api/teacher/students/add")
 def add_student(req: AddStudentRequest, authorization: Optional[str] = Header(None)):
     """添加单个学生"""
-    require_teacher(authorization)
+    _require_teacher(authorization)
     req.name = req.name.strip()
     req.student_id = req.student_id.strip()
     if not req.name or not req.student_id:
@@ -146,8 +178,8 @@ def add_student(req: AddStudentRequest, authorization: Optional[str] = Header(No
             "INSERT IGNORE INTO enrollments (course_id, student_user_id) VALUES (%s, %s)",
             (COURSE_ID, user_id)
         )
-        conn.execute(
-            "INSERT INTO student_accounts (student_id, password_hash) VALUES (?, ?)",
+        cur.execute(
+            "INSERT INTO student_accounts (student_id, password_hash) VALUES (%s, %s)",
             (req.student_id, hash_password(req.student_id)),
         )
     return {"ok": True}
@@ -156,7 +188,7 @@ def add_student(req: AddStudentRequest, authorization: Optional[str] = Header(No
 @router.delete("/api/teacher/students/{student_id}")
 def delete_student(student_id: str, authorization: Optional[str] = Header(None)):
     """删除单个学生（取消选课，保留用户记录）"""
-    require_teacher(authorization)
+    _require_teacher(authorization)
     with db() as conn:
         cur = conn.cursor()
         cur.execute(
@@ -178,7 +210,7 @@ def delete_student(student_id: str, authorization: Optional[str] = Header(None))
 @router.delete("/api/teacher/students")
 def clear_all_students(authorization: Optional[str] = Header(None)):
     """清空当前课程全部选课"""
-    require_teacher(authorization)
+    _require_teacher(authorization)
     with db() as conn:
         cur = conn.cursor()
         cur.execute(
@@ -193,7 +225,7 @@ def clear_all_students(authorization: Optional[str] = Header(None)):
 @router.post("/api/teacher/reset")
 def new_semester_reset(authorization: Optional[str] = Header(None)):
     """新学期重置：清空当前课程选课"""
-    require_teacher(authorization)
+    _require_teacher(authorization)
     with db() as conn:
         cur = conn.cursor()
         cur.execute(
@@ -208,7 +240,7 @@ def new_semester_reset(authorization: Optional[str] = Header(None)):
 @router.get("/api/teacher/students/list")
 def list_students(authorization: Optional[str] = Header(None)):
     """获取全部学生名单"""
-    require_teacher(authorization)
+    _require_teacher(authorization)
     with db() as conn:
         rows = _list_students_with_class(conn)
     return [{"name": r["name"], "student_id": r["student_id"], "class_name": r["class_name"]} for r in rows]
@@ -216,7 +248,7 @@ def list_students(authorization: Optional[str] = Header(None)):
 
 @router.get("/api/teacher/exams")
 def list_exams(authorization: Optional[str] = Header(None)):
-    require_teacher(authorization)
+    _require_teacher(authorization)
     with db() as conn:
         cur = conn.cursor()
         cur.execute("""
@@ -243,14 +275,13 @@ def list_exams(authorization: Optional[str] = Header(None)):
         result = []
         from datetime import datetime
         for e in exams:
-            submitted = conn.execute(
-                "SELECT COUNT(*) FROM scores WHERE exam_id=?", (e["id"],)
-            ).fetchone()[0]
-            avg = conn.execute(
-                "SELECT AVG(score) FROM scores WHERE exam_id=?", (e["id"],)
-            ).fetchone()[0]
-            # 尝试根据 classroom_exams 的时间判断状态（开放中 / 已关闭）
-            ce = conn.execute("SELECT start_at, end_at FROM classroom_exams WHERE id=?", (e["id"],)).fetchone()
+            cur.execute("SELECT COUNT(*) AS cnt FROM scores WHERE exam_id = %s", (e["id"],))
+            submitted = cur.fetchone()["cnt"]
+            cur.execute("SELECT AVG(score) AS avg FROM scores WHERE exam_id = %s", (e["id"],))
+            avg_row = cur.fetchone()
+            avg = avg_row["avg"] if avg_row else None
+            cur.execute("SELECT start_at, end_at FROM classroom_exams WHERE id = %s", (e["id"],))
+            ce = cur.fetchone()
             status = None
             if ce:
                 try:
@@ -284,7 +315,7 @@ class ExamCreate(BaseModel):
 
 @router.post("/api/teacher/exams")
 def create_exam(req: ExamCreate, authorization: Optional[str] = Header(None)):
-    require_teacher(authorization)
+    _require_teacher(authorization)
     with db() as conn:
         cur = conn.cursor()
         cur.execute("""
@@ -307,7 +338,7 @@ class CleanupRequest(BaseModel):
 
 @router.put("/api/teacher/exams/{exam_id}")
 def update_exam(exam_id: str, req: ExamUpdate, authorization: Optional[str] = Header(None)):
-    require_teacher(authorization)
+    _require_teacher(authorization)
     with db() as conn:
         cur = conn.cursor()
         if req.is_active == 0:
@@ -323,7 +354,7 @@ def update_exam(exam_id: str, req: ExamUpdate, authorization: Optional[str] = He
 @router.get("/api/teacher/scores")
 def get_scores(exam_id: str = Query(...), authorization: Optional[str] = Header(None)):
     """获取某次考试的所有学生成绩"""
-    require_teacher(authorization)
+    _require_teacher(authorization)
     with db() as conn:
         cur = conn.cursor()
         cur.execute("SELECT title FROM exams WHERE id = %s", (exam_id,))
@@ -361,7 +392,7 @@ def get_scores(exam_id: str = Query(...), authorization: Optional[str] = Header(
 @router.get("/api/teacher/scores/export")
 def export_scores(exam_id: int = Query(...), authorization: Optional[str] = Header(None)):
     """导出成绩 Excel"""
-    require_teacher(authorization)
+    _require_teacher(authorization)
 
     with db() as conn:
         cur = conn.cursor()
@@ -437,39 +468,36 @@ def cleanup_exams(req: CleanupRequest, authorization: Optional[str] = Header(Non
     titles = req.titles or defaults
     affected = 0
     with db() as conn:
+        cur = conn.cursor()
         for t in titles:
-            # remove from exams
-            cur = conn.execute("DELETE FROM exams WHERE title=?", (t,))
+            cur.execute("DELETE FROM exams WHERE title = %s", (t,))
             affected += cur.rowcount
-            # remove classroom exams and related records
-            rows = conn.execute("SELECT id FROM classroom_exams WHERE title=?", (t,)).fetchall()
-            for r in rows:
+            cur.execute("SELECT id FROM classroom_exams WHERE title = %s", (t,))
+            for r in cur.fetchall():
                 eid = r["id"]
-                conn.execute("DELETE FROM classroom_exam_questions WHERE exam_id=?", (eid,))
-                conn.execute("DELETE FROM classroom_exam_attempts WHERE exam_id=?", (eid,))
-                conn.execute("DELETE FROM classroom_exams WHERE id=?", (eid,))
+                cur.execute("DELETE FROM classroom_exam_questions WHERE exam_id = %s", (eid,))
+                cur.execute("DELETE FROM classroom_exam_attempts WHERE exam_id = %s", (eid,))
+                cur.execute("DELETE FROM classroom_exams WHERE id = %s", (eid,))
                 affected += 1
     return {"ok": True, "affected": affected}
 
 
 @router.delete("/api/teacher/exams/{exam_id}")
 def delete_exam(exam_id: str, authorization: Optional[str] = Header(None)):
-    """删除某次考试及其相关记录（scores、classroom_exams、questions、attempts）。"""
+    """删除某次考试及其相关记录。"""
     _require_teacher(authorization)
     affected = 0
     with db() as conn:
-        # remove scores
-        cur = conn.execute("DELETE FROM scores WHERE exam_id=?", (exam_id,))
+        cur = conn.cursor()
+        cur.execute("DELETE FROM scores WHERE exam_id = %s", (exam_id,))
         affected += cur.rowcount
-        # remove exam entry
-        cur2 = conn.execute("DELETE FROM exams WHERE id=?", (exam_id,))
-        affected += cur2.rowcount
-        # remove classroom exam related records if any
-        rows = conn.execute("SELECT id FROM classroom_exams WHERE id=?", (exam_id,)).fetchall()
-        for r in rows:
+        cur.execute("DELETE FROM exams WHERE id = %s", (exam_id,))
+        affected += cur.rowcount
+        cur.execute("SELECT id FROM classroom_exams WHERE id = %s", (exam_id,))
+        for r in cur.fetchall():
             eid = r["id"]
-            conn.execute("DELETE FROM classroom_exam_questions WHERE exam_id=?", (eid,))
-            conn.execute("DELETE FROM classroom_exam_attempts WHERE exam_id=?", (eid,))
-            conn.execute("DELETE FROM classroom_exams WHERE id=?", (eid,))
+            cur.execute("DELETE FROM classroom_exam_questions WHERE exam_id = %s", (eid,))
+            cur.execute("DELETE FROM classroom_exam_attempts WHERE exam_id = %s", (eid,))
+            cur.execute("DELETE FROM classroom_exams WHERE id = %s", (eid,))
             affected += 1
     return {"ok": True, "deleted": affected}

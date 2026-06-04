@@ -1,7 +1,6 @@
 from dotenv import load_dotenv
 from pathlib import Path
 
-# 从项目根目录加载 .env 文件（存在时）
 _env_file = Path(__file__).resolve().parent.parent.parent / ".env"
 load_dotenv(_env_file) if _env_file.exists() else None
 
@@ -26,7 +25,6 @@ from app.routers import (
     profile,
     student_scores,
 )
-# classroom_exam 是 feature 分支新增的路由，若存在则包含
 try:
     from app.routers import classroom_exam
     _HAS_CLASSROOM_EXAM = True
@@ -83,26 +81,21 @@ def score_page():
     return FileResponse(os.path.join(STATIC_DIR, "score.html"))
 
 
-# classroom-exam 页面（feature 分支提供）
 if _HAS_CLASSROOM_EXAM:
     @app.get("/classroom-exam")
     @app.get("/classroom-exam/")
     def classroom_exam_page():
         return _static_file(_CLASSROOM_EXAM_HTML)
 
-
     @app.get("/classroom-exam/admin")
     @app.get("/classroom-exam/admin/")
     def classroom_exam_admin_page():
         return _static_file(_CLASSROOM_EXAM_ADMIN_HTML)
 
-
-    # 浏览器常误开 /api/classroom-exam（API 前缀），返回页面而非 {"detail":"Not Found"}
     @app.get("/api/classroom-exam")
     @app.get("/api/classroom-exam/")
     def classroom_exam_page_api_alias():
         return _static_file(_CLASSROOM_EXAM_HTML)
-
 
     @app.get("/api/classroom-exam/admin")
     @app.get("/api/classroom-exam/admin/")
@@ -129,8 +122,8 @@ def course_detail_page():
 def chapter_page():
     return FileResponse(os.path.join(STATIC_DIR, "chapter.html"))
 
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.on_event("startup")
