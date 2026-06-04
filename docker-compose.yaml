@@ -76,8 +76,8 @@ services:
     environment:
       PMA_HOST: oaepp-mysql
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
-    ports:
-      - "5050:80"
+    expose:
+      - "80"
     depends_on:
       - oaepp-mysql
     networks:
@@ -103,8 +103,8 @@ services:
     restart: unless-stopped
     environment:
       REDIS_HOSTS: local:oaepp-redis:6379
-    ports:
-      - "8081:8081"
+    expose:
+      - "8081"
     depends_on:
       - oaepp-redis
     networks:
