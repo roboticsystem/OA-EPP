@@ -1,0 +1,1 @@
+export default ({ ["styles"] : ({ ["global"] : ({ [":root"] : ({  }), ["body"] : ({ ["fontFamily"] : "\"Microsoft YaHei\", \"Noto Sans SC\", sans-serif", ["--default-font-family"] : "\"Microsoft YaHei\", \"Noto Sans SC\", sans-serif" }) }) }) })
