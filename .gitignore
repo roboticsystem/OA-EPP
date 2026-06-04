@@ -1,3 +1,6 @@
+assets/external/
+.web
+.states
 # MkDocs 构建输出（由 Coolify 在容器内构建，不提交到 git）
 site/
 site_build/
@@ -17,6 +20,11 @@ dist/
 build/
 .eggs/
 pip-wheel-metadata/
+
+# Reflex /oaepp 运行产物（不提交到仓库）
+/oaepp/.web/
+/oaepp/.states/
+/oaepp/reflex.lock/
 
 # 虚拟环境
 .venv/
