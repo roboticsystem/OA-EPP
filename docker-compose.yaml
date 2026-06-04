@@ -120,7 +120,7 @@ services:
     restart: unless-stopped
     environment:
       REFLEX_FRONTEND_PORT: 3000
-      REFLEX_BACKEND_PORT: 8000
+      REFLEX_BACKEND_PORT: 8001
       REFLEX_BACKEND_HOST: 0.0.0.0
       REFLEX_API_URL: https://oaepp_reflex.uwis.cn
       REFLEX_DEPLOY_URL: https://oaepp_reflex.uwis.cn
