@@ -1,112 +1,85 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>学生成绩看板 — OA-EPP</title>
+<title>成绩查询 — 研究生课程《机器人系统》</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; background: #f0f4f8; color: #333; min-height: 100vh; }
   .header { background: linear-gradient(135deg, #1565c0, #1976d2); color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
   .header h1 { font-size: 1.2rem; }
-  .header .subtitle { font-size: .8rem; opacity: .85; margin-top: 2px; }
-  .header .logout-btn { background: rgba(255,255,255,.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: .85rem; }
-  .header .logout-btn:hover { background: rgba(255,255,255,.35); }
-  .container { max-width: 800px; margin: 24px auto; padding: 0 16px; }
-  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.1); margin-bottom: 16px; overflow: hidden; }
-  .card-header { padding: 16px 20px; border-bottom: 1px solid #f0f0f0; font-weight: bold; color: #1565c0; display: flex; align-items: center; gap: 8px; }
-  .card-body { padding: 20px; }
-  .login-wrap { max-width: 400px; margin: 60px auto 0; text-align: center; }
-  .login-logo { width: 64px; height: 64px; background: #1565c0; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin: 0 auto 16px; }
-  .form-group { margin-bottom: 14px; text-align: left; }
-  .form-group label { display: block; font-size: .85rem; color: #555; margin-bottom: 4px; }
-  .form-group input { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: .95rem; }
-  .form-group input:focus { outline: none; border-color: #1565c0; box-shadow: 0 0 0 3px rgba(21,101,192,.1); }
-  .btn { padding: 10px 20px; background: #1565c0; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: .95rem; }
+  .header p { font-size: .85rem; opacity: .85; margin-top: 4px; }
+  .container { max-width: 680px; margin: 32px auto; padding: 0 16px; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.1); overflow: hidden; margin-bottom: 20px; }
+  .search-box { padding: 28px; }
+  .search-box h2 { font-size: 1.1rem; margin-bottom: 16px; color: #1565c0; }
+  .input-row { display: flex; gap: 10px; }
+  input[type=text] { flex: 1; padding: 12px 16px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
+  input[type=text]:focus { outline: none; border-color: #1565c0; box-shadow: 0 0 0 3px rgba(21,101,192,.1); }
+  .btn { padding: 12px 24px; background: #1565c0; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; white-space: nowrap; }
   .btn:hover { background: #0d47a1; }
-  .btn:disabled { background: #90caf9; cursor: not-allowed; }
-  .error-msg { color: #d32f2f; font-size: .85rem; display: none; text-align: center; }
-  .student-header { display: flex; align-items: center; gap: 16px; }
-  .avatar { width: 48px; height: 48px; border-radius: 50%; background: #1565c0; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: bold; flex-shrink: 0; }
+  .candidates { border-top: 1px solid #f0f0f0; }
+  .candidates-title { padding: 10px 28px; font-size: .85rem; color: #888; background: #fafafa; }
+  .candidate-item { padding: 14px 28px; cursor: pointer; border-bottom: 1px solid #f5f5f5; display: flex; align-items: center; gap: 16px; transition: background .15s; }
+  .candidate-item:hover { background: #e3f2fd; }
+  .candidate-item.selected { background: #e3f2fd; border-left: 4px solid #1565c0; }
+  .cand-name { font-weight: bold; font-size: 1rem; }
+  .cand-meta { font-size: .85rem; color: #888; }
+  .results-section { padding: 24px 28px; }
+  .student-info { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+  .avatar { width: 48px; height: 48px; background: #1565c0; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; flex-shrink: 0; }
   .student-detail h3 { font-size: 1.1rem; }
-  .student-detail p { font-size: .85rem; color: #888; }
-  .total-score-wrap { text-align: center; padding: 24px; }
-  .total-score-circle { width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #1565c0, #1976d2); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 12px; }
-  .total-score-number { font-size: 2.4rem; font-weight: bold; line-height: 1; }
-  .total-score-label { font-size: .8rem; opacity: .85; margin-top: 4px; }
-  .total-score-hint { font-size: .85rem; color: #888; }
-  .dim-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .dim-card { border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px; }
-  .dim-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .dim-name { font-weight: bold; font-size: .95rem; }
-  .dim-weight { font-size: .8rem; color: #999; }
-  .dim-score { font-size: 1.5rem; font-weight: bold; color: #1565c0; }
-  .dim-score-label { font-size: .8rem; color: #888; }
-  .dim-pending-badge { display: inline-block; background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 4px; font-size: .75rem; font-weight: 500; }
-  .score-table { width: 100%; border-collapse: collapse; }
-  .score-table th, .score-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #f0f0f0; font-size: .88rem; }
-  .score-table th { color: #888; font-weight: 500; background: #fafafa; }
-  .score-table td:last-child { text-align: right; }
-  .dim-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: .75rem; font-weight: 500; }
-  .dim-badge-attendance { background: #e3f2fd; color: #1565c0; }
-  .dim-badge-exam { background: #fce4ec; color: #c62828; }
-  .dim-badge-code { background: #e8f5e9; color: #2e7d32; }
-  .dim-badge-pr { background: #f3e5f5; color: #6a1b9a; }
-  .pending-row td { color: #bbb; font-style: italic; }
-  .pending-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ff9800; margin-right: 6px; }
-  .scorer-name { color: #666; font-size: .82rem; }
-  .scored-at { color: #999; font-size: .8rem; }
-  @media (max-width: 600px) {
-    .dim-grid { grid-template-columns: 1fr; }
-    .header { flex-direction: column; gap: 8px; text-align: center; }
-  }
+  .student-detail p { font-size: .88rem; color: #888; margin-top: 2px; }
+  .score-list { display: flex; flex-direction: column; gap: 10px; }
+  .score-item { border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; }
+  .score-item.submitted { border-color: #a5d6a7; background: #f1f8e9; }
+  .score-item.pending { opacity: .65; }
+  .exam-title { font-weight: bold; font-size: .95rem; }
+  .exam-time { font-size: .8rem; color: #888; margin-top: 2px; }
+  .score-badge { text-align: right; }
+  .score-value { font-size: 1.4rem; font-weight: bold; color: #1565c0; }
+  .score-total { font-size: .85rem; color: #888; }
+  .score-pending { font-size: .9rem; color: #bbb; }
+  .hint { font-size: .85rem; color: #888; margin-top: 10px; text-align: center; }
+  .empty { padding: 32px; text-align: center; color: #bbb; }
 </style>
 </head>
 <body>
-
-<div id="app-header" class="header" style="display:none">
-  <div>
-    <h1>学生成绩看板</h1>
-    <div class="subtitle" id="header-subtitle"></div>
-  </div>
-  <button class="logout-btn" onclick="doLogout()">退出登录</button>
+<div class="header">
+  <h1>📊 成绩查询</h1>
+  <p>研究生课程《机器人系统》 — 成都信息工程大学软件工程学院</p>
 </div>
 
 <div class="container">
+  <div class="card">
+    <div class="search-box">
+      <h2>🔍 查询我的成绩</h2>
+      <div class="input-row">
+        <input type="text" id="name-input" placeholder="输入姓名或拼音（如：张三 / zhangsan / zs）" oninput="onInput()" onkeydown="if(event.key==='Enter')doSearch()">
+        <button class="btn" onclick="doSearch()">搜索</button>
+      </div>
+    </div>
 
-  <div id="section-login" class="login-wrap">
-    <div class="card">
-      <div class="card-body">
-        <div class="login-logo">S</div>
-        <h2 style="font-size:1.15rem;margin-bottom:4px">OA-EPP 成绩看板</h2>
-        <p style="color:#888;font-size:.85rem;margin-bottom:20px">登录查看综合得分与各维度成绩</p>
-        <div class="form-group">
-          <label>邮箱</label>
-          <input type="text" id="login-email" placeholder="学号@stu.oaepp.dev" onkeydown="if(event.key==='Enter')doLogin()">
-        </div>
-        <div class="form-group">
-          <label>密码</label>
-          <input type="password" id="login-password" placeholder="输入密码" onkeydown="if(event.key==='Enter')doLogin()">
-        </div>
-        <div class="error-msg" id="login-error"></div>
-        <button class="btn" id="login-btn" onclick="doLogin()" style="width:100%;margin-top:8px">登录</button>
-        <p style="font-size:.8rem;color:#aaa;margin-top:12px">首次登录默认密码为学号</p>
+    <div id="candidates-wrap" style="display:none">
+      <div class="candidates">
+        <div class="candidates-title">请点击选择自己的姓名：</div>
+        <div id="candidates-list"></div>
       </div>
     </div>
   </div>
 
-  <div id="section-dashboard" style="display:none">
-
-    <div class="card">
-      <div class="card-body">
-        <div class="student-header">
-          <div class="avatar" id="avatar-text">?</div>
-          <div class="student-detail">
-            <h3 id="student-name"></h3>
-            <p id="student-meta"></p>
-          </div>
+  <div id="results-card" class="card" style="display:none">
+    <div class="results-section">
+      <div class="student-info">
+        <div class="avatar" id="avatar-text">?</div>
+        <div class="student-detail">
+          <h3 id="result-name"></h3>
+          <p id="result-meta"></p>
         </div>
       </div>
+      <div class="score-list" id="score-list"></div>
+      <p class="hint">成绩由服务器记录，如有疑问请联系授课教师</p>
     </div>
 
     <div class="card">
@@ -147,177 +120,90 @@
 
 <script>
 const API = '';
-let currentToken = null;
-let refreshTimer = null;
+let searchTimer = null;
 
-async function doLogin() {
-  const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
-  const errEl = document.getElementById('login-error');
-  const btn = document.getElementById('login-btn');
+function onInput() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(doSearch, 300);
+}
 
-  errEl.style.display = 'none';
-  if (!email || !password) { showErr(errEl, '请输入邮箱和密码'); return; }
-
-  btn.disabled = true;
-  btn.textContent = '登录中...';
+async function doSearch() {
+  const q = document.getElementById('name-input').value.trim();
+  if (!q) { document.getElementById('candidates-wrap').style.display='none'; return; }
   try {
-    const r = await fetch(`${API}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const d = await r.json();
-    if (!r.ok) { showErr(errEl, d.detail || '登录失败'); btn.disabled = false; btn.textContent = '登录'; return; }
-    currentToken = d.token;
-    localStorage.setItem('oaepp_score_token', currentToken);
-    await loadDashboard();
-  } catch (e) {
-    showErr(errEl, '网络错误：' + e.message);
-  }
-  btn.disabled = false;
-  btn.textContent = '登录';
+    const r = await fetch(`${API}/api/students/search?q=${encodeURIComponent(q)}`);
+    const list = await r.json();
+    renderCandidates(list);
+  } catch(e) { console.error(e); }
 }
 
-async function loadDashboard() {
-  try {
-    const r = await fetch(`${API}/api/student/dashboard`, {
-      headers: { Authorization: `Bearer ${currentToken}` }
-    });
-    if (r.status === 401) { doLogout(); return; }
-    if (!r.ok) { return; }
-    const data = await r.json();
-    renderDashboard(data);
-  } catch (e) {}
-}
-
-function renderDashboard(data) {
-  document.getElementById('section-login').style.display = 'none';
-  document.getElementById('section-dashboard').style.display = 'block';
-  document.getElementById('app-header').style.display = 'flex';
-
-  const s = data.student;
-  const course = data.course || {};
-  document.getElementById('avatar-text').textContent = s.name ? s.name.slice(-1) : '?';
-  document.getElementById('student-name').textContent = s.name || '';
-  document.getElementById('student-meta').textContent = `学号：${s.student_id}${s.class_name ? ' - ' + s.class_name : ''} - ${course.name || ''}`;
-  document.getElementById('header-subtitle').textContent = `${s.name} - ${s.student_id} - ${course.name || ''}`;
-
-  document.getElementById('total-score').textContent = data.total_score;
-  renderDimensionCards(data);
-  renderScoreItems(data);
-}
-
-const DIM_COLORS = { attendance: '#1565c0', exam: '#c62828', code: '#2e7d32', pr: '#6a1b9a' };
-const DIM_ICONS = { attendance: 'A', exam: 'E', code: 'C', pr: 'P' };
-
-function renderDimensionCards(data) {
-  const grid = document.getElementById('dim-grid');
-  grid.innerHTML = '';
-
-  for (const [key, dim] of Object.entries(data.dimensions)) {
-    const hasItems = dim.count > 0;
-    const pendingBadge = dim.pending_count > 0
-      ? `<span class="dim-pending-badge">${dim.pending_count} 项待评</span>` : '';
-
-    grid.innerHTML += `
-      <div class="dim-card">
-        <div class="dim-card-header">
-          <span class="dim-name">${DIM_ICONS[key]} ${dim.label}</span>
-          <span class="dim-weight">权重 ${dim.weight}%</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:flex-end">
-          <div>
-            <div class="dim-score">${hasItems ? dim.total_score : '-'}</div>
-            <div class="dim-score-label">${pendingBadge}</div>
-          </div>
-          <div style="text-align:right;font-size:.8rem;color:#999">
-            ${hasItems ? dim.count + ' 项评分' : ''}
-          </div>
-        </div>
-        <div style="margin-top:8px;height:4px;background:#e0e0e0;border-radius:2px;overflow:hidden">
-          <div style="height:100%;width:${hasItems ? Math.min(dim.total_score, 100) : 0}%;background:${DIM_COLORS[key]};border-radius:2px;transition:width .5s"></div>
-        </div>
-      </div>`;
-  }
-}
-
-function renderScoreItems(data) {
-  const tbody = document.getElementById('score-tbody');
-  const empty = document.getElementById('score-empty');
-  const allItems = [];
-
-  for (const [key, dim] of Object.entries(data.dimensions)) {
-    for (const item of dim.items) {
-      allItems.push({ ...item, dim_key: key, dim_label: dim.label });
-    }
-  }
-  allItems.sort((a, b) => (b.scored_at || '').localeCompare(a.scored_at || ''));
-
-  if (allItems.length === 0) {
-    tbody.innerHTML = '';
-    empty.style.display = 'block';
+function renderCandidates(list) {
+  const wrap = document.getElementById('candidates-wrap');
+  const container = document.getElementById('candidates-list');
+  if (!list.length) {
+    wrap.style.display = 'block';
+    container.innerHTML = '<div class="empty">未找到匹配的学生，请检查输入</div>';
     return;
   }
-  empty.style.display = 'none';
+  wrap.style.display = 'block';
+  container.innerHTML = list.map(s => `
+    <div class="candidate-item" onclick="selectStudent('${s.student_id}', '${s.name}', '${s.class_name||''}')">
+      <div>
+        <div class="cand-name">${s.name}</div>
+        <div class="cand-meta">${s.student_id}${s.class_name ? ' · ' + s.class_name : ''}</div>
+      </div>
+      <span style="color:#1565c0;font-size:.9rem">查看成绩 →</span>
+    </div>
+  `).join('');
+}
 
-  tbody.innerHTML = allItems.map(item => {
-    const name = item.exam_name || (item.dim_key === 'exam' ? '考试' : '') || '-';
-    return `<tr>
-      <td style="font-size:.85rem">${name}</td>
-      <td><span class="dim-badge dim-badge-${item.dim_key}">${item.dim_label}</span></td>
-      <td><strong>${item.score}</strong></td>
-      <td><span class="scorer-name">${item.scorer_name}</span></td>
-      <td><span class="scored-at">${item.scored_at || '-'}</span></td>
-    </tr>`;
+async function selectStudent(studentId, name, className) {
+  // 高亮选中
+  document.querySelectorAll('.candidate-item').forEach(el => el.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+
+  try {
+    const r = await fetch(`${API}/api/scores?student_id=${encodeURIComponent(studentId)}`);
+    if (!r.ok) { alert('查询失败'); return; }
+    const d = await r.json();
+    renderResults(d);
+  } catch(e) { alert('网络错误：' + e); }
+}
+
+function renderResults(data) {
+  const card = document.getElementById('results-card');
+  const s = data.student;
+  document.getElementById('avatar-text').textContent = s.name.slice(-1);
+  document.getElementById('result-name').textContent = s.name;
+  document.getElementById('result-meta').textContent =
+    `学号：${s.student_id}${s.class_name ? ' · ' + s.class_name : ''}`;
+
+  const scoreHtml = data.scores.map(item => {
+    if (item.score !== null) {
+      return `
+        <div class="score-item submitted">
+          <div>
+            <div class="exam-title">${item.exam_title}</div>
+            <div class="exam-time">${item.submitted_at}</div>
+          </div>
+          <div class="score-badge">
+            <div class="score-value">${item.score}</div>
+            <div class="score-total">/ ${item.total} 分</div>
+          </div>
+        </div>`;
+    } else {
+      return `
+        <div class="score-item pending">
+          <div><div class="exam-title">${item.exam_title}</div></div>
+          <div class="score-pending">未参加</div>
+        </div>`;
+    }
   }).join('');
 
-  let pendingHtml = '';
-  for (const [key, dim] of Object.entries(data.dimensions)) {
-    for (const p of dim.pending_items) {
-      pendingHtml += `
-        <tr class="pending-row">
-          <td><span class="pending-dot"></span>${p.name}</td>
-          <td><span class="dim-badge dim-badge-${key}">${dim.label}</span></td>
-          <td colspan="3">待评分</td>
-        </tr>`;
-    }
-  }
-  if (pendingHtml) {
-    tbody.innerHTML += '<tr><td colspan="5" style="padding:6px 12px;background:#fafafa;font-size:.82rem;color:#888">待评分项</td></tr>';
-    tbody.innerHTML += pendingHtml;
-  }
+  document.getElementById('score-list').innerHTML = scoreHtml;
+  card.style.display = 'block';
+  card.scrollIntoView({behavior: 'smooth', block: 'start'});
 }
-
-function startAutoRefresh() {
-  stopAutoRefresh();
-  refreshTimer = setInterval(loadDashboard, 15000);
-}
-
-function stopAutoRefresh() {
-  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
-}
-
-function doLogout() {
-  stopAutoRefresh();
-  currentToken = null;
-  localStorage.removeItem('oaepp_score_token');
-  document.getElementById('section-login').style.display = 'block';
-  document.getElementById('section-dashboard').style.display = 'none';
-  document.getElementById('app-header').style.display = 'none';
-  document.getElementById('login-email').value = '';
-  document.getElementById('login-password').value = '';
-}
-
-function showErr(el, msg) { el.textContent = msg; el.style.display = 'block'; }
-
-(function init() {
-  const saved = localStorage.getItem('oaepp_score_token');
-  if (saved) {
-    currentToken = saved;
-    loadDashboard().then(startAutoRefresh);
-  }
-})();
 </script>
 </body>
 </html>

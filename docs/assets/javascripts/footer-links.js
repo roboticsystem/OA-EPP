@@ -12,13 +12,11 @@
         { icon: "📖", label: "文档地址",   href: "http://127.0.0.1:8008",          note: "MkDocs 热重载" },
         { icon: "🎓", label: "教师后台",   href: "http://127.0.0.1:8009/teacher",  note: "密码：admin123" },
         { icon: "📊", label: "学生查分",   href: "http://127.0.0.1:8009/score",    note: "" },
-        { icon: "✏️", label: "课堂考试",   href: "http://127.0.0.1:8009/classroom-exam", note: "F-S-053" },
         { icon: "📡", label: "API 文档",   href: "http://127.0.0.1:8009/api/docs", note: "FastAPI Swagger" },
       ]
     : [
         { icon: "🎓", label: "教师后台",   href: "/teacher", note: "" },
         { icon: "📊", label: "学生查分",   href: "/score",   note: "" },
-        { icon: "✏️", label: "课堂考试",   href: "/classroom-exam", note: "" },
       ];
 
   function inject() {

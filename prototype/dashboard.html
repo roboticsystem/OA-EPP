@@ -33,14 +33,6 @@
         </svg>
         仪表盘
       </a>
-      <a href="timeline.html"
-        class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        学习时间线
-      </a>
       <a href="courses.html"
         class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,15 +73,6 @@
         </svg>
         在线考试
       </a>
-      <a href="notifications.html"
-        class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm relative">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-        </svg>
-        公告与通知
-        <span id="sidebar-badge" class="absolute right-2 top-1/2 -translate-y-1/2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
-      </a>
       <a href="profile.html"
         class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -124,16 +107,16 @@
         <h1 class="text-xl font-bold text-gray-800">仪表盘</h1>
         <p class="text-sm text-gray-400 mt-0.5">欢迎回来，张三 · 工程实践4 · 2025春</p>
       </div>
-      <!-- Notifications Bell -->
+      <!-- Notifications -->
       <div class="flex items-center gap-3">
         <div class="relative">
-          <button class="w-9 h-9 rounded-lg border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:text-blue-600" onclick="location.href='notifications.html'">
+          <button class="w-9 h-9 rounded-lg border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:text-blue-600">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
             </svg>
           </button>
-          <span id="header-badge" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center hidden">0</span>
+          <span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">2</span>
         </div>
       </div>
     </div>
@@ -276,155 +259,37 @@
         </div>
       </div>
 
-      <!-- Notifications - 课程公告（接入真实 API） -->
+      <!-- Notifications -->
       <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-sm font-semibold text-gray-700">课程公告</h3>
-          <a href="notifications.html" class="flex items-center gap-1.5">
-            <span id="dash-unread-badge" class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full hidden">0 未读</span>
-            <span class="text-xs text-blue-500 hover:underline">查看全部</span>
-          </a>
+          <span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">2 未读</span>
         </div>
-        <div id="dash-notifications" class="space-y-3">
-          <!-- Loading -->
-          <div id="dash-nf-loading" class="flex items-center justify-center py-8">
-            <div class="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div class="space-y-3">
+          <div class="flex gap-3">
+            <span class="w-2 h-2 rounded-full bg-red-500 mt-1.5 flex-shrink-0"></span>
+            <div>
+              <p class="text-sm text-gray-800">第7章截止时间延至5月27日</p>
+              <p class="text-xs text-gray-400 mt-0.5">2025-05-23 · 教师：李四</p>
+            </div>
+          </div>
+          <div class="flex gap-3">
+            <span class="w-2 h-2 rounded-full bg-red-500 mt-1.5 flex-shrink-0"></span>
+            <div>
+              <p class="text-sm text-gray-800">期末汇报安排（6月15日）已发布</p>
+              <p class="text-xs text-gray-400 mt-0.5">2025-05-21 · 教师：李四</p>
+            </div>
+          </div>
+          <div class="flex gap-3">
+            <span class="w-2 h-2 rounded-full bg-gray-300 mt-1.5 flex-shrink-0"></span>
+            <div>
+              <p class="text-sm text-gray-500">第6章批改成绩已发布，请查看反馈</p>
+              <p class="text-xs text-gray-400 mt-0.5">2025-05-18 · 系统通知</p>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </main>
-
-<script>
-// ──────────── 仪表盘公告与通知 API ────────────
-const DASH_API_BASE = 'http://127.0.0.1:8009';
-
-function getDashToken() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('token') || localStorage.getItem('student_token') || '';
-}
-
-async function fetchDashNotifications() {
-  const token = getDashToken();
-  if (!token) {
-    showDashEmpty('请先登录');
-    return;
-  }
-  try {
-    const res = await fetch(`${DASH_API_BASE}/api/notifications?page=1&page_size=5`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (!res.ok) throw new Error('Failed');
-    const data = await res.json();
-    renderDashNotifications(data);
-  } catch (err) {
-    showDashEmpty('加载失败');
-  }
-}
-
-function renderDashNotifications(data) {
-  const container = document.getElementById('dash-notifications');
-  const badge = document.getElementById('dash-unread-badge');
-  const loading = document.getElementById('dash-nf-loading');
-
-  if (loading) loading.classList.add('hidden');
-
-  // 更新未读徽章
-  const unread = data.unread_count || 0;
-  if (unread > 0) {
-    badge.textContent = `${unread} 未读`;
-    badge.classList.remove('hidden');
-  } else {
-    badge.classList.add('hidden');
-  }
-
-  if (!data.items || data.items.length === 0) {
-    container.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">暂无通知</p>';
-    return;
-  }
-
-  container.innerHTML = data.items.map(n => {
-    const isRead = n.is_read;
-    const catIcons = {
-      announcement: '📢',
-      deadline: '⏰',
-      grade: '📊',
-    };
-    const icon = catIcons[n.category] || '📌';
-    const time = formatDashTime(n.created_at);
-    return `
-    <div class="flex gap-3 ${isRead ? 'opacity-60' : ''}">
-      <span class="w-2 h-2 rounded-full ${isRead ? 'bg-gray-300' : 'bg-red-500'} mt-1.5 flex-shrink-0"></span>
-      <div class="flex-1 min-w-0">
-        <p class="text-sm ${isRead ? 'text-gray-500' : 'text-gray-800 font-medium'} truncate">${escapeHtmlDash(n.title)}</p>
-        <p class="text-xs text-gray-400 mt-0.5">${time}${n.course_name ? ' · ' + escapeHtmlDash(n.course_name) : ''}</p>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function showDashEmpty(msg) {
-  const container = document.getElementById('dash-notifications');
-  const loading = document.getElementById('dash-nf-loading');
-  if (loading) loading.classList.add('hidden');
-  container.innerHTML = `<p class="text-sm text-gray-400 text-center py-4">${msg}</p>`;
-}
-
-function escapeHtmlDash(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
-function formatDashTime(dt) {
-  if (!dt) return '';
-  const d = new Date(dt + (dt.includes('T') ? '' : 'T00:00:00'));
-  const now = new Date();
-  const diff = now - d;
-  if (diff < 60000) return '刚刚';
-  if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前';
-  if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前';
-  if (diff < 604800000) return Math.floor(diff / 86400000) + ' 天前';
-  return d.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
-}
-
-// 页面加载时获取通知
-document.addEventListener('DOMContentLoaded', () => {
-  fetchDashNotifications();
-  fetchUnreadForHeader();
-});
-
-async function fetchUnreadForHeader() {
-  const token = getDashToken();
-  if (!token) return;
-  try {
-    const res = await fetch(`${DASH_API_BASE}/api/notifications/unread-count`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-    // 顶部铃铛角标
-    const headerBadge = document.getElementById('header-badge');
-    const count = data.unread_count || 0;
-    if (headerBadge) {
-      if (count > 0) {
-        headerBadge.textContent = count > 99 ? '99+' : count;
-        headerBadge.classList.remove('hidden');
-      } else {
-        headerBadge.classList.add('hidden');
-      }
-    }
-    // 侧边栏角标
-    const sidebarBadge = document.getElementById('sidebar-badge');
-    if (sidebarBadge) {
-      if (count > 0) {
-        sidebarBadge.textContent = count > 99 ? '99+' : count;
-        sidebarBadge.classList.remove('hidden');
-      } else {
-        sidebarBadge.classList.add('hidden');
-      }
-    }
-  } catch {}
-}
-</script>
 </body>
 </html>
