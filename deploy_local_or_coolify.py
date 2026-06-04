@@ -5,44 +5,26 @@ manage.py — 课程统一管理入口
 启动后显示交互菜单：
   [1] 本地预览  — 同步 md/数据库 → 启动 MkDocs + FastAPI（热重载）
   [2] 远程部署  — 同步 md/数据库 → 确认已手动 git push → 触发 Coolify 重建
-  [3] Reflex 预览  — 热重载启动 Reflex 原型（端口 3000）
-  [4] Reflex 部署  — 触发 Coolify 重建 Reflex 应用
   [Q] 退出
 """
-
-# ── 修复 Windows GBK 编码问题（必须在 import 之前通过环境变量设置）──────────
-import io, os, sys
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  标准库导入
 # ══════════════════════════════════════════════════════════════════════════════
+import os
 import signal
 import socket
 import subprocess
+import sys
 import time
+import shutil
 from pathlib import Path
-
-# ── Windows 编码兼容：强制 Python 与子进程使用 UTF-8 ────────────────────────
-# 解决 Windows 下 subprocess / read_text() 默认使用 GBK 导致的
-# UnicodeDecodeError: 'gbk' codec can't decode byte ...
-if sys.platform == "win32":
-    # 1) 将当前 Python 标准流的文本编码切换为 utf-8
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    # 2) 确保子进程也以 UTF-8 运行
-    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
-    os.environ.setdefault("PYTHONUTF8", "1")
 
 # ── 项目根目录 ─────────────────────────────────────────────────────────────────
 REPO_ROOT        = Path(__file__).resolve().parent
 BACKEND_DIR      = REPO_ROOT / "backend"
-OAEPP_DIR        = REPO_ROOT / "oaepp"
 REQUIREMENTS_FILE = REPO_ROOT / "requirements.txt"
 BACKEND_REQ_FILE  = BACKEND_DIR / "requirements.txt"
-OAEPP_REQ_FILE    = OAEPP_DIR / "requirements.txt"
 
 # backend/ 加入模块搜索路径，使 `app.*` 可直接导入（幂等）
 if str(BACKEND_DIR) not in sys.path:
@@ -52,11 +34,12 @@ if str(BACKEND_DIR) not in sys.path:
 HOST        = "127.0.0.1"
 MKDOCS_PORT = 8008
 API_PORT    = 8009
+REFLEX_PORT = 8003
 
 # ── Coolify 配置（从 .env 读取敏感数据）─────────────────────────────────────────
 _env_file = REPO_ROOT / ".env"
 if _env_file.exists():
-    for _line in _env_file.read_text(encoding="utf-8").splitlines():
+    for _line in _env_file.read_text().splitlines():
         _line = _line.strip()
         if _line and not _line.startswith("#") and "=" in _line:
             _k, _v = _line.split("=", 1)
@@ -89,16 +72,14 @@ def show_menu() -> str:
     print("║    🤖  研究生《机器人系统》课程新教材 — 管理工具    ║")
     print("╠" + "═" * 53 + "╣")
     print("║  [1]  本地预览   MkDocs + API（热重载）             ║")
-    print("║  [2]  远程部署   触发 Coolify 重建                  ║")
-    print("║  [3]  Reflex 预览  热重载启动 Reflex 原型           ║")
-    print("║  [4]  Reflex 部署  触发 Coolify 重建 Reflex 应用    ║")
+    print("║  [2]  Reflex 本地开发（Reflex 热启动）             ║")
     print("║  [Q]  退出                                          ║")
     print("╚" + "═" * 53 + "╝")
     while True:
-        choice = input("请选择 [1 / 2 / 3 / 4 / Q]: ").strip().upper()
-        if choice in ("1", "2", "3", "4", "Q"):
+        choice = input("请选择 [1 / 2 / Q]: ").strip().upper()
+        if choice in ("1", "2", "Q"):
             return choice
-        print("  ⚠️  请输入 1、2、3、4 或 Q")
+        print("  ⚠️  请输入 1、2 或 Q")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -151,8 +132,7 @@ def _collect_pids_on_port(port: int):
     pid_set = set()
     for cmd in [["lsof", "-ti", f"tcp:{port}"], ["fuser", "-n", "tcp", str(port)]]:
         try:
-            res = subprocess.run(cmd, capture_output=True, text=True,
-                                encoding="utf-8", errors="replace", check=False)
+            res = subprocess.run(cmd, capture_output=True, text=True, check=False)
         except FileNotFoundError:
             continue
         text = (res.stdout or "") + " " + (res.stderr or "")
@@ -204,15 +184,10 @@ def install_requirements():
         if not req_file.exists():
             print(f"\n❌ 未找到依赖文件: {req_file}")
             sys.exit(1)
-        print(f"⚙️  安装依赖：{req_file.relative_to(REPO_ROOT)} （可能需要 1-2 分钟，请耐心等待）")
-        try:
-            subprocess.check_call(
-                [sys.executable, "-m", "pip", "install", "-r", str(req_file)],
-                timeout=300,  # 5 分钟超时
-            )
-        except subprocess.TimeoutExpired:
-            print(f"\n❌ 安装 {req_file.name} 超时，请检查网络连接")
-            sys.exit(1)
+        print(f"⚙️  安装依赖：{req_file.relative_to(REPO_ROOT)}")
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "--quiet", "-r", str(req_file)]
+        )
     print("✅ 依赖安装完成\n")
 
 
@@ -292,17 +267,11 @@ def serve_local():
     else:
         print("⚠️  考试 API 未能在 10 秒内启动，请检查日志")
 
-    # ── 使用虚拟环境中的 mkdocs ──────────────────────────────────────────────
-    venv_bin = Path(sys.executable).parent
-    mkdocs_cmd = str(venv_bin / "mkdocs.exe") if sys.platform == "win32" else str(venv_bin / "mkdocs")
-
     try:
         env = os.environ.copy()
-        # 抑制 MkDocs 2.0 弃用警告
-        env.setdefault("NO_MKDOCS_2_WARNING", "true")
-        env["PYTHONUTF8"] = "1"
+        env.setdefault("NO_MKDOCS_2_WARNING", "1")
         subprocess.run(
-            [mkdocs_cmd, "serve", "-a", f"{HOST}:{MKDOCS_PORT}", "--open", "--watch-theme", "-v", "warning"],
+            ["mkdocs", "serve", "-a", f"{HOST}:{MKDOCS_PORT}", "--open", "--watch-theme"],
             env=env, check=True, cwd=str(REPO_ROOT),
         )
     except KeyboardInterrupt:
@@ -639,209 +608,102 @@ def deploy_coolify(sync_summary: dict):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  Reflex 本地预览
-# ══════════════════════════════════════════════════════════════════════════════
-
-REFLEX_PORT = 3000
-REFLEX_BACKEND_PORT = 8001
+#  Reflex 本地开发入口
 
 
-def install_reflex_requirements():
-    if not OAEPP_REQ_FILE.exists():
-        print(f"\n❌ 未找到 Reflex 依赖文件: {OAEPP_REQ_FILE}")
-        sys.exit(1)
-    print(f"⚙️  安装 Reflex 依赖：{OAEPP_REQ_FILE.relative_to(REPO_ROOT)}")
-    subprocess.check_call(
-        [sys.executable, "-m", "pip", "install", "--quiet", "-r", str(OAEPP_REQ_FILE)]
-    )
-    print("✅ Reflex 依赖安装完成\n")
+def run_reflex_dev(sync_summary: dict = None, port: int = REFLEX_PORT):
+    """Start local Reflex development server for the /oaepp prototype.
 
+    Installs oaepp/requirements.txt if present, ensures port availability,
+    then tries to run via the `oaepp.app` helper or falls back to the
+    `reflex` CLI / python -m reflex invocation.
+    """
+    print("\n🔧 启动 Reflex 本地开发（热重载）...")
 
-def start_reflex_local():
-    install_reflex_requirements()
-    ensure_port_available(HOST, REFLEX_PORT)
+    # Install oaepp requirements if present
+    oaepp_reqs = REPO_ROOT / "oaepp" / "requirements.txt"
+    if oaepp_reqs.exists():
+        print(f"⚙️  安装 oaepp 依赖: {oaepp_reqs.relative_to(REPO_ROOT)}")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "-r", str(oaepp_reqs)])
+        except subprocess.CalledProcessError:
+            print("⚠️  安装 oaepp 依赖失败，继续尝试启动（若缺少 reflex 运行时将报错）")
 
-    print("\n" + "=" * 55)
-    print("  Reflex 原型开发服务器")
-    print("=" * 55)
-    print(f"🌐 Reflex 前端：http://{HOST}:{REFLEX_PORT}")
-    print("⛔ Ctrl+C 停止服务\n")
+    ensure_port_available(HOST, port)
 
+    # Try to run via oaepp.app
     try:
-        subprocess.run(
-            ["reflex", "run", "--env", "dev", "--loglevel", "debug"],
-            cwd=str(OAEPP_DIR),
-            check=True,
-        )
-    except KeyboardInterrupt:
-        print("\n\n⛔ 正在停止 Reflex 服务...")
-    except subprocess.CalledProcessError as e:
-        print(f"\n❌ Reflex 启动失败: {e}")
-    except FileNotFoundError:
-        print("\n❌ 未找到 reflex 命令，请确认 reflex 已正确安装")
-        print("   尝试：pip install reflex")
-    finally:
-        print("✅ Reflex 服务已停止")
+        import oaepp.app as _app
+        if hasattr(_app, "run"):
+            print(f"✅ 使用 oaepp.app.run 在端口 {port} 启动 Reflex")
+            _app.run(port=port)
+            return
+    except Exception:
+        pass
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  Reflex 远程部署（Coolify）
-# ══════════════════════════════════════════════════════════════════════════════
-
-REFLEX_PROJECT_NAME = "OAEPP_Reflex"
-REFLEX_APP_NAME     = "oaepp_reflex"
-REFLEX_DOMAIN       = "https://reflex.oaepp.uwis.cn"
-REFLEX_COMPOSE_SERVICE = None
-
-
-def _collect_reflex_apps():
-    resp = _coolify_api("GET", "/applications")
-    if not resp.ok:
-        return []
-    return [
-        a for a in resp.json()
-        if a.get("name") == REFLEX_APP_NAME
-    ]
-
-
-def _ensure_reflex_env_vars(app_uuid: str):
-    existing_ids: dict[str, str] = {}
-    r0 = _coolify_api("GET", f"/applications/{app_uuid}/envs")
-    if r0.ok:
-        for item in r0.json():
-            existing_ids[item.get("key", "")] = str(item.get("uuid") or item.get("id", ""))
-
-    reflex_vars = {
-        "TEACHER_PASSWORD": os.environ.get("TEACHER_PASSWORD", "admin123"),
-        "JWT_SECRET": os.environ.get("JWT_SECRET", "change-me-in-production"),
-    }
-    for key, value in reflex_vars.items():
-        if not value:
-            continue
-        if key in existing_ids and existing_ids[key]:
-            r = _coolify_api("PATCH", f"/applications/{app_uuid}/envs",
-                             json={"key": key, "value": value})
-        else:
-            r = _coolify_api("POST", f"/applications/{app_uuid}/envs",
-                             json={"key": key, "value": value, "is_build_time": False})
-        if r.ok:
-            print(f"  ✅ 环境变量 {key}")
-        else:
-            print(f"  ⚠️  环境变量 {key} 同步失败  HTTP {r.status_code}: {r.text}")
-
-
-def deploy_reflex_coolify():
-    if not COOLIFY_API_KEY:
-        print("❌ 缺少 COOLIFY_API_KEY，请检查 .env 文件")
-        sys.exit(1)
-
+    # Fallback to reflex CLI
     try:
-        import requests  # noqa: F401
-    except ImportError:
-        print("⚙️  安装部署依赖（requests / urllib3）...")
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "--quiet", "requests", "urllib3"]
-        )
-
-    _step("Step 1: 检查 Reflex 源文件")
-    for required in ["rxconfig.py", "oaepp", "requirements.txt"]:
-        if not (OAEPP_DIR / required).exists():
-            print(f"❌ 缺少必要文件: {required}")
-            sys.exit(1)
-    print("✅ Reflex 源文件检查通过")
-
-    # ── Coolify 项目 ─────────────────────────────────────────────────────────
-    _step("Step 2: 查找 / 创建 Coolify 项目")
-    resp = _coolify_api("GET", "/projects")
-    resp.raise_for_status()
-    project = next((p for p in resp.json() if p["name"] == REFLEX_PROJECT_NAME), None)
-    if project:
-        project_uuid = project["uuid"]
-        print(f"✅ 已有项目: {REFLEX_PROJECT_NAME}  uuid={project_uuid}")
-    else:
-        resp = _coolify_api("POST", "/projects",
-                            json={"name": REFLEX_PROJECT_NAME,
-                                  "description": "工程实践 Reflex 原型"})
-        resp.raise_for_status()
-        project_uuid = resp.json()["uuid"]
-        print(f"✅ 已创建项目: {REFLEX_PROJECT_NAME}  uuid={project_uuid}")
-
-    # ── Server ───────────────────────────────────────────────────────────────
-    _step("Step 3: 获取可用 Server")
-    resp = _coolify_api("GET", "/servers")
-    resp.raise_for_status()
-    server = next((s for s in resp.json() if s.get("is_usable")), None)
-    if not server:
-        print("❌ 没有可用 Server，请检查 Coolify 面板")
-        sys.exit(1)
-    server_uuid = server["uuid"]
-    print(f"✅ Server: {server['name']}  uuid={server_uuid}")
-
-    # ── 应用查找或创建 ────────────────────────────────────────────────────────
-    _step("Step 4: 查找 / 创建应用并触发部署")
-    apps = _collect_reflex_apps()
-
-    if apps:
-        app = apps[0]
-        app_uuid = app["uuid"]
-        print(f"✅ 已有 Reflex 应用: {app.get('name')}  uuid={app_uuid}")
-
-        _ensure_reflex_env_vars(app_uuid)
-
-        resp = _coolify_api("POST", f"/applications/{app_uuid}/start",
-                            json={"force_rebuild": True})
-        data = resp.json()
-        if resp.ok or "queued" in str(data).lower() or "deployment" in str(data).lower():
-            print("✅ 强制重建已触发")
+        binpath = shutil.which("reflex")
+        cmds = []
+        if binpath:
+            cmds = [
+                [binpath, "run", "--backend-port", str(port)],
+                [binpath, "run", "--single-port", str(port)],
+                [binpath, "run"],
+            ]
         else:
-            print(f"❌ 触发失败 HTTP {resp.status_code}: {resp.text}")
-            sys.exit(1)
-    else:
-        payload = {
-            "project_uuid":           project_uuid,
-            "server_uuid":            server_uuid,
-            "environment_name":       ENVIRONMENT,
-            "git_repository":         GIT_REPO,
-            "git_branch":             GIT_BRANCH,
-            "build_pack":             "dockercompose",
-            "name":                   REFLEX_APP_NAME,
-            "docker_compose_location": "docker-compose.reflex.yaml",
-            "is_auto_deploy_enabled": True,
-            "instant_deploy":         True,
-            "ports_exposes":          "3000",
-        }
-        resp = _coolify_api("POST", "/applications/public", json=payload)
-        if resp.status_code not in (200, 201):
-            print(f"❌ Reflex 应用创建失败 HTTP {resp.status_code}: {resp.text}")
-            sys.exit(1)
-        data = resp.json()
-        app_uuid = data.get("uuid")
-        _ensure_reflex_env_vars(app_uuid)
-        print(f"✅ Reflex 应用创建成功！  uuid={app_uuid}")
+            cmds = [
+                [sys.executable, "-m", "reflex", "run", "--backend-port", str(port)],
+                [sys.executable, "-m", "reflex", "run", "--single-port", str(port)],
+                [sys.executable, "-m", "reflex", "run"],
+            ]
+        for cmd in cmds:
+            try:
+                subprocess.check_call(cmd)
+                return
+            except subprocess.CalledProcessError:
+                continue
+    except Exception as exc:
+        print(f"❌ 启动 Reflex 失败: {exc}\n请确认已安装 reflex，并可通过 'reflex run' 启动。")
 
-    print(f"\n🌐 Reflex 站点地址: {REFLEX_DOMAIN}")
-    print("🎉 Reflex 部署已完成，请检查 Coolify 面板获取部署状态")
-    print("   如需设置自定义域名，请登录 Coolify 面板进行配置")
+    # 如果无法启动 Reflex（版本/配置不兼容），提供静态预览回退：
+    try:
+        from http.server import SimpleHTTPRequestHandler
+        import socketserver
+
+        serve_dir = REPO_ROOT / "oaepp"
+        if not serve_dir.exists():
+            print("❌ oaepp 目录不存在，无法提供静态预览")
+            return
+
+        print(f"⚠️  Reflex 未能启动，退回到静态预览 {serve_dir} (http://{HOST}:{port}/)")
+        os.chdir(str(serve_dir))
+        handler = SimpleHTTPRequestHandler
+        with socketserver.TCPServer((HOST, port), handler) as httpd:
+            print(f"✅ 静态预览运行中： http://{HOST}:{port}/login.html (按 Ctrl+C 停止)")
+            try:
+                httpd.serve_forever()
+            except KeyboardInterrupt:
+                print("\n⛔ 静态预览已停止")
+    except Exception as exc:
+        print(f"❌ 无法启动静态预览: {exc}")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  主入口
 # ══════════════════════════════════════════════════════════════════════════════
 
 def main():
+    # 支持通过命令行快速启动 Reflex 本地开发：
+    if "--reflex-dev" in sys.argv:
+        print("⚙️  使用命令行参数 --reflex-dev 启动 Reflex 本地开发")
+        # 跳过数据库同步，直接启动 Reflex 本地开发
+        run_reflex_dev(None)
+        return
+
     choice = show_menu()
 
     if choice == "Q":
         print("👋 退出")
         sys.exit(0)
-
-    if choice == "3":
-        start_reflex_local()
-        return
-
-    if choice == "4":
-        deploy_reflex_coolify()
-        return
 
     # ── 无论本地还是远程，都先同步 md ↔ 数据库 ──────────────────────────────
     sync_summary = run_sync()
@@ -849,7 +711,7 @@ def main():
     if choice == "1":
         serve_local()
     elif choice == "2":
-        deploy_coolify(sync_summary)
+        run_reflex_dev(sync_summary)
 
 
 if __name__ == "__main__":
