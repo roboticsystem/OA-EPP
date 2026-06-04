@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from typing import Optional
 from pydantic import BaseModel
 from app.database import db
-from app.auth_utils import create_token, hash_password, verify_teacher_token
+from app.auth_utils import create_token, hash_password, verify_teacher_token, require_teacher
 from app.sync_exams import sync_exams
 from pypinyin import lazy_pinyin, Style
 import openpyxl
@@ -17,16 +17,30 @@ from openpyxl.styles import Font, PatternFill, Alignment
 router = APIRouter()
 
 TEACHER_PASSWORD = os.environ.get("TEACHER_PASSWORD", "admin123")
+COURSE_ID = int(os.environ.get("COURSE_ID", "2"))
 
 
-def _require_teacher(authorization: Optional[str]):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="请先登录")
-    token = authorization.removeprefix("Bearer ").strip()
-    try:
-        verify_teacher_token(token)
-    except ValueError as e:
-        raise HTTPException(status_code=401, detail=str(e))
+def _list_students_with_class(conn):
+    """返回当前课程的全部学生（含 user_id、name、student_id、class_name）"""
+    rows = conn.execute("""
+        SELECT u.id AS user_id, u.full_name AS name, u.student_no AS student_id,
+               COALESCE(s.class_name, '') AS class_name
+        FROM enrollments e
+        JOIN users u ON u.id = e.student_user_id
+        LEFT JOIN students s ON s.user_id = u.id
+        WHERE e.course_id = %s AND u.role = 'student'
+        ORDER BY u.student_no
+    """, (COURSE_ID,)).fetchall()
+    return rows
+
+
+def _get_enrolled_student_count(conn):
+    """返回当前课程的选课人数"""
+    row = conn.execute(
+        "SELECT COUNT(*) AS cnt FROM enrollments WHERE course_id = %s",
+        (COURSE_ID,),
+    ).fetchone()
+    return row["cnt"] if row else 0
 
 
 def _name_to_pinyin(name: str):
@@ -72,30 +86,30 @@ async def upload_students(
         raise HTTPException(status_code=422, detail="CSV 中没有有效数据行")
 
     with db() as conn:
-        cur = conn.cursor()
+        
         count = 0
         for name, student_no, class_name in records:
             email = f"{student_no}@stu.oaepp.dev"
             # 插入或更新 users 表
-            cur.execute("""
+            conn.execute("""
                 INSERT INTO users (role, student_no, email, password_hash, full_name)
                 VALUES ('student', %s, %s, '', %s)
                 ON DUPLICATE KEY UPDATE full_name = VALUES(full_name)
             """, (student_no, email, name))
-            user_id = cur.lastrowid
+            user_id = conn.lastrowid
             if not user_id:
-                cur.execute("SELECT id FROM users WHERE student_no = %s", (student_no,))
-                user_id = cur.fetchone()["id"]
+                conn.execute("SELECT id FROM users WHERE student_no = %s", (student_no,))
+                user_id = conn.fetchone()["id"]
 
             # 插入或更新 students 表
-            cur.execute("""
+            conn.execute("""
                 INSERT INTO students (user_id, class_name)
                 VALUES (%s, %s)
                 ON DUPLICATE KEY UPDATE class_name = VALUES(class_name)
             """, (user_id, class_name))
 
             # 选课
-            cur.execute("""
+            conn.execute("""
                 INSERT IGNORE INTO enrollments (course_id, student_user_id)
                 VALUES (%s, %s)
             """, (COURSE_ID, user_id))
@@ -120,34 +134,34 @@ def add_student(req: AddStudentRequest, authorization: Optional[str] = Header(No
         raise HTTPException(status_code=422, detail="姓名和学号不能为空")
 
     with db() as conn:
-        cur = conn.cursor()
+        
         # 检查是否已存在
-        cur.execute(
+        conn.execute(
             "SELECT u.full_name FROM users u WHERE u.student_no = %s",
             (req.student_id,)
         )
-        existing = cur.fetchone()
+        existing = conn.fetchone()
         if existing:
             raise HTTPException(status_code=409,
                                 detail=f"学号 {req.student_id} 已存在（{existing['full_name']}）")
 
         email = f"{req.student_id}@stu.oaepp.dev"
-        cur.execute(
+        conn.execute(
             "INSERT INTO users (role, student_no, email, password_hash, full_name) VALUES ('student', %s, %s, '', %s)",
             (req.student_id, email, req.name)
         )
-        user_id = cur.lastrowid
+        user_id = conn.lastrowid
 
-        cur.execute(
+        conn.execute(
             "INSERT INTO students (user_id, class_name) VALUES (%s, %s)",
             (user_id, req.class_name.strip())
         )
-        cur.execute(
+        conn.execute(
             "INSERT IGNORE INTO enrollments (course_id, student_user_id) VALUES (%s, %s)",
             (COURSE_ID, user_id)
         )
         conn.execute(
-            "INSERT INTO student_accounts (student_id, password_hash) VALUES (?, ?)",
+            "INSERT INTO student_accounts (student_id, password_hash) VALUES (%s, %s)",
             (req.student_id, hash_password(req.student_id)),
         )
     return {"ok": True}
@@ -158,17 +172,17 @@ def delete_student(student_id: str, authorization: Optional[str] = Header(None))
     """删除单个学生（取消选课，保留用户记录）"""
     require_teacher(authorization)
     with db() as conn:
-        cur = conn.cursor()
-        cur.execute(
+        
+        conn.execute(
             "SELECT u.id, u.full_name FROM users u WHERE u.student_no = %s AND u.role = 'student'",
             (student_id,)
         )
-        student = cur.fetchone()
+        student = conn.fetchone()
         if not student:
             raise HTTPException(status_code=404, detail="学号不存在")
 
         # 取消选课
-        cur.execute(
+        conn.execute(
             "DELETE FROM enrollments WHERE course_id = %s AND student_user_id = %s",
             (COURSE_ID, student["id"])
         )
@@ -180,13 +194,13 @@ def clear_all_students(authorization: Optional[str] = Header(None)):
     """清空当前课程全部选课"""
     require_teacher(authorization)
     with db() as conn:
-        cur = conn.cursor()
-        cur.execute(
+        
+        conn.execute(
             "SELECT COUNT(*) AS cnt FROM enrollments WHERE course_id = %s",
             (COURSE_ID,)
         )
-        count = cur.fetchone()["cnt"]
-        cur.execute("DELETE FROM enrollments WHERE course_id = %s", (COURSE_ID,))
+        count = conn.fetchone()["cnt"]
+        conn.execute("DELETE FROM enrollments WHERE course_id = %s", (COURSE_ID,))
     return {"ok": True, "deleted_count": count}
 
 
@@ -195,13 +209,13 @@ def new_semester_reset(authorization: Optional[str] = Header(None)):
     """新学期重置：清空当前课程选课"""
     require_teacher(authorization)
     with db() as conn:
-        cur = conn.cursor()
-        cur.execute(
+        
+        conn.execute(
             "SELECT COUNT(*) AS cnt FROM enrollments WHERE course_id = %s",
             (COURSE_ID,)
         )
-        students = cur.fetchone()["cnt"]
-        cur.execute("DELETE FROM enrollments WHERE course_id = %s", (COURSE_ID,))
+        students = conn.fetchone()["cnt"]
+        conn.execute("DELETE FROM enrollments WHERE course_id = %s", (COURSE_ID,))
     return {"ok": True, "deleted_students": students, "deleted_scores": 0}
 
 
@@ -218,39 +232,39 @@ def list_students(authorization: Optional[str] = Header(None)):
 def list_exams(authorization: Optional[str] = Header(None)):
     require_teacher(authorization)
     with db() as conn:
-        cur = conn.cursor()
-        cur.execute("""
+        
+        conn.execute("""
             SELECT id, title, exam_type, start_at, end_at
             FROM exams WHERE course_id = %s ORDER BY id
         """, (COURSE_ID,))
-        exams = cur.fetchall()
+        exams = conn.fetchall()
 
     # 懒加载同步
     if not exams:
         print("[list_exams] 考试表为空，触发懒加载同步…")
         sync_exams()
         with db() as conn:
-            cur = conn.cursor()
-            cur.execute("""
+            
+            conn.execute("""
                 SELECT id, title, exam_type, start_at, end_at
                 FROM exams WHERE course_id = %s ORDER BY id
             """, (COURSE_ID,))
-            exams = cur.fetchall()
+            exams = conn.fetchall()
 
     with db() as conn:
-        cur = conn.cursor()
+        
         total_students = _get_enrolled_student_count(conn)
         result = []
         from datetime import datetime
         for e in exams:
             submitted = conn.execute(
-                "SELECT COUNT(*) FROM scores WHERE exam_id=?", (e["id"],)
+                "SELECT COUNT(*) FROM scores WHERE exam_id=%s", (e["id"],)
             ).fetchone()[0]
             avg = conn.execute(
-                "SELECT AVG(score) FROM scores WHERE exam_id=?", (e["id"],)
+                "SELECT AVG(score) FROM scores WHERE exam_id=%s", (e["id"],)
             ).fetchone()[0]
             # 尝试根据 classroom_exams 的时间判断状态（开放中 / 已关闭）
-            ce = conn.execute("SELECT start_at, end_at FROM classroom_exams WHERE id=?", (e["id"],)).fetchone()
+            ce = conn.execute("SELECT start_at, end_at FROM classroom_exams WHERE id=%s", (e["id"],)).fetchone()
             status = None
             if ce:
                 try:
@@ -286,8 +300,8 @@ class ExamCreate(BaseModel):
 def create_exam(req: ExamCreate, authorization: Optional[str] = Header(None)):
     require_teacher(authorization)
     with db() as conn:
-        cur = conn.cursor()
-        cur.execute("""
+        
+        conn.execute("""
             INSERT INTO exams (course_id, title, exam_type, start_at, end_at, created_by)
             VALUES (%s, %s, 'quiz', NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY), 14)
         """, (COURSE_ID, req.title))
@@ -309,11 +323,11 @@ class CleanupRequest(BaseModel):
 def update_exam(exam_id: str, req: ExamUpdate, authorization: Optional[str] = Header(None)):
     require_teacher(authorization)
     with db() as conn:
-        cur = conn.cursor()
+        
         if req.is_active == 0:
-            cur.execute("UPDATE exams SET end_at = NOW() WHERE id = %s", (exam_id,))
+            conn.execute("UPDATE exams SET end_at = NOW() WHERE id = %s", (exam_id,))
         else:
-            cur.execute(
+            conn.execute(
                 "UPDATE exams SET end_at = DATE_ADD(NOW(), INTERVAL 7 DAY) WHERE id = %s",
                 (exam_id,)
             )
@@ -325,23 +339,23 @@ def get_scores(exam_id: str = Query(...), authorization: Optional[str] = Header(
     """获取某次考试的所有学生成绩"""
     require_teacher(authorization)
     with db() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT title FROM exams WHERE id = %s", (exam_id,))
-        exam = cur.fetchone()
+        
+        conn.execute("SELECT title FROM exams WHERE id = %s", (exam_id,))
+        exam = conn.fetchone()
         if not exam:
             raise HTTPException(status_code=404, detail="考试不存在")
 
         students = _list_students_with_class(conn)
 
         # 获取成绩（通过 assignment.title 关联 exam_id）
-        cur.execute("""
+        conn.execute("""
             SELECT sub.student_user_id, gr.exam_score AS score, gr.total_score AS total, gr.graded_at AS submitted_at
             FROM grading_records gr
             JOIN submissions sub ON gr.submission_id = sub.id
             JOIN assignments a ON sub.assignment_id = a.id
             WHERE a.title LIKE CONCAT('exam_', %s, '%%')
         """, (exam_id,))
-        scores_map = {r["student_user_id"]: r for r in cur.fetchall()}
+        scores_map = {r["student_user_id"]: r for r in conn.fetchall()}
 
     result = []
     for s in students:
@@ -364,22 +378,22 @@ def export_scores(exam_id: int = Query(...), authorization: Optional[str] = Head
     require_teacher(authorization)
 
     with db() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT title FROM exams WHERE id = %s", (exam_id,))
-        exam = cur.fetchone()
+        
+        conn.execute("SELECT title FROM exams WHERE id = %s", (exam_id,))
+        exam = conn.fetchone()
         if not exam:
             raise HTTPException(status_code=404, detail="考试不存在")
 
         students = _list_students_with_class(conn)
 
-        cur.execute("""
+        conn.execute("""
             SELECT sub.student_user_id, gr.exam_score AS score, gr.total_score AS total, gr.graded_at AS submitted_at
             FROM grading_records gr
             JOIN submissions sub ON gr.submission_id = sub.id
             JOIN assignments a ON sub.assignment_id = a.id
             WHERE a.title LIKE CONCAT('exam_', %s, '%%')
         """, (exam_id,))
-        scores_map = {r["student_user_id"]: r for r in cur.fetchall()}
+        scores_map = {r["student_user_id"]: r for r in conn.fetchall()}
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -428,7 +442,7 @@ def export_scores(exam_id: int = Query(...), authorization: Optional[str] = Head
 @router.post("/api/teacher/exams/cleanup")
 def cleanup_exams(req: CleanupRequest, authorization: Optional[str] = Header(None)):
     """删除指定标题的考试（慎用）。若未提供 titles，则删除已知的三条错误记录。"""
-    _require_teacher(authorization)
+    require_teacher(authorization)
     defaults = [
         "第 12 章 机器人系统开发环境配置 测验",
         "第二章 CubeMX 编程测验",
@@ -439,15 +453,15 @@ def cleanup_exams(req: CleanupRequest, authorization: Optional[str] = Header(Non
     with db() as conn:
         for t in titles:
             # remove from exams
-            cur = conn.execute("DELETE FROM exams WHERE title=?", (t,))
+            cur = conn.execute("DELETE FROM exams WHERE title=%s", (t,))
             affected += cur.rowcount
             # remove classroom exams and related records
-            rows = conn.execute("SELECT id FROM classroom_exams WHERE title=?", (t,)).fetchall()
+            rows = conn.execute("SELECT id FROM classroom_exams WHERE title=%s", (t,)).fetchall()
             for r in rows:
                 eid = r["id"]
-                conn.execute("DELETE FROM classroom_exam_questions WHERE exam_id=?", (eid,))
-                conn.execute("DELETE FROM classroom_exam_attempts WHERE exam_id=?", (eid,))
-                conn.execute("DELETE FROM classroom_exams WHERE id=?", (eid,))
+                conn.execute("DELETE FROM classroom_exam_questions WHERE exam_id=%s", (eid,))
+                conn.execute("DELETE FROM classroom_exam_attempts WHERE exam_id=%s", (eid,))
+                conn.execute("DELETE FROM classroom_exams WHERE id=%s", (eid,))
                 affected += 1
     return {"ok": True, "affected": affected}
 
@@ -455,21 +469,21 @@ def cleanup_exams(req: CleanupRequest, authorization: Optional[str] = Header(Non
 @router.delete("/api/teacher/exams/{exam_id}")
 def delete_exam(exam_id: str, authorization: Optional[str] = Header(None)):
     """删除某次考试及其相关记录（scores、classroom_exams、questions、attempts）。"""
-    _require_teacher(authorization)
+    require_teacher(authorization)
     affected = 0
     with db() as conn:
         # remove scores
-        cur = conn.execute("DELETE FROM scores WHERE exam_id=?", (exam_id,))
+        cur = conn.execute("DELETE FROM scores WHERE exam_id=%s", (exam_id,))
         affected += cur.rowcount
         # remove exam entry
-        cur2 = conn.execute("DELETE FROM exams WHERE id=?", (exam_id,))
+        cur2 = conn.execute("DELETE FROM exams WHERE id=%s", (exam_id,))
         affected += cur2.rowcount
         # remove classroom exam related records if any
-        rows = conn.execute("SELECT id FROM classroom_exams WHERE id=?", (exam_id,)).fetchall()
+        rows = conn.execute("SELECT id FROM classroom_exams WHERE id=%s", (exam_id,)).fetchall()
         for r in rows:
             eid = r["id"]
-            conn.execute("DELETE FROM classroom_exam_questions WHERE exam_id=?", (eid,))
-            conn.execute("DELETE FROM classroom_exam_attempts WHERE exam_id=?", (eid,))
-            conn.execute("DELETE FROM classroom_exams WHERE id=?", (eid,))
+            conn.execute("DELETE FROM classroom_exam_questions WHERE exam_id=%s", (eid,))
+            conn.execute("DELETE FROM classroom_exam_attempts WHERE exam_id=%s", (eid,))
+            conn.execute("DELETE FROM classroom_exams WHERE id=%s", (eid,))
             affected += 1
     return {"ok": True, "deleted": affected}

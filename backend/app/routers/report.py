@@ -392,7 +392,7 @@ async def get_ai_review(
 
     # 获取 GitHub 信息
     github_info = ReportService.get_github_info(student_id)
-    if not github_info or not github_info.github_username or not github_info.repo_name:
+    if not github_info or not github_info.github_username:
         raise HTTPException(status_code=400, detail="该学生未绑定 GitHub 仓库信息")
 
     # 获取 GitHub 数据
@@ -448,7 +448,7 @@ async def trigger_ai_review(
         raise HTTPException(status_code=404, detail=f"学生 {student_id} 不存在")
 
     github_info = ReportService.get_github_info(student_id)
-    if not github_info or not github_info.github_username or not github_info.repo_name:
+    if not github_info or not github_info.github_username:
         raise HTTPException(status_code=400, detail="该学生未绑定 GitHub 仓库信息")
 
     course_settings = ReportService.get_course_settings()
@@ -508,7 +508,7 @@ async def get_ai_review_summary(
         raise HTTPException(status_code=404, detail=f"学生 {student_id} 不存在")
 
     github_info = ReportService.get_github_info(student_id)
-    if not github_info or not github_info.github_username or not github_info.repo_name:
+    if not github_info or not github_info.github_username:
         raise HTTPException(status_code=400, detail="该学生未绑定 GitHub 仓库信息")
 
     course_settings = ReportService.get_course_settings()
@@ -580,7 +580,7 @@ async def batch_ai_review(
                 continue
 
             github_info = ReportService.get_github_info(student_id)
-            if not github_info or not github_info.github_username or not github_info.repo_name:
+            if not github_info or not github_info.github_username:
                 errors.append({"student_id": student_id, "error": "未绑定GitHub"})
                 continue
 

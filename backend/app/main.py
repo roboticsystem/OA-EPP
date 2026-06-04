@@ -5,11 +5,12 @@ from pathlib import Path
 _env_file = Path(__file__).resolve().parent.parent.parent / ".env"
 load_dotenv(_env_file) if _env_file.exists() else None
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import os
+import traceback
 
 from app.database import init_db
 from app.sync_exams import sync_exams
@@ -33,6 +34,19 @@ except Exception:
     _HAS_CLASSROOM_EXAM = False
 
 app = FastAPI(title="嵌入式系统综合实践 - OA-EPP", docs_url="/api/docs")
+
+
+@app.exception_handler(500)
+async def internal_error_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": str(exc),
+            "type": type(exc).__name__,
+            "traceback": traceback.format_exc(),
+        },
+    )
+
 
 app.add_middleware(
     CORSMiddleware,
