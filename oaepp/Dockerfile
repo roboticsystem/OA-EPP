@@ -1,25 +1,25 @@
 FROM python:3.11-slim
 
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    REFLEX_FRONTEND_PORT=3000 \
+    REFLEX_BACKEND_PORT=8000 \
+    REFLEX_BACKEND_HOST=0.0.0.0
+
 WORKDIR /app
 
-# 安装系统依赖
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl nodejs npm \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nginx ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# 复制并安装Python依赖
-COPY oaepp/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt /app/requirements.txt
+RUN pip install -r /app/requirements.txt
 
-# 复制应用代码
-COPY oaepp/ ./oaepp/
+COPY . /app
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
 
-WORKDIR /app/oaepp
+EXPOSE 80 3000 8000
 
-# 编译前端（生成静态资源）
-RUN reflex export --no-zip
-
-EXPOSE 8000
-
-# 运行Reflex应用
-CMD ["reflex", "run", "--env", "prod", "--loglevel", "warning"]
+CMD ["/start.sh"]
