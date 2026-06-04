@@ -13,6 +13,7 @@ from pypinyin import lazy_pinyin, Style
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 import json
+import re
 
 router = APIRouter()
 
@@ -341,6 +342,17 @@ class GradeExportRequest(BaseModel):
     rows: Optional[list] = None
 
 
+DEFAULT_WEIGHTS = {"attendance": 0.15, "exam": 0.30, "code": 0.35, "pr": 0.20}
+
+
+def _resolve_weights(weights: Optional[dict]) -> dict:
+    if not weights:
+        return dict(DEFAULT_WEIGHTS)
+    result = dict(DEFAULT_WEIGHTS)
+    result.update(weights)
+    return result
+
+
 def _compute_total(row: dict, weights: dict) -> float:
     if not weights:
         return None
@@ -372,6 +384,41 @@ def _grade_letter(score: float) -> str:
     return "F"
 
 
+@router.get("/api/teacher/grades/filters")
+def grade_filters(authorization: Optional[str] = Header(None)):
+    """返回筛选下拉框的可选值：班级、课程(考试)、学期列表"""
+    _require_teacher(authorization)
+    with db() as conn:
+        classes = [
+            r["class_name"] for r in conn.execute(
+                "SELECT DISTINCT class_name FROM students WHERE class_name!='' ORDER BY class_name"
+            ).fetchall()
+        ]
+        courses = [
+            {"id": r["id"], "title": r["title"]}
+            for r in conn.execute("SELECT id, title FROM exams ORDER BY id").fetchall()
+        ]
+        # extract terms from exam titles (format: "xxx（20xx春/秋）")
+        _term_set = set()
+        for r in conn.execute("SELECT title FROM exams").fetchall():
+            m = re.search(r'（(20\d{2}[春秋])）', r['title'])
+            if m:
+                _term_set.add(m.group(1))
+        terms = sorted(_term_set)
+    return {"classes": classes, "courses": courses, "terms": terms}
+
+
+@router.get("/api/teacher/grades/audit-logs")
+def grade_audit_logs(authorization: Optional[str] = Header(None)):
+    """返回导出审计日志"""
+    _require_teacher(authorization)
+    with db() as conn:
+        logs = conn.execute(
+            "SELECT id, actor, filters, record_count, created_at FROM export_logs ORDER BY id DESC LIMIT 200"
+        ).fetchall()
+    return {"logs": [dict(r) for r in logs]}
+
+
 @router.post("/api/teacher/grades/preview")
 def preview_grades(req: GradeExportRequest, authorization: Optional[str] = Header(None)):
     """按筛选返回预览数据（可用于前端预览与手动修正）。
@@ -393,7 +440,10 @@ def preview_grades(req: GradeExportRequest, authorization: Optional[str] = Heade
         # try to find an exam matching course_name to fill '考试得分'
         exam_scores = {}
         if req.course_name:
+            # match by title (exact) or by id
             exam_row = conn.execute("SELECT id FROM exams WHERE title=?", (req.course_name,)).fetchone()
+            if not exam_row:
+                exam_row = conn.execute("SELECT id FROM exams WHERE id=?", (req.course_name,)).fetchone()
             if exam_row:
                 eid = exam_row["id"]
                 for r in conn.execute("SELECT student_id, score FROM scores WHERE exam_id=?", (eid,)).fetchall():
@@ -425,11 +475,11 @@ def preview_grades(req: GradeExportRequest, authorization: Optional[str] = Heade
         if sid in provided_rows_map:
             base.update(provided_rows_map[sid])
 
-        # compute total if weights provided
-        if req.weights:
-            base_total = _compute_total(base, req.weights)
-            base["total"] = base_total
-            base["grade"] = _grade_letter(base_total)
+        # compute total with resolved weights
+        resolved = _resolve_weights(req.weights)
+        base_total = _compute_total(base, resolved)
+        base["total"] = base_total
+        base["grade"] = _grade_letter(base_total)
 
         result_rows.append(base)
 
@@ -443,11 +493,10 @@ def export_grades(req: GradeExportRequest, authorization: Optional[str] = Header
     actor = payload.get("name") if isinstance(payload, dict) else "teacher"
 
     rows = req.rows or []
-    # ensure totals and grades
-    if req.weights:
-        for r in rows:
-            r["total"] = _compute_total(r, req.weights)
-            r["grade"] = _grade_letter(r.get("total"))
+    resolved_weights = _resolve_weights(req.weights)
+    for r in rows:
+        r["total"] = _compute_total(r, resolved_weights)
+        r["grade"] = _grade_letter(r.get("total"))
 
     # create excel
     wb = openpyxl.Workbook()
