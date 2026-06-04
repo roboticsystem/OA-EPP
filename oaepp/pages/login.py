@@ -11,6 +11,7 @@ def _html_fallback():
     return """
 <div class="oaepp-login-card">
   <h1>工程实践管理平台</h1>
+  <h1>工程实践管理平台</h1>
   <p>OA-EPP · 登录</p>
   <form action="/dashboard" method="get">
     <div><label>学号 / 邮箱</label><input name="username" placeholder="请输入学号或邮箱" /></div>
