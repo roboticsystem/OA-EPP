@@ -1,5 +1,6 @@
 import asyncio
 import io
+from collections import Counter
 from datetime import datetime
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Header, Query, Request
@@ -10,15 +11,19 @@ from urllib.parse import quote
 from app.auth_utils import verify_teacher_token
 from app.services.report_service import ReportService
 from app.services.export_service import ExportService
+from app.services.github_service import GitHubService
+from app.services.ai_review_service import run_full_ai_review, ai_generate_review_comment
 from app.models.report_models import (
     ReportData, GitHubInfo, CourseSettings, AuditLogResponse,
-    TeacherComment, AttendanceRecord, BatchExportRequest, StudentInfo
+    TeacherComment, AttendanceRecord, BatchExportRequest, StudentInfo,
+    AIReviewResult, AIReviewRequest, CommitAnalysisResult, BranchAnalysisResult,
+    PRAnalysisResult, ActivityAnalysisResult, CodeScaleResult, AIDimensions
 )
 
 router = APIRouter(prefix="/api/teacher/report", tags=["报告管理"])
 
 
-def _require_teacher(authorization: Optional[str], request: Request = None):
+def _require_teacher(authorization: Optional[str]):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="请先登录")
     token = authorization.removeprefix("Bearer ").strip()
@@ -28,7 +33,9 @@ def _require_teacher(authorization: Optional[str], request: Request = None):
         raise HTTPException(status_code=401, detail=str(e))
 
 
-def _get_client_info(request: Request):
+def _get_client_info(request: Optional[Request]):
+    if request is None:
+        return None, ""
     ip_address = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent", "")
     return ip_address, user_agent
@@ -361,3 +368,273 @@ def get_class_students(
 ):
     _require_teacher(authorization)
     return ReportService.get_students_by_class(class_name)
+
+
+# ---------------------------------------------------------------------------
+# F-T-003-AI: AI 自动审查接口
+# ---------------------------------------------------------------------------
+
+@router.get("/ai-review/{student_id}")
+async def get_ai_review(
+    student_id: str,
+    refresh: bool = Query(False, description="是否强制刷新GitHub数据并重新审查"),
+    authorization: Optional[str] = Header(None),
+    request: Request = None
+):
+    """获取学生的 AI 自动审查结果。从 GitHub 拉取数据后进行多维度自动分析。"""
+    _require_teacher(authorization)
+    ip_address, user_agent = _get_client_info(request)
+
+    # 获取学生信息
+    student_info = ReportService.get_student_info(student_id)
+    if not student_info:
+        raise HTTPException(status_code=404, detail=f"学生 {student_id} 不存在")
+
+    # 获取 GitHub 信息
+    github_info = ReportService.get_github_info(student_id)
+    if not github_info or not github_info.github_username or not github_info.repo_name:
+        raise HTTPException(status_code=400, detail="该学生未绑定 GitHub 仓库信息")
+
+    # 获取 GitHub 数据
+    course_settings = ReportService.get_course_settings()
+    token = github_info.github_token or course_settings.github_token
+    github_service = GitHubService(token=token)
+
+    try:
+        github_data = await github_service.get_full_data(
+            github_info.github_username,
+            github_info.repo_name
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"获取 GitHub 数据失败: {str(e)}")
+
+    if not github_data.get("commits") and not github_data.get("branches"):
+        raise HTTPException(status_code=404, detail="GitHub 仓库无数据")
+
+    # 运行 AI 审查
+    result = run_full_ai_review(
+        github_data=github_data,
+        student_name=student_info.name,
+        student_id=student_id,
+    )
+
+    # 记录审计日志
+    ReportService.log_audit(
+        action="ai_review",
+        target_type="student",
+        target_id=student_id,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        details=f"score={result.get('overall_score')},grade={result.get('grade')}"
+    )
+
+    return result
+
+
+@router.post("/ai-review/{student_id}")
+async def trigger_ai_review(
+    student_id: str,
+    refresh: bool = Query(True, description="是否从GitHub重新获取最新数据"),
+    generate_ai_comment: bool = Query(False, description="是否调用AI API生成智能评语"),
+    authorization: Optional[str] = Header(None),
+    request: Request = None
+):
+    """触发 AI 自动审查（支持 AI API 生成智能评语）。"""
+    _require_teacher(authorization)
+    ip_address, user_agent = _get_client_info(request)
+
+    student_info = ReportService.get_student_info(student_id)
+    if not student_info:
+        raise HTTPException(status_code=404, detail=f"学生 {student_id} 不存在")
+
+    github_info = ReportService.get_github_info(student_id)
+    if not github_info or not github_info.github_username or not github_info.repo_name:
+        raise HTTPException(status_code=400, detail="该学生未绑定 GitHub 仓库信息")
+
+    course_settings = ReportService.get_course_settings()
+    token = github_info.github_token or course_settings.github_token
+    github_service = GitHubService(token=token)
+
+    if refresh:
+        github_service.clear_cache()
+
+    try:
+        github_data = await github_service.get_full_data(
+            github_info.github_username,
+            github_info.repo_name
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"获取 GitHub 数据失败: {str(e)}")
+
+    if not github_data.get("commits") and not github_data.get("branches"):
+        raise HTTPException(status_code=404, detail="GitHub 仓库无数据")
+
+    result = run_full_ai_review(
+        github_data=github_data,
+        student_name=student_info.name,
+        student_id=student_id,
+    )
+
+    # 可选：调用 AI API 生成智能评语
+    ai_comment = None
+    if generate_ai_comment:
+        ai_comment = await ai_generate_review_comment(result)
+        if ai_comment:
+            result["ai_comment"] = ai_comment
+
+    ReportService.log_audit(
+        action="ai_review",
+        target_type="student",
+        target_id=student_id,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        details=f"score={result.get('overall_score')},grade={result.get('grade')},ai_comment={'yes' if ai_comment else 'no'}"
+    )
+
+    return result
+
+
+@router.get("/ai-review/{student_id}/summary")
+async def get_ai_review_summary(
+    student_id: str,
+    authorization: Optional[str] = Header(None),
+    request: Request = None
+):
+    """获取 AI 审查摘要（轻量版，仅返回总分、评级和建议）。"""
+    _require_teacher(authorization)
+
+    student_info = ReportService.get_student_info(student_id)
+    if not student_info:
+        raise HTTPException(status_code=404, detail=f"学生 {student_id} 不存在")
+
+    github_info = ReportService.get_github_info(student_id)
+    if not github_info or not github_info.github_username or not github_info.repo_name:
+        raise HTTPException(status_code=400, detail="该学生未绑定 GitHub 仓库信息")
+
+    course_settings = ReportService.get_course_settings()
+    token = github_info.github_token or course_settings.github_token
+    github_service = GitHubService(token=token)
+
+    try:
+        github_data = await github_service.get_full_data(
+            github_info.github_username,
+            github_info.repo_name
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"获取 GitHub 数据失败: {str(e)}")
+
+    if not github_data.get("commits") and not github_data.get("branches"):
+        raise HTTPException(status_code=404, detail="GitHub 仓库无数据")
+
+    result = run_full_ai_review(
+        github_data=github_data,
+        student_name=student_info.name,
+        student_id=student_id,
+    )
+
+    # 仅返回摘要信息
+    return {
+        "student_id": student_id,
+        "student_name": student_info.name,
+        "overall_score": result["overall_score"],
+        "grade": result["grade"],
+        "grade_desc": result["grade_desc"],
+        "summary": result["summary"],
+        "highlights": result["highlights"],
+        "risks": result["risks"],
+        "suggestions": result["suggestions"],
+        "reviewed_at": result["reviewed_at"],
+    }
+
+
+@router.post("/ai-review/batch")
+async def batch_ai_review(
+    req: BatchExportRequest,
+    authorization: Optional[str] = Header(None),
+    request: Request = None
+):
+    """批量 AI 审查——按班级批量执行代码审查并返回汇总。"""
+    _require_teacher(authorization)
+    ip_address, user_agent = _get_client_info(request)
+
+    if not req.class_name and not req.student_ids:
+        raise HTTPException(status_code=400, detail="请提供班级名称或学生列表")
+
+    if req.class_name:
+        students = ReportService.get_students_by_class(req.class_name)
+        student_ids = [s.student_id for s in students]
+        target_name = req.class_name
+    else:
+        student_ids = req.student_ids
+        target_name = f"{len(student_ids)}名学生"
+
+    results = []
+    errors = []
+    course_settings = ReportService.get_course_settings()
+
+    for student_id in student_ids:
+        try:
+            student_info = ReportService.get_student_info(student_id)
+            if not student_info:
+                errors.append({"student_id": student_id, "error": "学生不存在"})
+                continue
+
+            github_info = ReportService.get_github_info(student_id)
+            if not github_info or not github_info.github_username or not github_info.repo_name:
+                errors.append({"student_id": student_id, "error": "未绑定GitHub"})
+                continue
+
+            token = github_info.github_token or course_settings.github_token
+            github_service = GitHubService(token=token)
+            github_data = await github_service.get_full_data(
+                github_info.github_username,
+                github_info.repo_name
+            )
+
+            if not github_data.get("commits") and not github_data.get("branches"):
+                errors.append({"student_id": student_id, "error": "GitHub仓库无数据"})
+                continue
+
+            review = run_full_ai_review(
+                github_data=github_data,
+                student_name=student_info.name,
+                student_id=student_id,
+            )
+            results.append({
+                "student_id": student_id,
+                "student_name": student_info.name,
+                "overall_score": review["overall_score"],
+                "grade": review["grade"],
+                "grade_desc": review["grade_desc"],
+                "summary": review["summary"],
+                "reviewed_at": review["reviewed_at"],
+            })
+        except Exception as e:
+            errors.append({"student_id": student_id, "error": str(e)})
+
+    # 班级汇总
+    if results:
+        avg_score = round(sum(r["overall_score"] for r in results) / len(results), 1)
+        grade_distribution = Counter(r["grade"] for r in results)
+    else:
+        avg_score = 0
+        grade_distribution = {}
+
+    ReportService.log_audit(
+        action="ai_review_batch",
+        target_type="class",
+        target_id=target_name,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        details=f"reviewed={len(results)},errors={len(errors)},avg_score={avg_score}"
+    )
+
+    return {
+        "target": target_name,
+        "total": len(student_ids),
+        "reviewed": len(results),
+        "errors": errors,
+        "average_score": avg_score,
+        "grade_distribution": dict(grade_distribution),
+        "results": results,
+    }

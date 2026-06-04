@@ -179,3 +179,107 @@ class ExportFormat(str):
     PDF = "pdf"
     HTML = "html"
     EXCEL = "excel"
+
+
+# ---------------------------------------------------------------------------
+# F-T-003-AI: AI 自动审查相关模型
+# ---------------------------------------------------------------------------
+
+class CommitAnalysisResult(BaseModel):
+    """提交行为分析结果"""
+    total_commits: int = 0
+    avg_per_week: float = 0.0
+    max_per_day: int = 0
+    message_quality_score: float = 0.0
+    message_quality: dict = {}
+    consistency_score: float = 0.0
+    coding_days: int = 0
+    active_period_days: int = 0
+    weekend_commit_pct: float = 0.0
+    late_night_commit_pct: float = 0.0
+    avg_message_length: float = 0.0
+    suggestions: List[str] = []
+
+
+class BranchAnalysisResult(BaseModel):
+    """分支策略分析结果"""
+    total_branches: int = 0
+    protected_branches: int = 0
+    naming_score: float = 0.0
+    strategy_score: float = 0.0
+    strategy_type: str = ""
+    strategy_desc: str = ""
+    has_default_branch: bool = False
+    naming_issues: List[str] = []
+    suggestions: List[str] = []
+
+
+class PRAnalysisResult(BaseModel):
+    """PR 质量分析结果"""
+    total_prs: int = 0
+    open_prs: int = 0
+    merged_prs: int = 0
+    closed_prs: int = 0
+    merge_rate: float = 0.0
+    avg_description_length: float = 0.0
+    description_quality_score: float = 0.0
+    review_engagement_score: float = 0.0
+    avg_review_comments: float = 0.0
+    avg_pr_size: float = 0.0
+    total_additions: int = 0
+    total_deletions: int = 0
+    overall_pr_score: float = 0.0
+    suggestions: List[str] = []
+
+
+class ActivityAnalysisResult(BaseModel):
+    """代码活跃度分析结果"""
+    activity_score: float = 0.0
+    activity_level: str = "inactive"
+    total_actions: int = 0
+    active_hours_distribution: dict = {}
+    peak_day_of_week: str = ""
+    project_duration_days: int = 0
+    suggestions: List[str] = []
+
+
+class CodeScaleResult(BaseModel):
+    """代码规模评估结果"""
+    total_lines: int = 0
+    language_count: int = 0
+    languages: dict = {}
+    scale_level: str = ""
+    scale_score: float = 0.0
+
+
+class AIDimensions(BaseModel):
+    """AI 审查各维度分析结果"""
+    commit_patterns: CommitAnalysisResult = CommitAnalysisResult()
+    branch_strategy: BranchAnalysisResult = BranchAnalysisResult()
+    pr_quality: PRAnalysisResult = PRAnalysisResult()
+    code_activity: ActivityAnalysisResult = ActivityAnalysisResult()
+    code_scale: CodeScaleResult = CodeScaleResult()
+
+
+class AIReviewResult(BaseModel):
+    """AI 自动审查完整结果"""
+    student_name: str = ""
+    student_id: str = ""
+    overall_score: float = 0.0
+    grade: str = ""
+    grade_desc: str = ""
+    dimensions: AIDimensions = AIDimensions()
+    scores: dict = {}
+    weights: dict = {}
+    summary: str = ""
+    highlights: List[str] = []
+    risks: List[str] = []
+    suggestions: List[str] = []
+    reviewed_at: str = ""
+
+
+class AIReviewRequest(BaseModel):
+    """发起 AI 审查的请求参数"""
+    student_id: str
+    refresh: bool = False
+    course_id: Optional[int] = None

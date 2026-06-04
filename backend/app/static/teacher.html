@@ -73,6 +73,32 @@
   .confirm-dialog p { color: #666; font-size: .9rem; margin-bottom: 20px; line-height: 1.6; }
   .confirm-dialog .btn-row { display: flex; gap: 10px; justify-content: center; }
   #app { display: none; }
+  .ai-review-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .ai-score-circle { width: 100px; height: 100px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: bold; color: #fff; margin: 0 auto; }
+  .ai-score-circle.grade-a { background: linear-gradient(135deg, #2e7d32, #4caf50); }
+  .ai-score-circle.grade-b { background: linear-gradient(135deg, #1565c0, #42a5f5); }
+  .ai-score-circle.grade-c { background: linear-gradient(135deg, #f57f17, #ffca28); }
+  .ai-score-circle.grade-d { background: linear-gradient(135deg, #e65100, #ff9800); }
+  .ai-score-circle.grade-f { background: linear-gradient(135deg, #b71c1c, #ef5350); }
+  .ai-score-num { font-size: 2rem; line-height: 1; }
+  .ai-score-label { font-size: .75rem; opacity: .9; }
+  .ai-dim-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .ai-dim-card { background: #f8f9fa; border-radius: 8px; padding: 14px; text-align: center; }
+  .ai-dim-name { font-size: .8rem; color: #666; margin-bottom: 4px; }
+  .ai-dim-score { font-size: 1.4rem; font-weight: bold; color: #1565c0; }
+  .ai-dim-bar { height: 6px; background: #e0e0e0; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+  .ai-dim-bar-fill { height: 100%; border-radius: 3px; transition: width .5s; }
+  .ai-dim-bar-fill.high { background: #4caf50; }
+  .ai-dim-bar-fill.mid { background: #ff9800; }
+  .ai-dim-bar-fill.low { background: #ef5350; }
+  .ai-highlight { background: #e8f5e9; padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; font-size: .9rem; }
+  .ai-risk { background: #fff3e0; padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; font-size: .9rem; }
+  .ai-suggestion { background: #e3f2fd; padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; font-size: .9rem; border-left: 3px solid #1565c0; }
+  .ai-summary-box { background: #f8f9fa; border-radius: 8px; padding: 16px; line-height: 1.8; font-size: .95rem; border-left: 4px solid #1565c0; margin-bottom: 16px; }
+  .ai-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .ai-tab { padding: 6px 16px; border-radius: 20px; border: 1px solid #1565c0; color: #1565c0; cursor: pointer; font-size: .85rem; background: #fff; }
+  .ai-tab.active { background: #1565c0; color: #fff; }
+  .ai-meta { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; font-size: .85rem; color: #888; }
 </style>
 </head>
 <body>
@@ -322,6 +348,30 @@
           </div>
         </div>
         <div id="batch-student-list"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🤖 AI 自动代码审查 <span style="font-size:.75rem;color:#888;font-weight:normal">F-T-003-AI</span></div>
+      <div class="card-body">
+        <div class="ai-review-header">
+          <div style="flex: 1; min-width: 200px;">
+            <label class="form-label">选择学生</label>
+            <select id="ai-review-student-select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+              <option value="">-- 请选择学生 --</option>
+            </select>
+          </div>
+          <div style="flex: 0 0 auto; align-self: flex-end;">
+            <button class="btn btn-primary" id="ai-review-btn" onclick="runAIReview()">🔍 执行 AI 审查</button>
+          </div>
+          <div style="flex: 0 0 auto; align-self: flex-end;">
+            <button class="btn btn-outline" onclick="loadAIReviewSummary()">📋 快速摘要</button>
+          </div>
+        </div>
+        <div id="ai-review-status"></div>
+        <div id="ai-review-result" style="display: none;">
+          <div id="ai-review-content"></div>
+        </div>
       </div>
     </div>
 
@@ -851,6 +901,8 @@ async function loadStudentsForReport() {
     '<option value="">-- 请选择学生 --</option>' + options;
   document.getElementById('comment-student-select').innerHTML =
     '<option value="">-- 请选择学生 --</option>' + options;
+  document.getElementById('ai-review-student-select').innerHTML =
+    '<option value="">-- 请选择学生 --</option>' + options;
 
   await loadClasses();
 }
@@ -1033,6 +1085,235 @@ async function saveComment() {
 }
 
 let currentLogPage = 1;
+
+// ===== AI 自动审查 (F-T-003-AI) =====
+
+function getAIGradeClass(grade) {
+  const map = { 'A': 'grade-a', 'B': 'grade-b', 'C': 'grade-c', 'D': 'grade-d', 'F': 'grade-f' };
+  return map[grade] || 'grade-f';
+}
+
+function getBarClass(score) {
+  if (score >= 70) return 'high';
+  if (score >= 40) return 'mid';
+  return 'low';
+}
+
+async function runAIReview() {
+  const studentId = document.getElementById('ai-review-student-select').value;
+  if (!studentId) { alert('请选择学生'); return; }
+
+  const btn = document.getElementById('ai-review-btn');
+  const statusDiv = document.getElementById('ai-review-status');
+  const resultDiv = document.getElementById('ai-review-result');
+
+  btn.disabled = true;
+  btn.textContent = '⏳ 审查中...';
+  statusDiv.innerHTML = '<p style="color:#1565c0;text-align:center;padding:20px;">🤖 AI 正在分析 GitHub 仓库数据，请稍候...</p>';
+  resultDiv.style.display = 'none';
+
+  try {
+    const r = await fetch(`${API}/api/teacher/report/ai-review/${encodeURIComponent(studentId)}?refresh=true`, {
+      headers: {'Authorization': `Bearer ${TOKEN}`}
+    });
+
+    if (!r.ok) {
+      const e = await r.json();
+      statusDiv.innerHTML = `<div class="alert alert-error">${e.detail || '审查失败'}</div>`;
+      return;
+    }
+
+    const data = await r.json();
+    statusDiv.innerHTML = '';
+    renderAIReviewResult(data, resultDiv);
+    resultDiv.style.display = 'block';
+  } catch(e) {
+    statusDiv.innerHTML = `<div class="alert alert-error">网络错误：${e}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔍 执行 AI 审查';
+  }
+}
+
+async function loadAIReviewSummary() {
+  const studentId = document.getElementById('ai-review-student-select').value;
+  if (!studentId) { alert('请选择学生'); return; }
+
+  const statusDiv = document.getElementById('ai-review-status');
+  const resultDiv = document.getElementById('ai-review-result');
+
+  statusDiv.innerHTML = '<p style="color:#1565c0;text-align:center;padding:20px;">⏳ 加载中...</p>';
+  resultDiv.style.display = 'none';
+
+  try {
+    const r = await fetch(`${API}/api/teacher/report/ai-review/${encodeURIComponent(studentId)}/summary`, {
+      headers: {'Authorization': `Bearer ${TOKEN}`}
+    });
+
+    if (!r.ok) {
+      const e = await r.json();
+      statusDiv.innerHTML = `<div class="alert alert-error">${e.detail || '获取失败'}</div>`;
+      return;
+    }
+
+    const data = await r.json();
+    statusDiv.innerHTML = '';
+
+    let content = `
+      <div style="text-align:center;margin-bottom:20px;">
+        <div class="ai-score-circle ${getAIGradeClass(data.grade)}">
+          <div class="ai-score-num">${data.overall_score}</div>
+          <div class="ai-score-label">${data.grade_desc} (${data.grade})</div>
+        </div>
+      </div>
+      <div class="ai-summary-box">${data.summary}</div>
+      <h4 style="margin-bottom:10px;">✨ 亮点</h4>
+      ${(data.highlights || []).map(h => `<div class="ai-highlight">${h}</div>`).join('') || '<p style="color:#888;">暂无</p>'}
+      <h4 style="margin-bottom:10px;margin-top:16px;">⚠️ 风险点</h4>
+      ${(data.risks || []).map(r => `<div class="ai-risk">${r}</div>`).join('') || '<p style="color:#888;">暂无</p>'}
+      <h4 style="margin-bottom:10px;margin-top:16px;">💡 改进建议</h4>
+      ${(data.suggestions || []).slice(0, 8).map(s => `<div class="ai-suggestion">${s}</div>`).join('') || '<p style="color:#888;">暂无</p>'}
+      <div class="ai-meta" style="margin-top:16px;"><span>审查时间：${data.reviewed_at}</span></div>
+    `;
+    document.getElementById('ai-review-content').innerHTML = content;
+    resultDiv.style.display = 'block';
+  } catch(e) {
+    statusDiv.innerHTML = `<div class="alert alert-error">网络错误：${e}</div>`;
+  }
+}
+
+function renderAIReviewResult(data, container) {
+  const dims = data.dimensions || {};
+  const dimCards = [
+    { key: 'commit_patterns', name: '提交质量', score: dims.commit_patterns?.message_quality_score || 0 },
+    { key: 'commit_patterns', name: '提交一致性', score: dims.commit_patterns?.consistency_score || 0 },
+    { key: 'branch_strategy', name: '分支策略', score: dims.branch_strategy?.strategy_score || 0 },
+    { key: 'pr_quality', name: 'PR 质量', score: dims.pr_quality?.overall_pr_score || 0 },
+    { key: 'code_activity', name: '活跃度', score: dims.code_activity?.activity_score || 0 },
+    { key: 'code_scale', name: '代码规模', score: dims.code_scale?.scale_score || 0 },
+  ];
+
+  const dimHtml = dimCards.map(d => `
+    <div class="ai-dim-card">
+      <div class="ai-dim-name">${d.name}</div>
+      <div class="ai-dim-score">${d.score} 分</div>
+      <div class="ai-dim-bar"><div class="ai-dim-bar-fill ${getBarClass(d.score)}" style="width:${d.score}%;"></div></div>
+    </div>
+  `).join('');
+
+  // Commit details
+  let detailHtml = '<div class="ai-tabs" style="margin-top:20px;">';
+  const tabs = [
+    { id: 'commit', label: '📝 提交分析' },
+    { id: 'branch', label: '🌿 分支策略' },
+    { id: 'pr', label: '🔀 PR 质量' },
+    { id: 'activity', label: '📊 活跃度' },
+  ];
+  tabs.forEach(t => {
+    detailHtml += `<button class="ai-tab ${t.id==='commit'?'active':''}" data-tab="${t.id}" onclick="switchAITab('${t.id}', this)">${t.label}</button>`;
+  });
+  detailHtml += '</div>';
+
+  // Commit panel
+  const ca = dims.commit_patterns || {};
+  detailHtml += `
+    <div class="ai-tab-panel" id="ai-panel-commit">
+      <div class="stats-grid">
+        <div class="stat-item"><div class="stat-value">${ca.total_commits || 0}</div><div class="stat-label">总提交数</div></div>
+        <div class="stat-item"><div class="stat-value">${ca.avg_per_week || 0}</div><div class="stat-label">每周平均</div></div>
+        <div class="stat-item"><div class="stat-value">${ca.coding_days || 0}</div><div class="stat-label">编码天数</div></div>
+        <div class="stat-item"><div class="stat-value">${ca.avg_message_length || 0}</div><div class="stat-label">消息平均长度</div></div>
+      </div>
+      <p style="font-size:.85rem;color:#666;margin-top:8px;">
+        消息质量：✅ ${ca.message_quality?.good || 0} | 🔶 ${ca.message_quality?.needs_improvement || 0} | ❌ ${ca.message_quality?.poor || 0}
+        &nbsp;|&nbsp; 周末提交：${ca.weekend_commit_pct || 0}% &nbsp;|&nbsp; 深夜提交：${ca.late_night_commit_pct || 0}%
+      </p>
+      <div style="margin-top:8px;">${(ca.suggestions || []).map(s => `<div class="ai-suggestion">${s}</div>`).join('')}</div>
+    </div>`;
+
+  // Branch panel
+  const ba = dims.branch_strategy || {};
+  detailHtml += `
+    <div class="ai-tab-panel" id="ai-panel-branch" style="display:none;">
+      <div class="stats-grid">
+        <div class="stat-item"><div class="stat-value">${ba.total_branches || 0}</div><div class="stat-label">分支总数</div></div>
+        <div class="stat-item"><div class="stat-value">${ba.protected_branches || 0}</div><div class="stat-label">保护分支</div></div>
+        <div class="stat-item"><div class="stat-value">${ba.strategy_type || '-'}</div><div class="stat-label">策略类型</div></div>
+        <div class="stat-item"><div class="stat-value">${ba.naming_score || 0}</div><div class="stat-label">命名评分</div></div>
+      </div>
+      <p style="font-size:.85rem;color:#666;margin-top:8px;">${ba.strategy_desc || ''}</p>
+      ${(ba.naming_issues || []).length > 0 ? '<p style="font-size:.85rem;color:#c62828;margin-top:4px;">命名问题：' + ba.naming_issues.join('；') + '</p>' : ''}
+      <div style="margin-top:8px;">${(ba.suggestions || []).map(s => `<div class="ai-suggestion">${s}</div>`).join('')}</div>
+    </div>`;
+
+  // PR panel
+  const pra = dims.pr_quality || {};
+  detailHtml += `
+    <div class="ai-tab-panel" id="ai-panel-pr" style="display:none;">
+      <div class="stats-grid">
+        <div class="stat-item"><div class="stat-value">${pra.total_prs || 0}</div><div class="stat-label">总 PR 数</div></div>
+        <div class="stat-item"><div class="stat-value">${pra.merge_rate || 0}%</div><div class="stat-label">合并率</div></div>
+        <div class="stat-item"><div class="stat-value">${pra.avg_pr_size || 0}</div><div class="stat-label">平均 PR 大小</div></div>
+        <div class="stat-item"><div class="stat-value">${pra.avg_review_comments || 0}</div><div class="stat-label">平均评审数</div></div>
+      </div>
+      <p style="font-size:.85rem;color:#666;margin-top:8px;">
+        已合并：${pra.merged_prs || 0} | 开放中：${pra.open_prs || 0} | 已关闭：${pra.closed_prs || 0}
+        &nbsp;|&nbsp; 描述质量：${pra.description_quality_score || 0} 分
+      </p>
+      <div style="margin-top:8px;">${(pra.suggestions || []).map(s => `<div class="ai-suggestion">${s}</div>`).join('')}</div>
+    </div>`;
+
+  // Activity panel
+  const act = dims.code_activity || {};
+  const hourDist = act.active_hours_distribution || {};
+  detailHtml += `
+    <div class="ai-tab-panel" id="ai-panel-activity" style="display:none;">
+      <div class="stats-grid">
+        <div class="stat-item"><div class="stat-value">${act.activity_level || '-'}</div><div class="stat-label">活跃程度</div></div>
+        <div class="stat-item"><div class="stat-value">${act.total_actions || 0}</div><div class="stat-label">总操作数</div></div>
+        <div class="stat-item"><div class="stat-value">${act.project_duration_days || 0}天</div><div class="stat-label">项目周期</div></div>
+        <div class="stat-item"><div class="stat-value">${act.peak_day_of_week || '-'}</div><div class="stat-label">最活跃日</div></div>
+      </div>
+      <p style="font-size:.85rem;color:#666;margin-top:8px;">
+        时段分布：🌅 上午 ${hourDist.morning || 0} | ☀️ 下午 ${hourDist.afternoon || 0} | 🌆 晚间 ${hourDist.evening || 0} | 🌙 深夜 ${hourDist.night || 0}
+      </p>
+      <div style="margin-top:8px;">${(act.suggestions || []).map(s => `<div class="ai-suggestion">${s}</div>`).join('')}</div>
+    </div>`;
+
+  const content = `
+    <div style="text-align:center;margin-bottom:20px;">
+      <div class="ai-score-circle ${getAIGradeClass(data.grade)}">
+        <div class="ai-score-num">${data.overall_score}</div>
+        <div class="ai-score-label">${data.grade_desc} (${data.grade})</div>
+      </div>
+    </div>
+    <div class="ai-summary-box">${data.summary || ''}</div>
+    <h4 style="margin-bottom:12px;">📊 各维度评分</h4>
+    <div class="ai-dim-grid">${dimHtml}</div>
+    <h4 style="margin-bottom:8px;">✨ 亮点</h4>
+    ${(data.highlights || []).map(h => `<div class="ai-highlight">${h}</div>`).join('') || '<p style="color:#888;font-size:.9rem;">暂无</p>'}
+    <h4 style="margin-bottom:8px;margin-top:16px;">⚠️ 风险点</h4>
+    ${(data.risks || []).map(r => `<div class="ai-risk">${r}</div>`).join('') || '<p style="color:#888;font-size:.9rem;">暂无</p>'}
+    <h4 style="margin-bottom:8px;margin-top:16px;">💡 改进建议</h4>
+    ${(data.suggestions || []).slice(0, 10).map(s => `<div class="ai-suggestion">${s}</div>`).join('') || '<p style="color:#888;font-size:.9rem;">暂无</p>'}
+    ${detailHtml}
+    <div class="ai-meta" style="margin-top:16px;justify-content:center;display:flex;">
+      <span>审查时间：${data.reviewed_at || ''}</span>
+      ${data.ai_comment ? '<span>🤖 含 AI 智能评语</span>' : ''}
+    </div>
+    ${data.ai_comment ? `<div class="ai-summary-box" style="margin-top:12px;border-left-color:#2e7d32;"><strong>🤖 AI 智能评语：</strong><br>${data.ai_comment}</div>` : ''}
+  `;
+
+  document.getElementById('ai-review-content').innerHTML = content;
+}
+
+function switchAITab(tabId, btn) {
+  document.querySelectorAll('.ai-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.ai-tab-panel').forEach(p => p.style.display = 'none');
+  const panel = document.getElementById('ai-panel-' + tabId);
+  if (panel) panel.style.display = 'block';
+}
 
 async function loadAuditLogs(page = 1) {
   currentLogPage = page;
