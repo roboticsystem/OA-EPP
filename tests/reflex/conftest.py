@@ -5,14 +5,8 @@
 - REFLEX_DB_URL: 强制使用内存数据库，不依赖生产环境
 """
 import os
-import sys
 import pytest
 import sqlmodel
-
-# 确保项目根目录在 sys.path 中，使 oaepp 包可导入
-_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
 
 # 强制使用 SQLite 内存数据库
 os.environ.setdefault("REFLEX_DB_URL", "sqlite:///:memory:")
