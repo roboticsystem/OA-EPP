@@ -26,4 +26,6 @@ config = rx.Config(
         f"http://localhost:{os.environ.get('REFLEX_BACKEND_PORT', '8001')}",
     ),
     deploy_url=os.environ.get("REFLEX_DEPLOY_URL"),
+    # Reflex 原生参数，直接注入 Vite server.allowedHosts
+    vite_allowed_hosts=[".uwis.cn", "oaepp_reflex.uwis.cn"],
 )
