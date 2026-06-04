@@ -1,0 +1,16 @@
+# F-D-001 独立忽略配置｜不修改原有.gitignore
+# Python规则
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+.env
+# Reflex构建产物
+.reflex/
+.reflex-build/
+static/build/
+*.sqlite
+.pytest_cache/
