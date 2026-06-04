@@ -84,12 +84,12 @@ async def upload_students(
     with db() as conn:
         conn.executemany("""
             INSERT INTO students (name, student_id, class_name, pinyin, pinyin_abbr)
-            VALUES (%s,%s,%s,%s,%s)
-            ON DUPLICATE KEY UPDATE
-                name=VALUES(name),
-                class_name=VALUES(class_name),
-                pinyin=VALUES(pinyin),
-                pinyin_abbr=VALUES(pinyin_abbr)
+            VALUES (?,?,?,?,?)
+            ON CONFLICT(student_id) DO UPDATE SET
+                name=excluded.name,
+                class_name=excluded.class_name,
+                pinyin=excluded.pinyin,
+                pinyin_abbr=excluded.pinyin_abbr
         """, records)
 
     return {"count": len(records)}
@@ -112,12 +112,12 @@ def add_student(req: AddStudentRequest, authorization: Optional[str] = Header(No
     pinyin, abbr = _name_to_pinyin(req.name)
     with db() as conn:
         existing = conn.execute(
-            "SELECT name FROM students WHERE student_id=%s", (req.student_id,)
+            "SELECT name FROM students WHERE student_id=?", (req.student_id,)
         ).fetchone()
         if existing:
             raise HTTPException(status_code=409, detail=f"学号 {req.student_id} 已存在（{existing['name']}）")
         conn.execute(
-            "INSERT INTO students (name, student_id, class_name, pinyin, pinyin_abbr) VALUES (%s,%s,%s,%s,%s)",
+            "INSERT INTO students (name, student_id, class_name, pinyin, pinyin_abbr) VALUES (?,?,?,?,?)",
             (req.name, req.student_id, req.class_name.strip(), pinyin, abbr)
         )
     return {"ok": True}
@@ -129,12 +129,12 @@ def delete_student(student_id: str, authorization: Optional[str] = Header(None))
     _require_teacher(authorization)
     with db() as conn:
         student = conn.execute(
-            "SELECT name FROM students WHERE student_id=%s", (student_id,)
+            "SELECT name FROM students WHERE student_id=?", (student_id,)
         ).fetchone()
         if not student:
             raise HTTPException(status_code=404, detail="学号不存在")
-        conn.execute("DELETE FROM scores WHERE student_id=%s", (student_id,))
-        conn.execute("DELETE FROM students WHERE student_id=%s", (student_id,))
+        conn.execute("DELETE FROM scores WHERE student_id=?", (student_id,))
+        conn.execute("DELETE FROM students WHERE student_id=?", (student_id,))
     return {"ok": True, "deleted": student["name"]}
 
 
@@ -167,8 +167,7 @@ def list_students(authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
     with db() as conn:
         rows = conn.execute(
-            "SELECT u.full_name AS name, u.student_no AS student_id, COALESCE(s.class_name,'') AS class_name "
-            "FROM students s JOIN users u ON s.user_id=u.id WHERE u.role='student' ORDER BY s.class_name, u.full_name"
+            "SELECT name, student_id, class_name FROM students ORDER BY class_name, name"
         ).fetchall()
     return [dict(r) for r in rows]
 
@@ -191,10 +190,10 @@ def list_exams(authorization: Optional[str] = Header(None)):
         result = []
         for e in exams:
             submitted = conn.execute(
-                "SELECT COUNT(*) FROM scores WHERE exam_id=%s", (e["id"],)
+                "SELECT COUNT(*) FROM scores WHERE exam_id=?", (e["id"],)
             ).fetchone()[0]
             avg = conn.execute(
-                "SELECT AVG(score) FROM scores WHERE exam_id=%s", (e["id"],)
+                "SELECT AVG(score) FROM scores WHERE exam_id=?", (e["id"],)
             ).fetchone()[0]
             result.append({
                 "id": e["id"], "title": e["title"], "is_active": e["is_active"],
@@ -214,7 +213,7 @@ def create_exam(req: ExamCreate, authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
     with db() as conn:
         conn.execute(
-            "REPLACE INTO exams (id, title) VALUES (%s,%s)",
+            "INSERT OR REPLACE INTO exams (id, title) VALUES (?,?)",
             (req.id, req.title)
         )
     return {"ok": True}
@@ -228,7 +227,7 @@ class ExamUpdate(BaseModel):
 def update_exam(exam_id: str, req: ExamUpdate, authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
     with db() as conn:
-        conn.execute("UPDATE exams SET is_active=%s WHERE id=%s", (req.is_active, exam_id))
+        conn.execute("UPDATE exams SET is_active=? WHERE id=?", (req.is_active, exam_id))
     return {"ok": True}
 
 
@@ -237,7 +236,7 @@ def get_scores(exam_id: str = Query(...), authorization: Optional[str] = Header(
     """获取某次考试的所有学生成绩（含未提交）"""
     _require_teacher(authorization)
     with db() as conn:
-        exam = conn.execute("SELECT title FROM exams WHERE id=%s", (exam_id,)).fetchone()
+        exam = conn.execute("SELECT title FROM exams WHERE id=?", (exam_id,)).fetchone()
         if not exam:
             raise HTTPException(status_code=404, detail="考试不存在")
 
@@ -247,7 +246,7 @@ def get_scores(exam_id: str = Query(...), authorization: Optional[str] = Header(
         scores_map = {
             r["student_id"]: dict(r)
             for r in conn.execute(
-                "SELECT student_id, score, total, submitted_at FROM scores WHERE exam_id=%s",
+                "SELECT student_id, score, total, submitted_at FROM scores WHERE exam_id=?",
                 (exam_id,)
             ).fetchall()
         }
@@ -273,7 +272,7 @@ def export_scores(exam_id: str = Query(...), authorization: Optional[str] = Head
     _require_teacher(authorization)
 
     with db() as conn:
-        exam = conn.execute("SELECT title FROM exams WHERE id=%s", (exam_id,)).fetchone()
+        exam = conn.execute("SELECT title FROM exams WHERE id=?", (exam_id,)).fetchone()
         if not exam:
             raise HTTPException(status_code=404, detail="考试不存在")
 
@@ -283,7 +282,7 @@ def export_scores(exam_id: str = Query(...), authorization: Optional[str] = Head
         scores_map = {
             r["student_id"]: dict(r)
             for r in conn.execute(
-                "SELECT student_id, score, total, submitted_at FROM scores WHERE exam_id=%s",
+                "SELECT student_id, score, total, submitted_at FROM scores WHERE exam_id=?",
                 (exam_id,)
             ).fetchall()
         }
@@ -330,144 +329,3 @@ def export_scores(exam_id: str = Query(...), authorization: Optional[str] = Head
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )
-
-
-# ───── GitHub 账号绑定状态看板 (F-T-004) ─────
-
-
-@router.get("/api/teacher/github-bindings/summary")
-def get_binding_summary(authorization: Optional[str] = Header(None)):
-    """获取全班绑定状态汇总统计"""
-    _require_teacher(authorization)
-    with db() as conn:
-        total = conn.execute(
-            "SELECT COUNT(*) FROM users WHERE role='student'"
-        ).fetchone()[0]
-        bound = conn.execute(
-            "SELECT COUNT(*) FROM github_bindings WHERE verify_status='approved'"
-        ).fetchone()[0]
-        pending = conn.execute(
-            "SELECT COUNT(*) FROM github_bindings WHERE verify_status='pending'"
-        ).fetchone()[0]
-        unbound = total - bound - pending
-    return {"total": total, "bound": bound, "pending": pending, "unbound": max(unbound, 0)}
-
-
-@router.get("/api/teacher/github-bindings/list")
-def get_binding_list(
-    status: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
-    sort_by_status: bool = Query(False),
-    authorization: Optional[str] = Header(None)
-):
-    """获取全班学生 GitHub 绑定状态列表，支持筛选、搜索、排序"""
-    _require_teacher(authorization)
-
-    with db() as conn:
-        query = """
-            SELECT u.full_name AS name, u.student_no AS student_id,
-                   COALESCE(s.class_name, '') AS class_name,
-                   COALESCE(g.github_username, '') AS github_username,
-                   COALESCE(g.verify_status, 'unbound') AS binding_status,
-                   COALESCE(g.github_name, '') AS github_name,
-                   g.verified_at
-            FROM users u
-            LEFT JOIN students s ON s.user_id = u.id
-            LEFT JOIN github_bindings g ON u.id = g.student_user_id
-            WHERE u.role = 'student'
-        """
-        conditions = []
-        params: list = []
-
-        if status and status != "all":
-            if status == "unbound":
-                conditions.append("(g.verify_status IS NULL OR g.verify_status NOT IN ('approved','pending'))")
-            else:
-                conditions.append("g.verify_status = %s")
-                params.append(status)
-
-        if search:
-            conditions.append(
-                "(u.full_name LIKE %s OR u.student_no LIKE %s OR g.github_username LIKE %s)"
-            )
-            like = f"%{search}%"
-            params.extend([like, like, like])
-
-        if conditions:
-            query += " AND " + " AND ".join(conditions)
-
-        if sort_by_status:
-            query += """
-                ORDER BY
-                    CASE
-                        WHEN g.verify_status IS NULL OR g.verify_status NOT IN ('approved','pending') THEN 0
-                        WHEN g.verify_status = 'pending' THEN 1
-                        WHEN g.verify_status = 'approved' THEN 2
-                    END,
-                    u.student_no
-            """
-        else:
-            query += " ORDER BY u.student_no"
-
-    with db() as conn:
-        rows = conn.execute(query, params).fetchall()
-
-    return [dict(r) for r in rows]
-
-
-class BatchStudentIds(BaseModel):
-    student_ids: list[str]
-
-
-@router.post("/api/teacher/github-bindings/batch-approve")
-def batch_approve_bindings(req: BatchStudentIds, authorization: Optional[str] = Header(None)):
-    """一键批量通过待审核的绑定请求"""
-    _require_teacher(authorization)
-    if not req.student_ids:
-        raise HTTPException(status_code=422, detail="请选择至少一名学生")
-    placeholders = ",".join(["%s"] * len(req.student_ids))
-    with db() as conn:
-        conn.execute(
-            f"UPDATE github_bindings g JOIN users u ON g.student_user_id=u.id "
-            f"SET g.verify_status='approved', g.verified_at=NOW() "
-            f"WHERE u.student_no IN ({placeholders}) AND g.verify_status='pending'",
-            req.student_ids
-        )
-    return {"ok": True, "approved": conn.rowcount}
-
-
-@router.post("/api/teacher/github-bindings/reject")
-def reject_binding(req: BatchStudentIds, authorization: Optional[str] = Header(None)):
-    """拒绝绑定申请"""
-    _require_teacher(authorization)
-    if not req.student_ids:
-        raise HTTPException(status_code=422, detail="请选择至少一名学生")
-    placeholders = ",".join(["%s"] * len(req.student_ids))
-    with db() as conn:
-        conn.execute(
-            f"UPDATE github_bindings g JOIN users u ON g.student_user_id=u.id "
-            f"SET g.verify_status='rejected', g.github_username='', g.github_name='', g.verified_at=NULL "
-            f"WHERE u.student_no IN ({placeholders})",
-            req.student_ids
-        )
-    return {"ok": True}
-
-
-@router.post("/api/teacher/github-bindings/send-reminder")
-def send_binding_reminder(req: BatchStudentIds, authorization: Optional[str] = Header(None)):
-    """向未绑定学生批量发送提醒"""
-    _require_teacher(authorization)
-    if not req.student_ids:
-        raise HTTPException(status_code=422, detail="请选择至少一名学生")
-    placeholders = ",".join(["%s"] * len(req.student_ids))
-    with db() as conn:
-        rows = conn.execute(
-            f"SELECT u.full_name AS name FROM users u "
-            f"LEFT JOIN github_bindings g ON g.student_user_id=u.id "
-            f"WHERE u.student_no IN ({placeholders}) "
-            f"AND u.role='student' "
-            f"AND (g.verify_status IS NULL OR g.verify_status NOT IN ('approved','pending'))",
-            req.student_ids
-        ).fetchall()
-    names = [r["name"] for r in rows]
-    return {"ok": True, "reminded": len(names), "students": names}

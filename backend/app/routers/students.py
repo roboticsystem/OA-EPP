@@ -11,9 +11,9 @@ def search_students(q: str = Query(..., min_length=1)):
     with db() as conn:
         rows = conn.execute("""
             SELECT name, student_id, class_name FROM students
-            WHERE lower(name) LIKE %s
-               OR lower(pinyin) LIKE %s
-               OR lower(pinyin_abbr) LIKE %s
+            WHERE lower(name) LIKE ?
+               OR lower(pinyin) LIKE ?
+               OR lower(pinyin_abbr) LIKE ?
             ORDER BY name
             LIMIT 10
         """, (f"%{q}%", f"%{q}%", f"%{q}%")).fetchall()

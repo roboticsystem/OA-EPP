@@ -120,20 +120,20 @@ def sync_exams() -> dict:
         existing = {r["id"]: r["title"] for r in conn.execute("SELECT id, title FROM exams")}
         for eid, etitle in found.items():
             if eid not in existing:
-                conn.execute("INSERT INTO exams (id, title, is_active) VALUES (%s,%s,1)", (eid, etitle))
+                conn.execute("INSERT INTO exams (id, title, is_active) VALUES (?,?,1)", (eid, etitle))
                 added.append(eid)
                 print(f"[sync_exams] 数据库新增考试：{eid} - {etitle}")
             else:
                 # 如果文档中 exam-title 与数据库中不一致，更新数据库中的标题
                 if existing.get(eid) != etitle:
-                    conn.execute("UPDATE exams SET title=%s WHERE id=%s", (etitle, eid))
+                    conn.execute("UPDATE exams SET title=? WHERE id=?", (etitle, eid))
                     updated.append(eid)
                     print(f"[sync_exams] 数据库更新考试标题：{eid} - {etitle}")
         # 只有在确实扫描到考试文档时才清理孤立记录，防止挂载目录为空时误删所有考试
         if found:
             for eid in list(existing):
                 if eid not in found:
-                    conn.execute("DELETE FROM exams WHERE id=%s", (eid,))
+                    conn.execute("DELETE FROM exams WHERE id=?", (eid,))
                     deleted.append(eid)
                     print(f"[sync_exams] 数据库删除孤立考试：{eid}")
         elif existing:
