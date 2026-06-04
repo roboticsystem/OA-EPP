@@ -75,6 +75,29 @@
   .confirm-dialog h3 { margin-bottom: 10px; }
   .confirm-dialog p { color: #666; font-size: .9rem; margin-bottom: 20px; line-height: 1.6; }
   .confirm-dialog .btn-row { display: flex; gap: 10px; justify-content: center; }
+  /* 评语弹窗 */
+  .feedback-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 9998; display: flex; align-items: center; justify-content: center; }
+  .feedback-dialog { background: #fff; border-radius: 12px; max-width: 640px; width: 92%; max-height: 85vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,.25); }
+  .feedback-dialog-header { background: #1565c0; color: #fff; padding: 16px 24px; border-radius: 12px 12px 0 0; display: flex; align-items: center; justify-content: space-between; }
+  .feedback-dialog-header h3 { font-size: 1.05rem; }
+  .feedback-dialog-close { background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; padding: 0 4px; }
+  .feedback-dialog-body { padding: 20px 24px; }
+  .feedback-dialog-body label { display: block; font-weight: bold; font-size: .9rem; margin-bottom: 6px; color: #333; }
+  .feedback-dialog-body textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: .92rem; resize: vertical; font-family: inherit; }
+  .feedback-dialog-body textarea:focus { outline: none; border-color: #1565c0; }
+  .feedback-item-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .feedback-item-row input { flex: 1; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: .9rem; }
+  .feedback-item-row input:focus { outline: none; border-color: #1565c0; }
+  .feedback-item-row button { padding: 6px 12px; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; font-size: .85rem; background: #fff; }
+  .feedback-item-row button.del:hover { background: #ffebee; color: #c62828; border-color: #ef9a9a; }
+  .add-item-btn { background: transparent; color: #1565c0; border: 1px dashed #1565c0; padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: .85rem; margin-top: 4px; }
+  .add-item-btn:hover { background: #e3f2fd; }
+  .feedback-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px 20px; }
+  .feedback-footer .btn { min-width: 100px; }
+  .feedback-toggle { display: flex; align-items: center; gap: 8px; font-size: .88rem; }
+  .resubmit-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: .75rem; background: #fff3e0; color: #e65100; margin-left: 6px; }
+  .feedback-indicator { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #4caf50; margin-left: 4px; cursor: pointer; }
+  .feedback-indicator.none { background: #ccc; }
   #app { display: none; }
 </style>
 </head>
@@ -299,19 +322,26 @@ async function loadScores(examId) {
     document.getElementById('scores-table').innerHTML = '<p style="color:#888;margin-top:8px">名单为空，请先上传学生名单</p>';
     return;
   }
-  const tbody = rows.map(r => `
+  const tbody = rows.map(r => {
+    const hasFeedback = r.feedbacks && r.feedbacks.length > 0;
+    const fbDotClass = hasFeedback ? '' : ' none';
+    const resubmitBadge = r.allow_resubmit ? '<span class="resubmit-badge">可重交</span>' : '';
+    return `
     <tr>
       <td>${r.name}</td>
       <td>${r.student_id}</td>
       <td>${r.class_name || '—'}</td>
-      <td>${r.score !== null ? `<strong>${r.score}</strong>` : '<span style="color:#bbb">未提交</span>'}</td>
+      <td>${r.score !== null ? `<strong>${r.score}</strong>` + resubmitBadge : '<span style="color:#bbb">未提交</span>'}</td>
       <td>${r.total ?? '—'}</td>
       <td style="font-size:.85rem;color:#888">${r.submitted_at || '—'}</td>
+      <td>
+        ${r.score !== null ? `<button class="btn btn-outline btn-sm" onclick='openFeedbackDialog("${r.student_id}","${r.name}","${exam.id}","${exam.title}")' title="编辑评语">💬 评语<span class="feedback-indicator${fbDotClass}"></span></button>` : '<span style="color:#ccc">—</span>'}
+      </td>
     </tr>
-  `).join('');
+  `}).join('');
   document.getElementById('scores-table').innerHTML = `
     <table>
-      <thead><tr><th>姓名</th><th>学号</th><th>班级</th><th>得分</th><th>满分</th><th>提交时间</th></tr></thead>
+      <thead><tr><th>姓名</th><th>学号</th><th>班级</th><th>得分</th><th>满分</th><th>提交时间</th><th>评语</th></tr></thead>
       <tbody>${tbody}</tbody>
     </table>
   `;
@@ -456,6 +486,159 @@ function showConfirmDialog(title, message, onConfirm) {
   document.body.appendChild(backdrop);
   backdrop.querySelector('#confirm-cancel').onclick = () => backdrop.remove();
   backdrop.querySelector('#confirm-ok').onclick = () => { backdrop.remove(); onConfirm(); };
+}
+
+// ───── 评语编辑弹窗 ─────
+
+async function openFeedbackDialog(studentId, studentName, examId, examTitle) {
+  // 先加载该学生该考试的现有评语
+  let existing = null;
+  try {
+    const r = await fetch(`${API}/api/teacher/feedbacks?exam_id=${examId}&student_id=${studentId}`, {
+      headers: {'Authorization': `Bearer ${TOKEN}`}
+    });
+    if (r.ok) {
+      const d = await r.json();
+      if (d.feedbacks && d.feedbacks.length > 0) existing = d.feedbacks[0];
+    }
+  } catch(e) {}
+
+  const isNew = !existing;
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'feedback-backdrop';
+  backdrop.innerHTML = `
+    <div class="feedback-dialog">
+      <div class="feedback-dialog-header">
+        <h3>${isNew ? '➕ 添加评语' : '✏️ 编辑评语'} — ${studentName}（${studentId}）</h3>
+        <button class="feedback-dialog-close" title="关闭">✕</button>
+      </div>
+      <div class="feedback-dialog-body">
+        <div style="margin-bottom:18px">
+          <label>📝 教师评语</label>
+          <textarea id="fb-comment" rows="3" placeholder="输入总体评语…">${existing?.teacher_comment || ''}</textarea>
+        </div>
+
+        <div style="margin-bottom:18px">
+          <label>🔻 扣分项说明</label>
+          <div id="fb-deduction-items">
+            ${(existing?.deduction_items || []).map((item, i) => `
+              <div class="feedback-item-row">
+                <input type="text" value="${escapeHtml(item)}" placeholder="扣分项 ${i+1}，如：代码规范 -2分">
+                <button class="del" onclick="this.closest('.feedback-item-row').remove()">✕</button>
+              </div>
+            `).join('')}
+          </div>
+          <button class="add-item-btn" onclick="addFeedbackItem('fb-deduction-items')">+ 添加扣分项</button>
+        </div>
+
+        <div style="margin-bottom:18px">
+          <label>💡 改进建议</label>
+          <div id="fb-suggestions">
+            ${(existing?.suggestions || []).map((item, i) => `
+              <div class="feedback-item-row">
+                <input type="text" value="${escapeHtml(item)}" placeholder="改进建议 ${i+1}，如：建议多练习 CubeMX 配置">
+                <button class="del" onclick="this.closest('.feedback-item-row').remove()">✕</button>
+              </div>
+            `).join('')}
+          </div>
+          <button class="add-item-btn" onclick="addFeedbackItem('fb-suggestions')">+ 添加改进建议</button>
+        </div>
+
+        <div style="margin-bottom:12px">
+          <div class="feedback-toggle">
+            <label class="switch">
+              <input type="checkbox" id="fb-allow-resubmit" ${existing?.allow_resubmit ? 'checked' : ''}>
+              <span class="slider"></span>
+            </label>
+            <span>允许学生二次提交（重新答题）</span>
+          </div>
+        </div>
+      </div>
+      <div class="feedback-footer">
+        <button class="btn btn-outline" id="fb-cancel">取消</button>
+        <div style="display:flex;gap:8px">
+          ${!isNew ? `<button class="btn btn-outline-danger btn-sm" id="fb-delete">🗑 删除评语</button>` : ''}
+          <button class="btn btn-primary" id="fb-save">💾 保存评语</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(backdrop);
+
+  // 关闭
+  backdrop.querySelector('.feedback-dialog-close').onclick = () => backdrop.remove();
+  backdrop.querySelector('#fb-cancel').onclick = () => backdrop.remove();
+  backdrop.addEventListener('click', e => { if (e.target === backdrop) backdrop.remove(); });
+
+  // 保存
+  backdrop.querySelector('#fb-save').onclick = async () => {
+    const teacher_comment = backdrop.querySelector('#fb-comment').value.trim();
+    const deduction_items = getItemValues(backdrop, 'fb-deduction-items');
+    const suggestions = getItemValues(backdrop, 'fb-suggestions');
+    const allow_resubmit = backdrop.querySelector('#fb-allow-resubmit').checked;
+
+    const body = { student_id: studentId, exam_id: examId, teacher_comment, deduction_items, suggestions, allow_resubmit };
+    let url = `${API}/api/teacher/feedbacks`;
+    let method = 'POST';
+
+    if (existing) {
+      url = `${API}/api/teacher/feedbacks/${existing.id}`;
+      method = 'PUT';
+      // 对于 PUT 只发送更新的字段
+      delete body.student_id;
+      delete body.exam_id;
+    }
+
+    try {
+      const r = await fetch(url, {
+        method,
+        headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      });
+      if (!r.ok) { const d = await r.json(); alert(d.detail || '保存失败'); return; }
+      backdrop.remove();
+      loadScores(currentExamId);
+      loadExams();
+    } catch(e) { alert('网络错误：' + e); }
+  };
+
+  // 删除
+  if (existing) {
+    backdrop.querySelector('#fb-delete').onclick = async () => {
+      if (!confirm(`确认删除 ${studentName} 的评语？`)) return;
+      try {
+        const r = await fetch(`${API}/api/teacher/feedbacks/${existing.id}`, {
+          method: 'DELETE',
+          headers: {'Authorization': `Bearer ${TOKEN}`}
+        });
+        if (!r.ok) { const d = await r.json(); alert(d.detail || '删除失败'); return; }
+        backdrop.remove();
+        loadScores(currentExamId);
+        loadExams();
+      } catch(e) { alert('网络错误：' + e); }
+    };
+  }
+}
+
+function addFeedbackItem(containerId) {
+  const container = document.getElementById(containerId);
+  const row = document.createElement('div');
+  row.className = 'feedback-item-row';
+  row.innerHTML = `<input type="text" placeholder="输入内容…"><button class="del" onclick="this.closest('.feedback-item-row').remove()">✕</button>`;
+  container.appendChild(row);
+  row.querySelector('input').focus();
+}
+
+function getItemValues(backdrop, containerId) {
+  const inputs = backdrop.querySelectorAll(`#${containerId} .feedback-item-row input`);
+  return Array.from(inputs).map(i => i.value.trim()).filter(v => v);
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 // ───── 初始化：检查已有 token ─────

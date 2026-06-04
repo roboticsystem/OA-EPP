@@ -232,3 +232,72 @@
 
 .exam-modal-msg.error { background: #ffebee; color: #c62828; }
 .exam-modal-msg.info  { background: #e3f2fd; color: #1565c0; }
+
+/* ── 评语与改进建议样式 ── */
+.exam-fb-comment {
+  font-size: .88rem;
+  color: #444;
+  line-height: 1.6;
+  text-align: left;
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border-left: 3px solid #1565c0;
+}
+
+.exam-fb-label {
+  font-size: .82rem;
+  font-weight: bold;
+  color: #1565c0;
+  margin-top: 10px;
+  text-align: left;
+}
+
+.exam-fb-list {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0 0;
+  text-align: left;
+}
+
+.exam-fb-list li {
+  font-size: .84rem;
+  color: #555;
+  padding: 3px 0 3px 18px;
+  position: relative;
+  line-height: 1.5;
+}
+
+.exam-fb-list li::before {
+  content: "•";
+  position: absolute;
+  left: 4px;
+  color: #1565c0;
+}
+
+.exam-fb-list.deduction li::before {
+  color: #c62828;
+  content: "▸";
+}
+
+.exam-resubmit-area {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.exam-resubmit-btn {
+  display: inline-block;
+  padding: 8px 22px;
+  background: #e65100;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: .9rem;
+  font-weight: bold;
+}
+
+.exam-resubmit-btn:hover {
+  background: #bf360c;
+}

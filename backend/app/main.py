@@ -38,4 +38,7 @@ def score_page():
 @app.on_event("startup")
 def startup():
     init_db()
-    sync_exams()
+    try:
+        sync_exams()
+    except Exception as e:
+        print(f"[startup] sync_exams 失败（表可能不存在）: {e}")

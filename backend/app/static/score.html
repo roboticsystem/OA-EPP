@@ -43,6 +43,18 @@
   .score-pending { font-size: .9rem; color: #bbb; }
   .hint { font-size: .85rem; color: #888; margin-top: 10px; text-align: center; }
   .empty { padding: 32px; text-align: center; color: #bbb; }
+  /* 评语区块 */
+  .feedback-section { margin-top: 10px; border-top: 1px dashed #e0e0e0; padding-top: 10px; }
+  .feedback-comment { font-size: .88rem; color: #444; line-height: 1.6; margin-bottom: 10px; background: #fafafa; padding: 10px 12px; border-radius: 6px; border-left: 3px solid #1565c0; }
+  .feedback-label { font-size: .8rem; font-weight: bold; color: #1565c0; margin-bottom: 4px; }
+  .feedback-list { list-style: none; padding: 0; margin: 0 0 10px 0; }
+  .feedback-list li { font-size: .84rem; color: #555; padding: 4px 0 4px 18px; position: relative; line-height: 1.5; }
+  .feedback-list li::before { content: "•"; position: absolute; left: 4px; color: #1565c0; }
+  .feedback-list.deduction li::before { color: #c62828; content: "▸"; }
+  .resubmit-entry { margin-top: 10px; text-align: center; }
+  .resubmit-btn { display: inline-block; padding: 8px 20px; background: #e65100; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: .9rem; }
+  .resubmit-btn:hover { background: #bf360c; }
+  .no-feedback { font-size: .82rem; color: #bbb; font-style: italic; }
 </style>
 </head>
 <body>
@@ -145,11 +157,45 @@ function renderResults(data) {
 
   const scoreHtml = data.scores.map(item => {
     if (item.score !== null) {
+      const feedbacks = item.feedbacks || [];
+      const latestFb = feedbacks.length > 0 ? feedbacks[0] : null;
+
+      let feedbackHtml = '';
+      if (latestFb) {
+        const commentPart = latestFb.teacher_comment
+          ? `<div class="feedback-comment">${escapeHtml(latestFb.teacher_comment)}</div>` : '';
+
+        const deductionPart = (latestFb.deduction_items && latestFb.deduction_items.length > 0)
+          ? `<div class="feedback-label">🔻 扣分项说明</div>
+             <ul class="feedback-list deduction">${latestFb.deduction_items.map(d => `<li>${escapeHtml(d)}</li>`).join('')}</ul>` : '';
+
+        const suggestionPart = (latestFb.suggestions && latestFb.suggestions.length > 0)
+          ? `<div class="feedback-label">💡 改进建议</div>
+             <ul class="feedback-list">${latestFb.suggestions.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>` : '';
+
+        const resubmitPart = item.allow_resubmit
+          ? `<div class="resubmit-entry"><a class="resubmit-btn" href="/practice1_${item.exam_id}/" target="_blank">🔄 重新提交</a></div>` : '';
+
+        feedbackHtml = `
+          <div class="feedback-section">
+            ${commentPart}
+            ${deductionPart}
+            ${suggestionPart}
+            ${resubmitPart}
+          </div>`;
+      } else if (item.allow_resubmit) {
+        feedbackHtml = `
+          <div class="feedback-section">
+            <div class="resubmit-entry"><a class="resubmit-btn" href="/practice1_${item.exam_id}/" target="_blank">🔄 重新提交</a></div>
+          </div>`;
+      }
+
       return `
         <div class="score-item submitted">
           <div>
             <div class="exam-title">${item.exam_title}</div>
             <div class="exam-time">${item.submitted_at}</div>
+            ${feedbackHtml}
           </div>
           <div class="score-badge">
             <div class="score-value">${item.score}</div>
@@ -168,6 +214,11 @@ function renderResults(data) {
   document.getElementById('score-list').innerHTML = scoreHtml;
   card.style.display = 'block';
   card.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 </script>
 </body>

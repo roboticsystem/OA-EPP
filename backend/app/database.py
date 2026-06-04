@@ -1,15 +1,23 @@
-import sqlite3
+import pymysql
 import os
+import logging
 from contextlib import contextmanager
 
-DB_PATH = os.environ.get("DB_PATH", "/app/data/exam.db")
+logger = logging.getLogger("database")
+
+DB_CONFIG = {
+    "host": os.environ.get("DB_HOST", "156.239.252.40"),
+    "port": int(os.environ.get("DB_PORT", "13306")),
+    "user": os.environ.get("DB_USER", "student_dev"),
+    "password": os.environ.get("DB_PASSWORD", "OaEpp@Dev2026"),
+    "database": os.environ.get("DB_NAME", "oaepp_dev"),
+    "charset": "utf8mb4",
+    "cursorclass": pymysql.cursors.DictCursor,
+}
 
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
+    conn = pymysql.connect(**DB_CONFIG)
     return conn
 
 
@@ -26,33 +34,70 @@ def db():
         conn.close()
 
 
+def _try_create_table(cur, table_name, create_sql):
+    """尝试建表，无权限则警告并跳过。"""
+    cur.execute(f"SHOW TABLES LIKE '{table_name}'")
+    if cur.fetchone():
+        logger.info(f"表 {table_name} 已存在，跳过。")
+        return
+    try:
+        cur.execute(create_sql)
+        logger.info(f"表 {table_name} 创建成功。")
+    except pymysql.err.OperationalError as e:
+        if e.args[0] == 1142:  # ER_TABLEACCESS_DENIED_ERROR
+            logger.warning(f"无 CREATE 权限，跳过建表 {table_name}。请 DBA 手动执行：\n{create_sql}")
+        else:
+            raise
+
+
 def init_db():
     with db() as conn:
-        conn.executescript("""
-        CREATE TABLE IF NOT EXISTS students (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            name        TEXT NOT NULL,
-            student_id  TEXT UNIQUE NOT NULL,
-            class_name  TEXT DEFAULT '',
-            pinyin      TEXT DEFAULT '',
-            pinyin_abbr TEXT DEFAULT '',
-            created_at  TEXT DEFAULT (datetime('now','localtime'))
-        );
+        cur = conn.cursor()
 
-        CREATE TABLE IF NOT EXISTS exams (
-            id         TEXT PRIMARY KEY,
-            title      TEXT NOT NULL,
-            is_active  INTEGER DEFAULT 1
-        );
-
-        CREATE TABLE IF NOT EXISTS scores (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id   TEXT NOT NULL,
-            exam_id      TEXT NOT NULL,
-            score        REAL NOT NULL,
-            total        REAL NOT NULL,
-            submitted_at TEXT DEFAULT (datetime('now','localtime')),
-            UNIQUE(student_id, exam_id)
-        );
+        _try_create_table(cur, "exam_students", """
+        CREATE TABLE exam_students (
+            id          INT AUTO_INCREMENT PRIMARY KEY,
+            name        VARCHAR(100) NOT NULL,
+            student_id  VARCHAR(50) UNIQUE NOT NULL,
+            class_name  VARCHAR(200) DEFAULT '',
+            pinyin      VARCHAR(500) DEFAULT '',
+            pinyin_abbr VARCHAR(200) DEFAULT '',
+            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         """)
-        # 考试记录由 sync_exams() 根据 .md 文件动态维护，此处不再硬编码预置
+
+        _try_create_table(cur, "exam_list", """
+        CREATE TABLE exam_list (
+            id         VARCHAR(100) PRIMARY KEY,
+            title      VARCHAR(300) NOT NULL,
+            is_active  TINYINT DEFAULT 1
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        """)
+
+        _try_create_table(cur, "exam_scores", """
+        CREATE TABLE exam_scores (
+            id              INT AUTO_INCREMENT PRIMARY KEY,
+            student_id      VARCHAR(50) NOT NULL,
+            exam_id         VARCHAR(100) NOT NULL,
+            score           DOUBLE NOT NULL,
+            total           DOUBLE NOT NULL,
+            submitted_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+            allow_resubmit  TINYINT DEFAULT 0,
+            UNIQUE KEY uk_student_exam (student_id, exam_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        """)
+
+        _try_create_table(cur, "exam_feedbacks", """
+        CREATE TABLE exam_feedbacks (
+            id              INT AUTO_INCREMENT PRIMARY KEY,
+            student_id      VARCHAR(50) NOT NULL,
+            exam_id         VARCHAR(100) NOT NULL,
+            teacher_comment TEXT,
+            deduction_items JSON,
+            suggestions     JSON,
+            created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        """)
+
+        cur.close()

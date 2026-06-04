@@ -1,5 +1,5 @@
 """
-sync_exams.py — 扫描 DOCS_DIR 下所有 Markdown 文件，自动维护 exam-meta 与数据库 exams 表的一致性。
+sync_exams.py — 扫描 DOCS_DIR 下所有 Markdown 文件，自动维护 exam-meta 与数据库 exam_list 表的一致性。
 由 app/main.py 在 FastAPI 启动时调用。
 
 规则：
@@ -116,30 +116,37 @@ def sync_exams() -> dict:
     added   = []
     updated = []
     deleted = []
-    with db() as conn:
-        existing = {r["id"]: r["title"] for r in conn.execute("SELECT id, title FROM exams")}
+    try:
+        with db() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT id, title FROM exam_list")
+            existing = {r["id"]: r["title"] for r in cur.fetchall()}
+    except Exception as e:
+        print(f"[sync_exams] 数据库操作失败（表可能不存在），跳过同步: {e}")
+        return {"injected_meta": injected, "error": str(e)}
         for eid, etitle in found.items():
             if eid not in existing:
-                conn.execute("INSERT INTO exams (id, title, is_active) VALUES (?,?,1)", (eid, etitle))
+                cur.execute("INSERT INTO exam_list (id, title, is_active) VALUES (%s,%s,1)", (eid, etitle))
                 added.append(eid)
                 print(f"[sync_exams] 数据库新增考试：{eid} - {etitle}")
             else:
                 # 如果文档中 exam-title 与数据库中不一致，更新数据库中的标题
                 if existing.get(eid) != etitle:
-                    conn.execute("UPDATE exams SET title=? WHERE id=?", (etitle, eid))
+                    cur.execute("UPDATE exam_list SET title=%s WHERE id=%s", (etitle, eid))
                     updated.append(eid)
                     print(f"[sync_exams] 数据库更新考试标题：{eid} - {etitle}")
         # 只有在确实扫描到考试文档时才清理孤立记录，防止挂载目录为空时误删所有考试
         if found:
             for eid in list(existing):
                 if eid not in found:
-                    conn.execute("DELETE FROM exams WHERE id=?", (eid,))
+                    cur.execute("DELETE FROM exam_list WHERE id=%s", (eid,))
                     deleted.append(eid)
                     print(f"[sync_exams] 数据库删除孤立考试：{eid}")
         elif existing:
             print(f"[sync_exams] ⚠️  文档扫描结果为空，跳过孤立记录清理（保留 {len(existing)} 条现有记录）")
+        cur.close()
 
     print(f"[sync_exams] 完成：发现 {len(found)} 个考试，"
           f"注入 {len(injected)} 个文件，DB 新增 {len(added)}，更新 {len(updated)}，删除 {len(deleted)}")
     return {"injected_meta": injected, "db_added": added, "db_updated": updated, "db_deleted": deleted,
-            "exams": list(found.keys())}
+            "exam_list": list(found.keys())}

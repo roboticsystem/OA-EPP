@@ -80,7 +80,14 @@
       const d = await r.json();
       if (!r.ok) { return; } // token 失效，保持遮罩
       if (d.already_submitted) {
-        showSubmitted(d, banner, overlay, quizEls, quizResults);
+        if (d.allow_resubmit) {
+          // 允许重新提交：清除缓存，显示解锁状态
+          sessionStorage.removeItem(`exam_token_${examId}`);
+          sessionStorage.removeItem(`exam_student_id_${examId}`);
+          unlockQuiz(d.name, token, examId, overlay, banner, quizEls, quizResults);
+        } else {
+          showSubmitted(d, banner, overlay, quizEls, quizResults);
+        }
       } else {
         unlockQuiz(d.name, token, examId, overlay, banner, quizEls, quizResults);
       }
@@ -245,7 +252,13 @@
       backdrop.remove();
 
       if (d.already_submitted) {
-        showSubmitted(d, banner, overlay, quizEls, quizResults);
+        if (d.allow_resubmit) {
+          // 允许重新提交：清除旧 token，解锁题目
+          sessionStorage.removeItem(`exam_token_${examId}`);
+          unlockQuiz(d.name, d.token || token, examId, overlay, banner, quizEls, quizResults);
+        } else {
+          showSubmitted(d, banner, overlay, quizEls, quizResults);
+        }
       } else {
         // 保存 token 到 sessionStorage
         sessionStorage.setItem(`exam_token_${examId}`, d.token);
@@ -266,6 +279,32 @@
   function showSubmitted(data, banner, overlay, quizEls, quizResults) {
     // 替换横幅为成绩展示
     const pct = data.total > 0 ? Math.round(data.score / data.total * 100) : 0;
+
+    // 构建评语 HTML
+    const feedbacks = data.feedbacks || [];
+    const latestFb = feedbacks.length > 0 ? feedbacks[0] : null;
+    let feedbackHtml = '';
+
+    if (latestFb) {
+      if (latestFb.teacher_comment) {
+        feedbackHtml += `<div class="exam-fb-comment">📝 ${escHtml(latestFb.teacher_comment)}</div>`;
+      }
+      if (latestFb.deduction_items && latestFb.deduction_items.length > 0) {
+        feedbackHtml += `<div class="exam-fb-label">🔻 扣分项说明</div><ul class="exam-fb-list deduction">`;
+        latestFb.deduction_items.forEach(d => { feedbackHtml += `<li>${escHtml(d)}</li>`; });
+        feedbackHtml += `</ul>`;
+      }
+      if (latestFb.suggestions && latestFb.suggestions.length > 0) {
+        feedbackHtml += `<div class="exam-fb-label">💡 改进建议</div><ul class="exam-fb-list">`;
+        latestFb.suggestions.forEach(s => { feedbackHtml += `<li>${escHtml(s)}</li>`; });
+        feedbackHtml += `</ul>`;
+      }
+    }
+
+    const resubmitHtml = data.allow_resubmit
+      ? `<div class="exam-resubmit-area"><button class="exam-resubmit-btn" onclick="location.reload()">🔄 重新提交（点击刷新页面后重新答题）</button></div>`
+      : '';
+
     const submitted = ce("div", "exam-submitted-banner");
     submitted.innerHTML = `
       <div style="font-size:1.6rem;margin-bottom:8px">🎉</div>
@@ -273,13 +312,22 @@
       <div class="score-label">满分 ${data.total} 分（${pct}%）</div>
       <div class="submitted-time">提交时间：${data.submitted_at}</div>
       <div style="margin-top:12px;font-size:.88rem;color:#888">您已完成本次测验，成绩已记录</div>
+      ${feedbackHtml}
+      ${resubmitHtml}
     `;
     banner.replaceWith(submitted);
 
     // 隐藏题目区域（保持覆盖）
     if (overlay && overlay.mask) {
-      overlay.mask.innerHTML = `<span style="color:#888;font-size:.95rem">本次测验已完成</span>`;
+      overlay.mask.innerHTML = data.allow_resubmit
+        ? `<span style="color:#e65100;font-size:.95rem">教师已允许重新提交，请刷新页面后重新答题</span>`
+        : `<span style="color:#888;font-size:.95rem">本次测验已完成</span>`;
     }
+  }
+
+  function escHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   // ── 解锁题目 ─────────────────────────────────────────

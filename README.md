@@ -40,6 +40,8 @@
   python3 deploy_local_or_coolify.py
   # 选择 [2] 远程部署（Coolify）
   ```
+$env:PYTHONUTF8 = "1"
+python deploy_local_or_coolify.py
 
 ---
 
