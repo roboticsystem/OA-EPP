@@ -3,7 +3,7 @@ FROM python:3.11-slim
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     REFLEX_FRONTEND_PORT=3000 \
-    REFLEX_BACKEND_PORT=8000 \
+    REFLEX_BACKEND_PORT=8003 \
     REFLEX_BACKEND_HOST=0.0.0.0
 
 WORKDIR /app
@@ -20,6 +20,6 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
-EXPOSE 80 3000 8000
+EXPOSE 80 3000 8003
 
 CMD ["/start.sh"]
