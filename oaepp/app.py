@@ -64,6 +64,19 @@ if app is not None and profile_mod is not None:
     if hasattr(profile_mod, "profile_page") and callable(getattr(profile_mod, "profile_page")):
         app.add_page(profile_mod.profile_page, route="/profile")
 
+# --- devops / F-D-007 PR review prompts ---
+try:
+    from pages import devops as devops_mod
+except Exception:
+    try:
+        from oaepp.pages import devops as devops_mod
+    except Exception:
+        devops_mod = None
+
+if app is not None and devops_mod is not None:
+    if hasattr(devops_mod, "devops_page") and callable(getattr(devops_mod, "devops_page")):
+        app.add_page(devops_mod.devops_page, route="/admin/devops")
+
 if app is not None and login_mod is not None:
     try:
         if hasattr(login_mod, "login_page") and callable(getattr(login_mod, "login_page")):
