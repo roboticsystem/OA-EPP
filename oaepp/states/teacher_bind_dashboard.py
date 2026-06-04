@@ -8,6 +8,8 @@ BindDashboardState 负责教师端绑定状态看板的查询与批量操作。
 """
 import sys
 import os
+from math import ceil
+
 # 确保 backend 包可导入
 _backend_root = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "backend")
@@ -16,6 +18,9 @@ if _backend_root not in sys.path:
     sys.path.insert(0, _backend_root)
 
 from app.database import db as _get_db
+
+
+PAGE_SIZE = 8
 
 
 class BindDashboardState:
@@ -38,6 +43,9 @@ class BindDashboardState:
 
     # ── 列表数据 ──
     students: list[dict] = []
+    current_page: int = 1
+    total_pages: int = 1
+    page_size: int = PAGE_SIZE
 
     # ── 筛选条件 ──
     filter_status: str = "all"
@@ -80,22 +88,25 @@ class BindDashboardState:
     @classmethod
     def load_list(
         cls,
+        page: int = 1,
         status: str = "all",
         search: str = "",
         sort_by_status_flag: bool = False,
     ):
-        """加载学生绑定状态列表，支持筛选、搜索、排序。
+        """加载学生绑定状态列表，支持筛选、搜索、排序、分页。
 
         原型：admin_students.html → 学生详情表格
               列：学号 / 姓名 / GitHub 账号 / 绑定状态 /
                   GitHub 实名状态 / 最近核查时间 / 操作
               未绑定行红色高亮，待审核行黄色高亮
         """
+        cls.current_page = page
         cls.filter_status = status
         cls.search_query = search
         cls.sort_by_status = sort_by_status_flag
 
         with _get_db() as conn:
+            # ── 构建查询 ──
             base_from = (
                 "FROM users u "
                 "LEFT JOIN students s ON s.user_id = u.id "
@@ -127,6 +138,11 @@ class BindDashboardState:
             if conditions:
                 where = " AND " + " AND ".join(conditions)
 
+            # ── 总记录数 ──
+            count_sql = f"SELECT COUNT(*) {base_from}{where}"
+            total_count = conn.execute(count_sql, params).fetchone()[0] or 0
+
+            # ── 排序 ──
             order_by = ""
             if sort_by_status_flag:
                 order_by = (
@@ -142,6 +158,12 @@ class BindDashboardState:
             else:
                 order_by = "ORDER BY u.student_no"
 
+            # ── 分页 ──
+            offset = (page - 1) * PAGE_SIZE
+            limit_clause = "LIMIT %s OFFSET %s"
+            params.extend([PAGE_SIZE, offset])
+
+            # ── 执行查询 ──
             query = (
                 "SELECT u.full_name AS name, u.student_no AS student_id, "
                 "COALESCE(s.class_name, '') AS class_name, "
@@ -149,11 +171,14 @@ class BindDashboardState:
                 "COALESCE(g.verify_status, 'unbound') AS binding_status, "
                 "COALESCE(g.github_name, '') AS github_name, "
                 "g.verified_at "
-                f"{base_from}{where} {order_by}"
+                f"{base_from}{where} {order_by} {limit_clause}"
             )
             rows = conn.execute(query, params).fetchall()
 
         cls.students = [dict(r) for r in rows]
+        cls.total_pages = max(ceil(total_count / PAGE_SIZE), 1)
+        if page > cls.total_pages:
+            cls.current_page = cls.total_pages
 
     # ══════════════════════════════════════════
     #  批量操作
