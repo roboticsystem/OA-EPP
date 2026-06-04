@@ -19,6 +19,7 @@ import socket
 import subprocess
 import sys
 import time
+import shutil
 from pathlib import Path
 
 # ── 项目根目录 ─────────────────────────────────────────────────────────────────
@@ -37,6 +38,7 @@ if str(BACKEND_DIR) not in sys.path:
 HOST        = "127.0.0.1"
 MKDOCS_PORT = 8008
 API_PORT    = 8009
+REFLEX_PORT = 8003
 
 # ── Coolify 配置（从 .env 读取敏感数据）─────────────────────────────────────────
 _env_file = REPO_ROOT / ".env"
@@ -612,6 +614,7 @@ def deploy_coolify(sync_summary: dict):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 #  Reflex 本地预览
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -798,10 +801,95 @@ def deploy_reflex_coolify():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  主入口
+#  Reflex 本地开发入口（main 版本）
 # ══════════════════════════════════════════════════════════════════════════════
 
+
+def run_reflex_dev(sync_summary: dict = None, port: int = REFLEX_PORT):
+    """Start local Reflex development server for the /oaepp prototype.
+
+    Installs oaepp/requirements.txt if present, ensures port availability,
+    then tries to run via the `oaepp.app` helper or falls back to the
+    `reflex` CLI / python -m reflex invocation.
+    """
+    print("\n🔧 启动 Reflex 本地开发（热重载）...")
+
+    # Install oaepp requirements if present
+    oaepp_reqs = REPO_ROOT / "oaepp" / "requirements.txt"
+    if oaepp_reqs.exists():
+        print(f"⚙️  安装 oaepp 依赖: {oaepp_reqs.relative_to(REPO_ROOT)}")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "-r", str(oaepp_reqs)])
+        except subprocess.CalledProcessError:
+            print("⚠️  安装 oaepp 依赖失败，继续尝试启动（若缺少 reflex 运行时将报错）")
+
+    ensure_port_available(HOST, port)
+
+    # Try to run via oaepp.app
+    try:
+        import oaepp.app as _app
+        if hasattr(_app, "run"):
+            print(f"✅ 使用 oaepp.app.run 在端口 {port} 启动 Reflex")
+            _app.run(port=port)
+            return
+    except Exception:
+        pass
+
+    # Fallback to reflex CLI
+    try:
+        binpath = shutil.which("reflex")
+        cmds = []
+        if binpath:
+            cmds = [
+                [binpath, "run", "--backend-port", str(port)],
+                [binpath, "run", "--single-port", str(port)],
+                [binpath, "run"],
+            ]
+        else:
+            cmds = [
+                [sys.executable, "-m", "reflex", "run", "--backend-port", str(port)],
+                [sys.executable, "-m", "reflex", "run", "--single-port", str(port)],
+                [sys.executable, "-m", "reflex", "run"],
+            ]
+        for cmd in cmds:
+            try:
+                subprocess.check_call(cmd)
+                return
+            except subprocess.CalledProcessError:
+                continue
+    except Exception as exc:
+        print(f"❌ 启动 Reflex 失败: {exc}\n请确认已安装 reflex，并可通过 'reflex run' 启动。")
+
+    # 如果无法启动 Reflex（版本/配置不兼容），提供静态预览回退：
+    try:
+        from http.server import SimpleHTTPRequestHandler
+        import socketserver
+
+        serve_dir = REPO_ROOT / "oaepp"
+        if not serve_dir.exists():
+            print("❌ oaepp 目录不存在，无法提供静态预览")
+            return
+
+        print(f"⚠️  Reflex 未能启动，退回到静态预览 {serve_dir} (http://{HOST}:{port}/)")
+        os.chdir(str(serve_dir))
+        handler = SimpleHTTPRequestHandler
+        with socketserver.TCPServer((HOST, port), handler) as httpd:
+            print(f"✅ 静态预览运行中： http://{HOST}:{port}/login.html (按 Ctrl+C 停止)")
+            try:
+                httpd.serve_forever()
+            except KeyboardInterrupt:
+                print("\n⛔ 静态预览已停止")
+    except Exception as exc:
+        print(f"❌ 无法启动静态预览: {exc}")
+
 def main():
+    # 支持通过命令行快速启动 Reflex 本地开发：
+    if "--reflex-dev" in sys.argv:
+        print("⚙️  使用命令行参数 --reflex-dev 启动 Reflex 本地开发")
+        # 跳过数据库同步，直接启动 Reflex 本地开发
+        run_reflex_dev(None)
+        return
+
     choice = show_menu()
 
     if choice == "Q":
@@ -822,7 +910,7 @@ def main():
     if choice == "1":
         serve_local()
     elif choice == "2":
-        deploy_coolify(sync_summary)
+        run_reflex_dev(sync_summary)
 
 
 if __name__ == "__main__":
