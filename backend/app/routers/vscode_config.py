@@ -12,7 +12,7 @@ router = APIRouter()
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 CONFIG_PATH = os.path.join(DATA_DIR, "vscode_config.json")
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+REPO_ROOT = os.environ.get("PROJECT_ROOT", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 os.makedirs(DATA_DIR, exist_ok=True)
 

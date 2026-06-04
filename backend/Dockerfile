@@ -2,7 +2,7 @@ FROM python:3.12-alpine
 
 WORKDIR /app
 
-RUN apk add --no-cache gcc musl-dev libffi-dev
+RUN apk add --no-cache gcc musl-dev libffi-dev git
 
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -15,5 +15,8 @@ COPY docs/ ./docs_baked/
 
 # SQLite 数据目录（由 volume 挂载）
 RUN mkdir -p /app/data
+
+# 容器内项目根目录（git 操作需要挂载 .git 到此处）
+ENV PROJECT_ROOT=/app
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
