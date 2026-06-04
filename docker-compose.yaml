@@ -122,8 +122,8 @@ services:
       REFLEX_FRONTEND_PORT: 3000
       REFLEX_BACKEND_PORT: 8003
       REFLEX_BACKEND_HOST: 0.0.0.0
-      REFLEX_API_URL: https://oaepp_reflex.uwis.cn
-      REFLEX_DEPLOY_URL: https://oaepp_reflex.uwis.cn
+      REFLEX_API_URL: https://oaepp-reflex.uwis.cn
+      REFLEX_DEPLOY_URL: https://oaepp-reflex.uwis.cn
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1/ping', timeout=3).read()\""]
       interval: 30s
@@ -131,7 +131,7 @@ services:
       retries: 3
       start_period: 30s
     labels:
-      caddy: "oaepp_reflex.uwis.cn"
+      caddy: "oaepp-reflex.uwis.cn"
       caddy.reverse_proxy: "{{upstreams 80}}"
     networks:
       - coolify
