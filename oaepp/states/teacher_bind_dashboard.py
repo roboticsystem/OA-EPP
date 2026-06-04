@@ -8,8 +8,6 @@ BindDashboardState 负责教师端绑定状态看板的查询与批量操作。
 """
 import sys
 import os
-from math import ceil
-
 # 确保 backend 包可导入
 _backend_root = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "backend")
@@ -41,8 +39,17 @@ class BindDashboardState:
     # ── 列表数据 ──
     students: list[dict] = []
 
+    # ── 筛选条件 ──
+    filter_status: str = "all"
+    search_query: str = ""
+    sort_by_status: bool = False
+
     # ── 批量操作 ──
     selected_ids: list[str] = []
+
+    # ══════════════════════════════════════════
+    #  统计卡片
+    # ══════════════════════════════════════════
 
     @classmethod
     def load_summary(cls):
@@ -65,6 +72,92 @@ class BindDashboardState:
         cls.bound_count = bound or 0
         cls.pending_count = pending or 0
         cls.unbound_count = max(cls.total_students - cls.bound_count - cls.pending_count, 0)
+
+    # ══════════════════════════════════════════
+    #  列表查询
+    # ══════════════════════════════════════════
+
+    @classmethod
+    def load_list(
+        cls,
+        status: str = "all",
+        search: str = "",
+        sort_by_status_flag: bool = False,
+    ):
+        """加载学生绑定状态列表，支持筛选、搜索、排序。
+
+        原型：admin_students.html → 学生详情表格
+              列：学号 / 姓名 / GitHub 账号 / 绑定状态 /
+                  GitHub 实名状态 / 最近核查时间 / 操作
+              未绑定行红色高亮，待审核行黄色高亮
+        """
+        cls.filter_status = status
+        cls.search_query = search
+        cls.sort_by_status = sort_by_status_flag
+
+        with _get_db() as conn:
+            base_from = (
+                "FROM users u "
+                "LEFT JOIN students s ON s.user_id = u.id "
+                "LEFT JOIN github_bindings g ON u.id = g.student_user_id "
+                "WHERE u.role = 'student'"
+            )
+            conditions: list[str] = []
+            params: list = []
+
+            if status and status != "all":
+                if status == "unbound":
+                    conditions.append(
+                        "(g.verify_status IS NULL "
+                        "OR g.verify_status NOT IN ('approved','pending'))"
+                    )
+                else:
+                    conditions.append("g.verify_status = %s")
+                    params.append(status)
+
+            if search:
+                conditions.append(
+                    "(u.full_name LIKE %s OR u.student_no LIKE %s "
+                    "OR COALESCE(g.github_username, '') LIKE %s)"
+                )
+                like = f"%{search}%"
+                params.extend([like, like, like])
+
+            where = ""
+            if conditions:
+                where = " AND " + " AND ".join(conditions)
+
+            order_by = ""
+            if sort_by_status_flag:
+                order_by = (
+                    "ORDER BY "
+                    "CASE "
+                    "WHEN g.verify_status IS NULL "
+                    "OR g.verify_status NOT IN ('approved','pending') THEN 0 "
+                    "WHEN g.verify_status = 'pending' THEN 1 "
+                    "WHEN g.verify_status = 'approved' THEN 2 "
+                    "END, "
+                    "u.student_no"
+                )
+            else:
+                order_by = "ORDER BY u.student_no"
+
+            query = (
+                "SELECT u.full_name AS name, u.student_no AS student_id, "
+                "COALESCE(s.class_name, '') AS class_name, "
+                "COALESCE(g.github_username, '') AS github_username, "
+                "COALESCE(g.verify_status, 'unbound') AS binding_status, "
+                "COALESCE(g.github_name, '') AS github_name, "
+                "g.verified_at "
+                f"{base_from}{where} {order_by}"
+            )
+            rows = conn.execute(query, params).fetchall()
+
+        cls.students = [dict(r) for r in rows]
+
+    # ══════════════════════════════════════════
+    #  批量操作
+    # ══════════════════════════════════════════
 
     @classmethod
     def batch_approve(cls, student_ids: list[str]) -> int:
