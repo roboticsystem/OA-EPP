@@ -1,7 +1,8 @@
 import reflex as rx
 from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import select, and_, count
+from sqlalchemy import select, and_
+from sqlalchemy.sql.functions import count
 from oaepp.models.database import (
     Course, Chapter, Task, Student,
     StudentCourse, TaskCompletion
