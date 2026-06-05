@@ -1,6 +1,6 @@
 """Reflex States 子包 — F-S-022 截止规则
 
-导出 DeadlineState 类。
+导出 DeadlineState 和 DashboardState 类。
 """
 
 try:
@@ -8,4 +8,9 @@ try:
 except Exception:
     DeadlineState = None
 
-__all__ = ["DeadlineState"]
+try:
+    from .dashboard import DashboardState
+except Exception:
+    DashboardState = None
+
+__all__ = ["DeadlineState", "DashboardState"]

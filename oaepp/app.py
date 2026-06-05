@@ -60,10 +60,7 @@ except Exception:
     except Exception:
         profile_mod = None
 
-if app is not None and profile_mod is not None:
-    if hasattr(profile_mod, "profile_page") and callable(getattr(profile_mod, "profile_page")):
-        app.add_page(profile_mod.profile_page, route="/profile")
-
+# --- login page ---
 if app is not None and login_mod is not None:
     try:
         if hasattr(login_mod, "login_page") and callable(getattr(login_mod, "login_page")):
@@ -75,6 +72,36 @@ if app is not None and login_mod is not None:
             app.add_page(login_mod.page)
     except Exception:
         pass
+
+if app is not None and profile_mod is not None:
+    if hasattr(profile_mod, "profile_page") and callable(getattr(profile_mod, "profile_page")):
+        app.add_page(profile_mod.profile_page, route="/profile")
+
+# --- dashboard page ---
+try:
+    from pages import dashboard as dashboard_mod
+except Exception:
+    try:
+        from oaepp.pages import dashboard as dashboard_mod
+    except Exception:
+        dashboard_mod = None
+
+if app is not None and dashboard_mod is not None:
+    if hasattr(dashboard_mod, "dashboard_page") and callable(getattr(dashboard_mod, "dashboard_page")):
+        app.add_page(dashboard_mod.dashboard_page, route="/dashboard")
+
+# --- submission detail page ---
+try:
+    from pages import submission_detail as submission_detail_mod
+except Exception:
+    try:
+        from oaepp.pages import submission_detail as submission_detail_mod
+    except Exception:
+        submission_detail_mod = None
+
+if app is not None and submission_detail_mod is not None:
+    if hasattr(submission_detail_mod, "submission_detail_page") and callable(getattr(submission_detail_mod, "submission_detail_page")):
+        app.add_page(submission_detail_mod.submission_detail_page, route="/submission/[student_id]/[assignment_id]")
 
 
 def run(port: int = 3000):
