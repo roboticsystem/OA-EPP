@@ -13,4 +13,9 @@ try:
 except Exception:
     DashboardState = None
 
-__all__ = ["DeadlineState", "DashboardState"]
+try:
+    from .teacher_progress_board import ProgressBoardState
+except Exception:
+    ProgressBoardState = None
+
+__all__ = ["DeadlineState", "DashboardState", "ProgressBoardState"]
