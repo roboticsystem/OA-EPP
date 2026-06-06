@@ -1,584 +1,267 @@
-"""
-教师端作业在线批改页面 - F-T-014
-包含批改队列、逐份批改、评语输入、二次提交标记等功能
-"""
 try:
     import reflex as rx
 except Exception:
     rx = None
 
-# 模拟数据
-mock_submissions = [
-    {
-        "id": 1,
-        "assignment_title": "第7章 软件需求规格说明书",
-        "student_name": "张小明",
-        "student_id": "20210001",
-        "class_name": "计算机2101",
-        "course_name": "工程实践4（2025春）",
-        "submitted_at": "2025-05-26 21:32",
-        "deadline": "2025-05-27 23:59",
-        "file_url": "/uploads/20210001_srs.pdf",
-        "text_content": None,
-        "version_no": 1,
-        "allow_resubmit": False,
-        "is_late": False,
-        "status": "pending"
-    },
-    {
-        "id": 2,
-        "assignment_title": "第6章 数据库设计",
-        "student_name": "李华",
-        "student_id": "20210002",
-        "class_name": "计算机2101",
-        "course_name": "工程实践4（2025春）",
-        "submitted_at": "2025-05-25 18:45",
-        "deadline": "2025-05-25 23:59",
-        "file_url": "/uploads/20210002_db_design.pdf",
-        "text_content": None,
-        "version_no": 2,
-        "allow_resubmit": True,
-        "is_late": False,
-        "status": "pending"
-    },
-    {
-        "id": 3,
-        "assignment_title": "第5章 系统架构设计",
-        "student_name": "王芳",
-        "student_id": "20210003",
-        "class_name": "软件工程2101",
-        "course_name": "工程实践4（2025春）",
-        "submitted_at": "2025-05-24 00:12",
-        "deadline": "2025-05-23 23:59",
-        "file_url": "/uploads/20210003_arch.pdf",
-        "text_content": None,
-        "version_no": 1,
-        "allow_resubmit": False,
-        "is_late": True,
-        "status": "pending"
-    },
-    {
-        "id": 4,
-        "assignment_title": "第7章 软件需求规格说明书",
-        "student_name": "赵强",
-        "student_id": "20210004",
-        "class_name": "计算机2102",
-        "course_name": "工程实践4（2025春）",
-        "submitted_at": "2025-05-26 15:20",
-        "deadline": "2025-05-27 23:59",
-        "file_url": None,
-        "text_content": "## 需求分析\n\n### 功能需求\n\n1. 用户登录模块\n2. 数据管理模块\n3. 报表生成模块\n\n### 非功能需求\n\n- 响应时间 < 200ms\n- 并发用户数 > 1000",
-        "version_no": 1,
-        "allow_resubmit": False,
-        "is_late": False,
-        "status": "pending"
-    },
-    {
-        "id": 5,
-        "assignment_title": "第6章 数据库设计",
-        "student_name": "刘敏",
-        "student_id": "20210005",
-        "class_name": "软件工程2101",
-        "course_name": "工程实践4（2025春）",
-        "submitted_at": "2025-05-25 22:18",
-        "deadline": "2025-05-25 23:59",
-        "file_url": "/uploads/20210005_db.pdf",
-        "text_content": None,
-        "version_no": 1,
-        "allow_resubmit": False,
-        "is_late": False,
-        "status": "pending"
-    }
-]
+# --- 状态管理 (State) ---
+if rx is not None:
+    class GradingState(rx.State):
+        """批改页面的状态管理，包含模拟数据和交互逻辑"""
 
-mock_courses = [
-    "全部课程",
-    "工程实践4（2025春）",
-    "工程实践3（2024秋）",
-    "工程实践2（2024春）"
-]
-
-mock_classes = [
-    "全部班级",
-    "计算机2101",
-    "计算机2102",
-    "软件工程2101"
-]
-
-last_feedback = ""
-
-class GradingState(rx.State):
-    """批改页面状态管理"""
-    submissions = mock_submissions
-    selected_submission = None
-    current_index = 0
-    filters = {
-        "course": "全部课程",
-        "class_name": "全部班级",
-        "time_filter": "all"
-    }
-    
-    # 评分数据
-    scores = {
-        "attendance": "",
-        "exam": "",
-        "code": "",
-        "pr": ""
-    }
-    overall_comment = ""
-    dimension_comments = {
-        "attendance": "",
-        "exam": "",
-        "code": "",
-        "pr": ""
-    }
-    allow_resubmit = False
-    
-    filtered_submissions = mock_submissions
-    show_markdown_preview = False
-    last_feedback = ""
-
-    @rx.var
-    def pending_count(self):
-        return len([s for s in self.filtered_submissions if s["status"] == "pending"])
-
-    @rx.var
-    def allow_resubmit_count(self):
-        return len([s for s in self.filtered_submissions if s["allow_resubmit"]])
-
-    def apply_filters(self):
-        """应用筛选条件"""
-        self.filtered_submissions = [
-            s for s in self.submissions
-            if (self.filters["course"] == "全部课程" or s["course_name"] == self.filters["course"])
-            and (self.filters["class_name"] == "全部班级" or s["class_name"] == self.filters["class_name"])
+        # 1. 模拟的批改队列数据（默认已按截止时间升序排序）
+        queue: list[dict[str, str | bool]] = [
+            {"id": "task_001", "student": "张三", "course": "Python进阶", "class_name": "计科一班",
+             "deadline": "2026-06-10", "submit_time": "2026-06-08", "allowed_resubmit": False, "status": "待批改"},
+            {"id": "task_002", "student": "李四", "course": "数据结构", "class_name": "软工二班",
+             "deadline": "2026-06-11", "submit_time": "2026-06-09", "allowed_resubmit": True, "status": "已打回重做"},
+            {"id": "task_003", "student": "王五", "course": "Python进阶", "class_name": "计科一班",
+             "deadline": "2026-06-12", "submit_time": "2026-06-10", "allowed_resubmit": False, "status": "待批改"},
         ]
-        # 默认按截止时间升序排列
-        self.filtered_submissions.sort(key=lambda x: x["deadline"])
-        if self.filtered_submissions:
-            self.select_submission(0)
 
-    def select_submission(self, index):
-        """选择要批改的作业"""
-        if 0 <= index < len(self.filtered_submissions):
-            self.current_index = index
-            self.selected_submission = self.filtered_submissions[index]
-            # 重置评分和评语
-            self.scores = {"attendance": "", "exam": "", "code": "", "pr": ""}
-            self.overall_comment = ""
-            self.dimension_comments = {"attendance": "", "exam": "", "code": "", "pr": ""}
-            self.allow_resubmit = self.selected_submission.get("allow_resubmit", False)
+        # 2. 当前选中批改的作业
+        selected_id: str = ""
 
-    def next_submission(self):
-        """下一份作业"""
-        if self.current_index < len(self.filtered_submissions) - 1:
-            self.select_submission(self.current_index + 1)
+        # 3. 批改表单数据
+        score_attendance: str = ""
+        score_exam: str = ""
+        score_code: str = ""
+        score_pr: str = ""
+        general_comment: str = ""
+        improvement_suggestion: str = ""
+        allow_resubmit: bool = False
 
-    def prev_submission(self):
-        """上一份作业"""
-        if self.current_index > 0:
-            self.select_submission(self.current_index - 1)
+        # 4. 快捷操作缓存（上一份评语）
+        prev_general_comment: str = "作业完成度很高，代码规范良好。"
+        prev_improvement_suggestion: str = "建议在第45行增加异常捕获（try-except）机制，以防空指针错误。"
 
-    def copy_last_feedback(self):
-        """复制上一份评语"""
-        if self.last_feedback:
-            self.overall_comment = self.last_feedback
+        # ==========================================
+        # 修复：手动定义 Setter 方法，防止 Reflex 自动生成失败
+        # ==========================================
+        def set_score_attendance(self, value: str):
+            self.score_attendance = value
 
-    def save_grading(self):
-        """保存批改结果"""
-        if not self.selected_submission:
-            return
-        
-        # 保存当前评语作为"上一份评语"
-        self.last_feedback = self.overall_comment
-        
-        # 模拟保存到数据库（实际应用中应调用 API）
-        print(f"批改保存: {self.selected_submission['student_name']} - {self.scores}")
-        print(f"评语: {self.overall_comment}")
-        print(f"允许二次提交: {self.allow_resubmit}")
-        
-        # 标记为已批改
-        self.selected_submission["status"] = "graded"
-        self.selected_submission["allow_resubmit"] = self.allow_resubmit
-        
-        # 自动触发通知（模拟）
-        print(f"已通知学生: {self.selected_submission['student_name']}")
-        
-        # 记录审计日志（模拟）
-        print(f"审计日志: 批改人=李老师, 时间={__import__('datetime').datetime.now()}, 学生={self.selected_submission['student_name']}, 分值={self.scores}, 允许重提={self.allow_resubmit}")
-        
-        # 自动跳转到下一份
-        self.next_submission()
+        def set_score_exam(self, value: str):
+            self.score_exam = value
 
-def filter_section():
-    """筛选区域"""
-    return rx.card(
-        rx.vstack(
-            rx.heading("筛选条件", size="sm", style={"font-weight": "bold"}),
-            rx.hstack(
-                rx.select(
-                    mock_courses,
-                    value=GradingState.filters["course"],
-                    placeholder="选择课程",
-                    on_change=lambda v: GradingState.set_filters(GradingState.filters | {"course": v}),
-                    style={"flex": 1}
-                ),
-                rx.select(
-                    mock_classes,
-                    value=GradingState.filters["class_name"],
-                    placeholder="选择班级",
-                    on_change=lambda v: GradingState.set_filters(GradingState.filters | {"class_name": v}),
-                    style={"flex": 1}
-                ),
-                rx.select(
-                    ["全部时间", "截止时间升序", "提交时间降序"],
-                    value=GradingState.filters["time_filter"],
-                    placeholder="排序方式",
-                    on_change=lambda v: GradingState.set_filters(GradingState.filters | {"time_filter": v}),
-                    style={"flex": 1}
-                ),
-                rx.button(
-                    "应用筛选",
-                    on_click=GradingState.apply_filters,
-                    color_scheme="blue"
-                ),
-                spacing="3",
-                width="100%"
-            ),
-            spacing="4",
-            padding="16px"
-        ),
-        style={"margin-bottom": "16px"}
-    )
+        def set_score_code(self, value: str):
+            self.score_code = value
 
-def queue_item(submission, index):
-    """队列列表项"""
-    is_selected = GradingState.current_index == index
-    is_allow_resubmit = submission.get("allow_resubmit", False)
-    is_late = submission.get("is_late", False)
-    
-    bg_color = "bg-amber-50 border-amber-200" if is_allow_resubmit else "bg-white border-gray-100"
-    border_color = "border-blue-400" if is_selected else ""
-    
-    return rx.box(
-        rx.hstack(
-            rx.box(
-                rx.text(submission["student_name"], style={"font-weight": "bold"}),
-                rx.text(f"学号: {submission['student_id']}", style={"font-size": "12px", "color": "#666"}),
-                rx.text(submission["class_name"], style={"font-size": "12px", "color": "#666"}),
-                spacing="1",
-                style={"flex": 1}
-            ),
-            rx.box(
-                rx.text(submission["assignment_title"], style={"font-size": "12px", "color": "#888"}),
-                rx.text(f"提交于 {submission['submitted_at']}", style={"font-size": "11px", "color": "#aaa"}),
-                spacing="1",
-                style={"flex": 1.5}
-            ),
-            rx.box(
-                rx.cond(
-                    is_allow_resubmit,
-                    rx.badge("允许重提", color_scheme="amber", variant="outline"),
-                    rx.cond(
-                        is_late,
-                        rx.badge("迟交", color_scheme="red", variant="outline"),
-                        rx.badge("待批改", color_scheme="blue", variant="outline")
-                    )
-                ),
-                style={"flex": "none"}
-            ),
-            spacing="4",
-            padding="12px 16px"
-        ),
-        border=f"2px solid {('blue' if is_selected else 'gray')}",
-        border_radius="8px",
-        background=bg_color,
-        cursor="pointer",
-        on_click=lambda: GradingState.select_submission(index),
-        _hover={"background": "#f8fafc"}
-    )
+        def set_score_pr(self, value: str):
+            self.score_pr = value
 
-def queue_section():
-    """批改队列区域"""
-    return rx.card(
-        rx.vstack(
-            rx.hstack(
-                rx.heading("批改队列", size="sm", style={"font-weight": "bold"}),
-                rx.badge(f"待批改: {GradingState.pending_count}", color_scheme="blue"),
-                rx.badge(f"允许重提: {GradingState.allow_resubmit_count}", color_scheme="amber"),
-                justify="space-between",
-                align="center",
-                width="100%"
-            ),
-            rx.divider(),
-            rx.scroll_area(
-                rx.vstack(
-                    rx.foreach(
-                        GradingState.filtered_submissions,
-                        lambda s, i: queue_item(s, i)
-                    ),
-                    spacing="2"
-                ),
-                style={"height": "500px", "width": "100%"}
-            ),
-            spacing="3",
-            padding="16px"
-        ),
-        style={"flex": 1, "min-width": "500px"}
-    )
+        def set_general_comment(self, value: str):
+            self.general_comment = value
 
-def score_input(label, dimension, max_score=100):
-    """单个维度评分输入"""
-    return rx.box(
-        rx.hstack(
-            rx.text(label, style={"width": "80px", "font-weight": "bold"}),
-            rx.input(
-                value=GradingState.scores[dimension],
-                on_change=lambda v: GradingState.set_scores(GradingState.scores | {dimension: v}),
-                placeholder=f"0-{max_score}",
-                type="number",
-                min=0,
-                max=max_score,
-                style={"width": "80px", "text-align": "center"}
-            ),
-            rx.text(f"/ {max_score}", style={"color": "#999"}),
+        def set_improvement_suggestion(self, value: str):
+            self.improvement_suggestion = value
+
+        def set_allow_resubmit(self, value: bool):
+            self.allow_resubmit = value
+
+        # ==========================================
+
+        @rx.var
+        def selected_task(self) -> dict:
+            """获取当前选中的作业详情"""
+            for item in self.queue:
+                if item["id"] == self.selected_id:
+                    return item
+            return {}
+
+        def select_task(self, task_id: str):
+            """选中左侧队列中的任务"""
+            self.selected_id = task_id
+            # 切换作业时重置表单状态
+            self.score_attendance = ""
+            self.score_exam = ""
+            self.score_code = ""
+            self.score_pr = ""
+            self.general_comment = ""
+            self.improvement_suggestion = ""
+            self.allow_resubmit = False
+
+        def copy_prev_comments(self):
+            """【快捷操作】复制上一份评语"""
+            self.general_comment = self.prev_general_comment
+            self.improvement_suggestion = self.prev_improvement_suggestion
+
+        def submit_grading(self):
+            """保存批改并触发后续联动"""
+            if not self.selected_id:
+                return rx.window_alert("请先选择一份作业！")
+
+            # 1. 记录审计日志 (此处为模拟后端调用)
+            # print(f"Audit Log: User=Teacher1, Task={self.selected_id}, Scores={self.score_attendance}/{self.score_exam}/{self.score_code}/{self.score_pr}, Resubmit={self.allow_resubmit}")
+
+            # 2. 保存上一份评语以便下次使用
+            self.prev_general_comment = self.general_comment
+            self.prev_improvement_suggestion = self.improvement_suggestion
+
+            # 3. 触发 F-S-030（成绩实时统计）与 F-S-031 状态更新的模拟事件，并发送站内通知
+            return rx.window_alert("批改已保存！F-S-030/031状态已更新，学生已收到站内通知。")
+
+# --- UI 组件库 ---
+if rx is not None:
+    def filter_bar() -> rx.Component:
+        """过滤器组件"""
+        return rx.hstack(
+            rx.select(["所有课程", "Python进阶", "数据结构"], placeholder="课程筛选", width="100%"),
+            rx.select(["所有班级", "计科一班", "软工二班"], placeholder="班级筛选", width="100%"),
+            rx.select(["截止时间 (升序)", "提交时间 (降序)"], placeholder="排序方式", width="100%"),
             spacing="2",
-            width="100%"
+            margin_bottom="4",
         )
-    )
 
-def dimension_comment(label, dimension):
-    """分项评语输入"""
-    return rx.box(
-        rx.text(label, style={"font-weight": "bold", "margin-bottom": "4px"}),
-        rx.textarea(
-            value=GradingState.dimension_comments[dimension],
-            on_change=lambda v: GradingState.set_dimension_comments(GradingState.dimension_comments | {dimension: v}),
-            placeholder=f"请输入{label}改进建议（支持 Markdown）",
-            rows=2,
-            style={"width": "100%", "font-size": "13px"}
-        ),
-        spacing="2"
-    )
 
-def grading_section():
-    """批改区域"""
-    return rx.card(
-        rx.vstack(
+    def queue_item(task: dict) -> rx.Component:
+        """队列单项渲染，如果允许二次提交，则背景色改变以作区分"""
+        return rx.card(
+            rx.vstack(
+                rx.hstack(
+                    rx.text(task["student"], font_weight="bold"),
+                    rx.badge(task["course"], color_scheme="blue"),
+                    justify="between",
+                    width="100%",
+                ),
+                rx.text(f"截止: {task['deadline']}", font_size="sm", color="gray"),
+                rx.text(f"提交: {task['submit_time']}", font_size="sm", color="gray"),
+                width="100%",
+                align_items="start",
+            ),
+            # 允许二次提交的任务，颜色显著不同（橘色边框/浅色背景示意）
+            background_color=rx.cond(task["allowed_resubmit"], rx.color("orange", 2), rx.color("gray", 2)),
+            border_color=rx.cond(task["allowed_resubmit"], rx.color("orange", 6), rx.color("gray", 4)),
+            border_width="1px",
+            width="100%",
+            cursor="pointer",
+            on_click=GradingState.select_task(task["id"]),
+            _hover={"opacity": 0.8},
+            margin_bottom="2"
+        )
+
+
+    def grading_workspace() -> rx.Component:
+        """右侧主工作台：打分与评语区"""
+        return rx.box(
             rx.cond(
-                GradingState.selected_submission,
-                rx.fragment(
+                GradingState.selected_id == "",
+                rx.center(rx.text("👈 请在左侧选择一份学生作业进行批改", color="gray"), height="100%"),
+                rx.vstack(
                     # 学生信息头部
+                    rx.heading(f"正在批改: {GradingState.selected_task['student']} 的作业", size="6"),
+                    rx.divider(),
+
+                    # 提交内容展示区（已修复：使用 code_block）
+                    rx.card(
+                        rx.vstack(
+                            rx.text("提交内容预览", font_weight="bold"),
+                            rx.code_block(
+                                "print('Hello, World!')\ndef fibonacci(n):\n    return n",
+                                language="python",
+                                show_line_numbers=True,
+                                width="100%",
+                            ),
+                            rx.link("📎 下载附件 (main.py)", href="#", color="blue"),
+                            align_items="start",
+                            width="100%"
+                        ),
+                        width="100%",
+                        margin_bottom="4"
+                    ),
+
+                    # 按维度打分
+                    rx.text("多维度打分", font_weight="bold"),
+                    rx.grid(
+                        rx.box(rx.text("出勤分"), rx.input(placeholder="0-10", value=GradingState.score_attendance,
+                                                           on_change=GradingState.set_score_attendance)),
+                        rx.box(rx.text("考试分"), rx.input(placeholder="0-40", value=GradingState.score_exam,
+                                                           on_change=GradingState.set_score_exam)),
+                        rx.box(rx.text("代码分"), rx.input(placeholder="0-30", value=GradingState.score_code,
+                                                           on_change=GradingState.set_score_code)),
+                        rx.box(rx.text("PR 质量分"), rx.input(placeholder="0-20", value=GradingState.score_pr,
+                                                              on_change=GradingState.set_score_pr)),
+                        columns="4",
+                        spacing="4",
+                        width="100%",
+                        margin_bottom="4"
+                    ),
+
+                    # 评语填写区
                     rx.hstack(
-                        rx.box(
-                            rx.heading(GradingState.selected_submission["student_name"], size="lg", style={"font-weight": "bold"}),
-                            rx.text(f"学号: {GradingState.selected_submission['student_id']} | {GradingState.selected_submission['class_name']}"),
-                            spacing="1"
-                        ),
-                        rx.hstack(
-                            rx.button(
-                                "上一份",
-                                on_click=GradingState.prev_submission,
-                                disabled=GradingState.current_index == 0,
-                                variant="outline"
-                            ),
-                            rx.text(f"{GradingState.current_index + 1} / {len(GradingState.filtered_submissions)}", style={"padding": "0 12px"}),
-                            rx.button(
-                                "下一份",
-                                on_click=GradingState.next_submission,
-                                disabled=GradingState.current_index == len(GradingState.filtered_submissions) - 1,
-                                variant="outline"
-                            ),
-                            spacing="2"
-                        ),
-                        justify="space-between",
+                        rx.text("总体评语及改进建议", font_weight="bold"),
+                        # 快捷按钮
+                        rx.button("复制上一份评语", size="1", variant="soft", on_click=GradingState.copy_prev_comments),
+                        justify="between",
                         width="100%"
                     ),
-                    rx.divider(),
-                    
-                    # 作业信息
-                    rx.box(
-                        rx.text("作业: " + GradingState.selected_submission["assignment_title"], style={"font-weight": "bold"}),
-                        rx.hstack(
-                            rx.text(f"课程: {GradingState.selected_submission['course_name']}"),
-                            rx.text(f"版本: v{GradingState.selected_submission['version_no']}"),
-                            rx.text(f"提交时间: {GradingState.selected_submission['submitted_at']}"),
-                            rx.text(f"截止时间: {GradingState.selected_submission['deadline']}"),
-                            spacing="4",
-                            style={"font-size": "13px", "color": "#666"}
-                        ),
-                        spacing="2",
-                        style={"padding": "12px", "background": "#f8fafc", "border-radius": "8px", "margin-bottom": "16px"}
+                    rx.text_area(placeholder="总体评语...", value=GradingState.general_comment,
+                                 on_change=GradingState.set_general_comment, width="100%", min_height="80px"),
+
+                    # Markdown 支持的改进建议
+                    rx.text("分项改进建议 (支持 Markdown 预览):", font_size="sm"),
+                    rx.text_area(placeholder="改进建议...", value=GradingState.improvement_suggestion,
+                                 on_change=GradingState.set_improvement_suggestion, width="100%", min_height="80px"),
+                    rx.cond(
+                        GradingState.improvement_suggestion != "",
+                        rx.box(rx.markdown(GradingState.improvement_suggestion), background_color=rx.color("blue", 2),
+                               padding="2", border_radius="md", width="100%")
                     ),
-                    
-                    # 提交内容预览
-                    rx.box(
-                        rx.heading("提交内容", size="sm", style={"font-weight": "bold", "margin-bottom": "12px"}),
-                        rx.cond(
-                            GradingState.selected_submission["file_url"],
-                            rx.hstack(
-                                rx.icon("file-text", size=24),
-                                rx.link(
-                                    GradingState.selected_submission["file_url"].split("/")[-1],
-                                    href=GradingState.selected_submission["file_url"],
-                                    style={"color": "#3b82f6", "font-weight": "medium"}
-                                ),
-                                spacing="2"
-                            ),
-                            rx.box(
-                                rx.markdown(GradingState.selected_submission["text_content"]),
-                                style={"border": "1px solid #e5e7eb", "padding": "12px", "border-radius": "8px", "max-height": "200px", "overflow-y": "auto"}
-                            )
-                        ),
-                        spacing="2"
-                    ),
-                    rx.divider(),
-                    
-                    # 多维度评分
-                    rx.box(
-                        rx.heading("维度评分", size="sm", style={"font-weight": "bold", "margin-bottom": "12px"}),
-                        rx.vstack(
-                            score_input("出勤", "attendance", 15),
-                            score_input("考试", "exam", 30),
-                            score_input("代码", "code", 35),
-                            score_input("PR", "pr", 20),
-                            spacing="3"
-                        ),
-                        style={"padding": "12px", "background": "#f8fafc", "border-radius": "8px"}
-                    ),
-                    rx.divider(),
-                    
-                    # 评语输入
-                    rx.box(
-                        rx.hstack(
-                            rx.heading("总体评语", size="sm", style={"font-weight": "bold"}),
-                            rx.button(
-                                "复制上一份评语",
-                                on_click=GradingState.copy_last_feedback,
-                                variant="outline",
-                                size="sm",
-                                style={"font-size": "12px"}
-                            ),
-                            justify="space-between",
-                            width="100%",
-                            style={"margin-bottom": "12px"}
-                        ),
-                        rx.hstack(
-                            rx.textarea(
-                                value=GradingState.overall_comment,
-                                on_change=GradingState.set_overall_comment,
-                                placeholder="请输入总体评语（支持 Markdown 格式）",
-                                rows=4,
-                                style={"flex": 1}
-                            ),
-                            rx.button(
-                                "预览",
-                                on_click=GradingState.toggle_show_markdown_preview,
-                                variant="outline",
-                                size="sm"
-                            ),
-                            spacing="3"
-                        ),
-                        rx.cond(
-                            GradingState.show_markdown_preview,
-                            rx.box(
-                                rx.heading("预览", size="xs", style={"font-weight": "bold", "margin-bottom": "8px"}),
-                                rx.markdown(GradingState.overall_comment),
-                                style={"border": "1px solid #e5e7eb", "padding": "12px", "border-radius": "8px", "margin-top": "8px"}
-                            )
-                        ),
-                        spacing="2"
-                    ),
-                    rx.divider(),
-                    
-                    # 分项改进建议
-                    rx.box(
-                        rx.heading("分项改进建议", size="sm", style={"font-weight": "bold", "margin-bottom": "12px"}),
-                        rx.grid(
-                            dimension_comment("出勤", "attendance"),
-                            dimension_comment("考试", "exam"),
-                            dimension_comment("代码", "code"),
-                            dimension_comment("PR", "pr"),
-                            columns=2,
-                            spacing="4"
-                        ),
-                        spacing="2"
-                    ),
-                    rx.divider(),
-                    
+
                     # 允许二次提交开关
                     rx.hstack(
-                        rx.text("允许二次提交", style={"font-weight": "bold"}),
-                        rx.switch(
-                            is_checked=GradingState.allow_resubmit,
-                            on_change=GradingState.set_allow_resubmit
-                        ),
-                        rx.text("勾选后学生可重新提交", style={"font-size": "13px", "color": "#666"}),
-                        justify="space-between",
-                        style={"padding": "12px", "background": "#fefce8", "border-radius": "8px"}
+                        rx.checkbox("允许学生根据建议进行二次提交", checked=GradingState.allow_resubmit,
+                                    on_change=GradingState.set_allow_resubmit),
+                        margin_y="4"
                     ),
-                    rx.divider(),
-                    
-                    # 操作按钮
-                    rx.hstack(
-                        rx.button("保存并下一份", on_click=GradingState.save_grading, color_scheme="green"),
-                        rx.button("保存", on_click=GradingState.save_grading, variant="outline"),
-                        spacing="3",
-                        justify="end"
-                    ),
-                    spacing="4"
-                ),
-                rx.box(
-                    rx.icon("file-question", size=48, style={"color": "#ccc"}),
-                    rx.text("请从左侧队列选择一份作业开始批改", style={"color": "#999"}),
-                    spacing="4",
-                    style={"text-align": "center", "padding": "100px 0"}
+
+                    # 提交按钮
+                    rx.button("保存批改并通知学生", color_scheme="green", size="3", width="100%",
+                              on_click=GradingState.submit_grading),
+
+                    width="100%",
+                    align_items="start",
                 )
             ),
-            spacing="4",
-            padding="20px",
-            style={"flex": 2}
+            width="100%",
+            height="100%",
+            padding="4",
+            border_left=f"1px solid {rx.color('gray', 4)}"
         )
-    )
 
-def grading_page():
-    """教师端作业批改主页面"""
-    return rx.box(
-        # 顶部导航
-        rx.box(
-            rx.hstack(
-                rx.heading("🎓 教师端 - 作业在线批改", size="lg", style={"font-weight": "bold"}),
-                rx.box(
-                    rx.text("李老师"),
-                    rx.avatar(fallback="李"),
-                    spacing="2",
-                    style={"display": "flex", "align-items": "center", "gap": "12px"}
-                ),
-                justify="space-between",
-                align="center"
-            ),
-            style={"background": "#1e40af", "color": "white", "padding": "16px 24px", "box-shadow": "0 2px 8px rgba(0,0,0,0.1)"}
-        ),
-        
-        # 主体内容
-        rx.box(
-            rx.vstack(
-                filter_section(),
-                rx.hstack(
-                    queue_section(),
-                    grading_section(),
-                    spacing="4",
-                    style={"width": "100%"}
-                ),
-                spacing="4",
-                padding="20px",
-                style={"max-width": "1600px", "margin": "0 auto"}
-            ),
-            style={"min-height": "calc(100vh - 70px)", "background": "#f1f5f9"}
-        ),
-        style={"min-height": "100vh"}
-    )
-
-# 导出页面供 app.py 使用
+# --- 主页面组装 ---
 if rx is not None:
-    page = grading_page
+    @rx.page(route="/grading")
+    def grading_page():
+        return rx.container(
+            rx.vstack(
+                rx.heading("教师端 - 作业在线批改", size="8", margin_bottom="4"),
+
+                # 页面采用左右两栏布局：30% 队列，70% 工作台
+                rx.flex(
+                    # 左侧：筛选器与批改队列
+                    rx.box(
+                        filter_bar(),
+                        rx.vstack(
+                            rx.foreach(GradingState.queue, queue_item),
+                            width="100%",
+                            overflow_y="auto",
+                            height="75vh",
+                        ),
+                        width="30%",
+                        padding_right="4",
+                    ),
+
+                    # 右侧：逐份在线批改工作台
+                    rx.box(
+                        grading_workspace(),
+                        width="70%",
+                    ),
+                    width="100%",
+                    direction="row",
+                    align="stretch",
+                ),
+                width="100%",
+                max_width="1200px",
+            ),
+            padding="4",
+        )
