@@ -1,13 +1,12 @@
 import importlib
 import sys
-from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 
 @pytest.fixture()
-def client(tmp_path, monkeypatch):
+def app_modules(tmp_path, monkeypatch):
     db_path = tmp_path / "exam.db"
     docs_dir = tmp_path / "docs"
     docs_dir.mkdir()
@@ -17,12 +16,33 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("TEACHER_PASSWORD", "test-teacher-password")
     monkeypatch.setenv("JWT_SECRET", "test-jwt-secret")
 
-    for module_name in ("app.database", "app.sync_exams", "app.main"):
+    for module_name in (
+        "app.auth_utils",
+        "app.database",
+        "app.sync_exams",
+        "app.routers",
+        "app.routers.auth",
+        "app.routers.exam",
+        "app.routers.students",
+        "app.routers.teacher",
+        "app.main",
+    ):
         sys.modules.pop(module_name, None)
 
     database = importlib.import_module("app.database")
     database.init_db()
-
     main = importlib.import_module("app.main")
-    with TestClient(main.app) as test_client:
+
+    return {"database": database, "main": main}
+
+
+@pytest.fixture()
+def db_conn(app_modules):
+    with app_modules["database"].db() as conn:
+        yield conn
+
+
+@pytest.fixture()
+def client(app_modules):
+    with TestClient(app_modules["main"].app) as test_client:
         yield test_client
