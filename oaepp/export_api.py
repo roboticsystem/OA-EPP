@@ -9,7 +9,7 @@ import zipfile
 from datetime import datetime
 from urllib.parse import quote
 
-from database import db
+from database import db_sync as db
 
 # ── 学生信息查询 ────────────────────────────────────────────────────────────
 
@@ -24,22 +24,19 @@ _STUDENT_QUERY = """
 
 
 def _get_student(user_id: int) -> dict:
-    with db() as conn:
-        cur = conn.cursor()
+    with db() as cur:
         cur.execute(_STUDENT_QUERY + " AND u.id = %s", (user_id,))
         return cur.fetchone() or {}
 
 
 def _get_student_by_no(student_no: str) -> dict:
-    with db() as conn:
-        cur = conn.cursor()
+    with db() as cur:
         cur.execute(_STUDENT_QUERY + " AND u.student_no = %s", (student_no,))
         return cur.fetchone() or {}
 
 
 def _get_user_id_by_no(student_no: str) -> int:
-    with db() as conn:
-        cur = conn.cursor()
+    with db() as cur:
         cur.execute("SELECT id FROM users WHERE student_no=%s AND role='student'", (student_no,))
         r = cur.fetchone()
         return r["id"] if r else None
@@ -50,8 +47,7 @@ def _get_user_id_by_no(student_no: str) -> int:
 
 def _collect_branches(user_id: int, course_id: int = None) -> list:
     """分支记录 — 来自 submissions（每次提交视作一个分支点的产出）。"""
-    with db() as conn:
-        cur = conn.cursor()
+    with db() as cur:
         sql = """
             SELECT sb.id, a.title AS assignment_title, c.name AS course_name,
                    sb.version_no, sb.grading_status, sb.is_late, sb.submitted_at
@@ -90,8 +86,7 @@ def _collect_commits(user_id: int, course_id: int = None) -> list:
 
 def _collect_code_quality(user_id: int, course_id: int = None) -> list:
     """代码质量 — 来自 pr_records 的 quality_score + commitlint 配置评估。"""
-    with db() as conn:
-        cur = conn.cursor()
+    with db() as cur:
         sql = """
             SELECT pr.id, pr.issue_no, pr.pr_number, pr.quality_score, pr.pr_state,
                    c.name AS course_name
@@ -120,8 +115,7 @@ def _collect_code_quality(user_id: int, course_id: int = None) -> list:
 
 def _collect_prs(user_id: int, course_id: int = None) -> list:
     """PR 情况 — 来自 pr_records。"""
-    with db() as conn:
-        cur = conn.cursor()
+    with db() as cur:
         sql = """
             SELECT pr.id, c.name AS repo_name, pr.issue_no, pr.pr_number,
                    pr.pr_state AS state, pr.quality_score, pr.merged_at,
@@ -158,8 +152,7 @@ def _collect_pr_analysis(user_id: int, course_id: int = None) -> list:
 
 def _collect_teacher_comments(user_id: int, course_id: int = None) -> list:
     """教师评语 — 来自 feedbacks 表。"""
-    with db() as conn:
-        cur = conn.cursor()
+    with db() as cur:
         sql = """
             SELECT f.source_type, f.source_id, f.content, f.created_at,
                    u.full_name AS teacher_name
@@ -178,8 +171,7 @@ def _collect_teacher_comments(user_id: int, course_id: int = None) -> list:
 
 def _collect_exams(user_id: int, course_id: int = None) -> list:
     """在线考试 — 来自 exams + exam_attempts。"""
-    with db() as conn:
-        cur = conn.cursor()
+    with db() as cur:
         sql = """
             SELECT e.title, e.exam_type, ea.total_score AS score, ea.status,
                    ea.submitted_at, c.name AS course_name
@@ -199,8 +191,7 @@ def _collect_exams(user_id: int, course_id: int = None) -> list:
 
 def _collect_attendance(user_id: int, course_id: int = None) -> dict:
     """考勤 — 来自 attendance_records。"""
-    with db() as conn:
-        cur = conn.cursor()
+    with db() as cur:
         sql = """
             SELECT ar.status, ar.checkin_at, c.name AS course_name
             FROM attendance_records ar
@@ -226,8 +217,7 @@ def _collect_attendance(user_id: int, course_id: int = None) -> dict:
 
 def _collect_course_scores(user_id: int, course_id: int = None) -> list:
     """课程得分 — 来自 score_items（按 attendance/exam/code/pr 分类）。"""
-    with db() as conn:
-        cur = conn.cursor()
+    with db() as cur:
         sql = """
             SELECT si.score_type AS category, si.score, si.scored_at,
                    c.name AS course_name, c.term AS semester,
@@ -277,8 +267,8 @@ def _audit(actor_student_no: str, target_student_no: str, fmt: str, class_name: 
     try:
         actor_id = _get_user_id_by_no(actor_student_no)
         target_id = _get_user_id_by_no(target_student_no)
-        with db() as conn:
-            cur = conn.cursor()
+        with db() as cur:
+    
             cur.execute(
                 "INSERT INTO audit_logs (actor_user_id, action, target_type, target_id, detail_json, action_at) "
                 "VALUES (%s,%s,%s,%s,%s,NOW())",
@@ -289,8 +279,7 @@ def _audit(actor_student_no: str, target_student_no: str, fmt: str, class_name: 
 
 
 def get_audit_logs(limit: int = 100) -> list:
-    with db() as conn:
-        cur = conn.cursor()
+    with db() as cur:
         cur.execute("""
             SELECT al.id, u.student_no AS exporter_no, al.action, al.target_type,
                    al.target_id, al.detail_json, al.action_at
@@ -306,8 +295,7 @@ def get_audit_logs(limit: int = 100) -> list:
 
 
 def search_students(q: str, limit: int = 20) -> list:
-    with db() as conn:
-        cur = conn.cursor()
+    with db() as cur:
         like = f"%{q}%"
         cur.execute(_STUDENT_QUERY + """
             AND (u.student_no LIKE %s OR u.full_name LIKE %s OR u.email LIKE %s)
@@ -317,15 +305,13 @@ def search_students(q: str, limit: int = 20) -> list:
 
 
 def get_all_classes() -> list:
-    with db() as conn:
-        cur = conn.cursor()
+    with db() as cur:
         cur.execute("SELECT DISTINCT class_name FROM students WHERE class_name != '' ORDER BY class_name")
         return [r["class_name"] for r in cur.fetchall()]
 
 
 def get_students_by_class(class_name: str) -> list:
-    with db() as conn:
-        cur = conn.cursor()
+    with db() as cur:
         cur.execute(_STUDENT_QUERY + " AND s.class_name = %s ORDER BY u.student_no", (class_name,))
         return [dict(r) for r in cur.fetchall()]
 
