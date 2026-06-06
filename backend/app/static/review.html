@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学生审阅 — OA-EPP 需求文档</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; background: #f0f2f5; color: #333; }
+
+  /* Login */
+  .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #1565c0 0%, #1a237e 100%); }
+  .login-box { background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,.25); width: 380px; }
+  .login-box h2 { margin-bottom: 4px; color: #1565c0; text-align: center; }
+  .login-box .subtitle { text-align: center; color: #888; margin-bottom: 24px; font-size: .88rem; }
+
+  /* Layout */
+  #app { display: none; height: 100vh; flex-direction: column; }
+  .topbar { background: #0d47a1; color: #fff; padding: 0 20px; height: 52px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .topbar h1 { font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+  .main-area { display: flex; flex: 1; min-height: 0; }
+
+  /* Sidebar */
+  .sidebar { width: 280px; background: #fff; border-right: 1px solid #e0e0e0; display: flex; flex-direction: column; flex-shrink: 0; }
+  .sidebar-header { padding: 16px; border-bottom: 1px solid #e0e0e0; }
+  .sidebar-header h3 { font-size: .9rem; color: #555; margin-bottom: 4px; }
+  .sidebar-list { flex: 1; overflow-y: auto; }
+  .doc-item { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: background .15s; }
+  .doc-item:hover { background: #e3f2fd; }
+  .doc-item.active { background: #bbdefb; border-left: 3px solid #1565c0; }
+  .doc-item .doc-title { font-size: .9rem; font-weight: 500; margin-bottom: 4px; }
+  .doc-item .doc-meta { font-size: .75rem; color: #999; display: flex; gap: 8px; }
+
+  /* Content area */
+  .content-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .doc-header { background: #fff; border-bottom: 1px solid #e0e0e0; padding: 12px 20px; flex-shrink: 0; }
+  .doc-header h2 { font-size: 1.15rem; color: #1a237e; }
+  .doc-header .meta { font-size: .78rem; color: #999; margin-top: 2px; }
+
+  .viewer-area { flex: 1; overflow-y: auto; padding: 24px; background: #fff; }
+  .viewer-area h2 { border-bottom: 2px solid #1565c0; padding-bottom: 6px; margin: 24px 0 12px; }
+  .viewer-area h3 { margin: 16px 0 8px; color: #333; }
+  .viewer-area table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+  .viewer-area th, .viewer-area td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  .viewer-area th { background: #f5f5f5; font-weight: bold; }
+  .viewer-area code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: .85em; }
+  .viewer-area pre { background: #282c34; color: #abb2bf; padding: 16px; border-radius: 8px; overflow-x: auto; }
+  .viewer-area pre code { background: none; padding: 0; color: inherit; }
+  .viewer-area blockquote { border-left: 3px solid #1565c0; padding: 8px 16px; margin: 12px 0; background: #e3f2fd; }
+  .viewer-area li { margin: 4px 0; }
+  .viewer-area input[type=checkbox] { margin-right: 6px; }
+
+  /* Comment panel */
+  .comments-section { border-top: 2px solid #e0e0e0; background: #fafafa; flex-shrink: 0; max-height: 320px; display: flex; flex-direction: column; }
+  .comments-header { padding: 10px 20px; background: #fff; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .comments-header h3 { font-size: .9rem; color: #333; }
+  .comments-list { flex: 1; overflow-y: auto; padding: 8px 20px; }
+  .comment-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px 16px; margin: 8px 0; }
+  .comment-card .comment-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .comment-card .comment-author { font-weight: bold; font-size: .85rem; color: #1565c0; }
+  .comment-card .comment-time { font-size: .72rem; color: #999; }
+  .comment-card .comment-body { font-size: .88rem; white-space: pre-wrap; color: #444; }
+  .comment-card .comment-response { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e0e0e0; font-size: .85rem; color: #2e7d32; }
+
+  .comment-form { padding: 12px 20px; background: #fff; border-top: 1px solid #e0e0e0; flex-shrink: 0; }
+  .comment-form textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: .88rem; resize: vertical; min-height: 64px; outline: none; }
+  .comment-form textarea:focus { border-color: #1565c0; }
+  .comment-form .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 4px; padding: 7px 14px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: .85rem; background: #fff; transition: all .15s; white-space: nowrap; }
+  .btn:hover { background: #f5f5f5; border-color: #bbb; }
+  .btn-primary { background: #1565c0; color: #fff; border-color: #1565c0; }
+  .btn-primary:hover { background: #0d47a1; }
+  .btn-success { background: #2e7d32; color: #fff; border-color: #2e7d32; }
+  .btn-success:hover { background: #1b5e20; }
+  .btn-sm { padding: 4px 10px; font-size: .78rem; }
+
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #bbb; font-size: 1rem; }
+  .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+
+  .alert { padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; font-size: .85rem; }
+  .alert-success { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+  .alert-error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+  .alert-info { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- Login Gate -->
+<div id="login-page" class="login-wrap">
+  <div class="login-box">
+    <h2>📋 需求文档审阅</h2>
+    <p class="subtitle">OA-EPP 工程实践平台 — 学生审阅模式</p>
+    <div id="login-msg"></div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:.85rem;color:#555;display:block;margin-bottom:4px;">学号 Student ID</label>
+      <input type="text" id="login-student-id" placeholder="请输入你的学号" onkeydown="if(event.key==='Enter')doStudentLogin()" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:1rem;outline:none;">
+    </div>
+    <button class="btn btn-primary" onclick="doStudentLogin()" style="width:100%;justify-content:center;padding:10px;">进 入 审 阅</button>
+    <p style="margin-top:12px;font-size:.76rem;color:#999;text-align:center;">仅可查看教师已发布审阅的文档</p>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app">
+  <div class="topbar">
+    <h1>📋 需求文档审阅 <span style="font-size:.75rem;opacity:.7;">学生模式</span></h1>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span id="student-info" style="font-size:.82rem;"></span>
+      <button class="btn btn-sm" onclick="logout()" style="color:#fff;border-color:rgba(255,255,255,.3);">退出</button>
+    </div>
+  </div>
+
+  <div class="main-area">
+    <!-- Sidebar: Document List -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h3>📄 待审阅文档</h3>
+        <p style="font-size:.75rem;color:#999;" id="doc-count">加载中...</p>
+      </div>
+      <div class="sidebar-list" id="doc-list">
+        <div class="empty-state"><span class="icon">📭</span>暂无待审阅文档</div>
+      </div>
+    </div>
+
+    <!-- Content Area -->
+    <div class="content-area" id="content-area">
+      <!-- No document selected -->
+      <div id="no-doc-state" class="empty-state">
+        <span class="icon">📂</span>
+        <div style="margin-bottom:4px;">选择左侧文档开始审阅</div>
+        <div style="font-size:.8rem;color:#bbb;">仔细阅读文档内容后，可发表评论和意见</div>
+      </div>
+
+      <!-- Document Viewer -->
+      <div id="viewer-panel" style="display:none;flex:1;flex-direction:column;">
+        <div class="doc-header">
+          <h2 id="viewer-title">—</h2>
+          <div class="meta">
+            <span id="viewer-course">—</span> ·
+            <span id="viewer-version">v—</span> ·
+            <span id="viewer-updated">—</span>
+          </div>
+        </div>
+        <div class="viewer-area" id="viewer-content">
+          <div class="empty-state"><span class="icon">📄</span>加载中...</div>
+        </div>
+      </div>
+
+      <!-- Comments Section -->
+      <div class="comments-section" id="comments-section" style="display:none;">
+        <div class="comments-header">
+          <h3>💬 评论与意见</h3>
+          <button class="btn btn-sm" onclick="loadComments()">🔄 刷新</button>
+        </div>
+        <div class="comments-list" id="comments-list">
+          <div style="padding:20px;color:#888;text-align:center;">暂无评论</div>
+        </div>
+        <div class="comment-form">
+          <textarea id="new-comment" placeholder="在此输入你的审阅意见…&#10;可以是疑问、修改建议、功能遗漏等。"></textarea>
+          <div class="form-actions">
+            <button class="btn" onclick="clearComment()">清空</button>
+            <button class="btn btn-primary" onclick="submitComment()">📤 提交评论</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// =========================================================================
+// Global State
+// =========================================================================
+const API = '';
+let TOKEN = sessionStorage.getItem('review_student_token') || '';
+let studentInfo = null;
+let currentDoc = null;
+let documents = [];
+
+// Configure marked.js
+marked.setOptions({ breaks: true, gfm: true });
+
+// =========================================================================
+// Auth
+// =========================================================================
+async function doStudentLogin() {
+  const studentId = document.getElementById('login-student-id').value.trim();
+  if (!studentId) { showLoginError('请输入学号'); return; }
+
+  const btn = document.querySelector('#login-page .btn-primary');
+  btn.textContent = '⏳ 验证中...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/api/editor/student-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ student_id: studentId })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || '登录失败'); }
+    const data = await res.json();
+
+    TOKEN = data.token;
+    studentInfo = { name: data.name, student_id: data.student_id };
+    sessionStorage.setItem('review_student_token', TOKEN);
+    sessionStorage.setItem('review_student_info', JSON.stringify(studentInfo));
+
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('student-info').textContent = `👤 ${studentInfo.name} (${studentInfo.student_id})`;
+
+    await loadReviewDocuments();
+  } catch (err) {
+    showLoginError(err.message);
+  } finally {
+    btn.textContent = '进 入 审 阅';
+    btn.disabled = false;
+  }
+}
+
+function showLoginError(msg) {
+  document.getElementById('login-msg').innerHTML = `<div class="alert alert-error">${msg}</div>`;
+}
+
+function logout() {
+  TOKEN = '';
+  studentInfo = null;
+  currentDoc = null;
+  sessionStorage.removeItem('review_student_token');
+  sessionStorage.removeItem('review_student_info');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('login-student-id').value = '';
+}
+
+async function checkToken() {
+  if (!TOKEN) return false;
+  try {
+    const res = await fetch(`${API}/api/editor/student/documents`, {
+      headers: { 'Authorization': `Bearer ${TOKEN}` }
+    });
+    if (res.ok) return true;
+  } catch (e) {}
+  TOKEN = '';
+  sessionStorage.removeItem('review_student_token');
+  return false;
+}
+
+// =========================================================================
+// Document List
+// =========================================================================
+async function loadReviewDocuments() {
+  try {
+    const res = await fetch(`${API}/api/editor/student/documents`, {
+      headers: { 'Authorization': `Bearer ${TOKEN}` }
+    });
+    if (!res.ok) {
+      if (res.status === 401) { logout(); return; }
+      throw new Error('加载失败');
+    }
+    const data = await res.json();
+    studentInfo = studentInfo || { name: data.student_name, student_id: data.student_id };
+    documents = data.documents || [];
+    document.getElementById('student-info').textContent =
+      `👤 ${studentInfo.name} (${studentInfo.student_id})`;
+    renderDocList();
+  } catch (e) {
+    console.error('加载文档列表失败:', e);
+  }
+}
+
+function renderDocList() {
+  const container = document.getElementById('doc-list');
+  document.getElementById('doc-count').textContent = `共 ${documents.length} 篇`;
+
+  if (!documents.length) {
+    container.innerHTML = '<div class="empty-state"><span class="icon">📭</span><div>暂无可审阅文档</div><div style="font-size:.75rem;color:#ccc;">等待教师发布审阅</div></div>';
+    return;
+  }
+
+  container.innerHTML = documents.map(d => `
+    <div class="doc-item ${currentDoc && currentDoc.id === d.id ? 'active' : ''}" onclick="selectDocument(${d.id})">
+      <div class="doc-title">📄 ${escHtml(d.title)}</div>
+      <div class="doc-meta">
+        <span>${escHtml(d.course_code || d.course_name || '')}</span>
+        <span>v${d.version_no}</span>
+        <span>${formatDate(d.updated_at)}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function selectDocument(id) {
+  try {
+    const res = await fetch(`${API}/api/editor/student/documents/${id}`, {
+      headers: { 'Authorization': `Bearer ${TOKEN}` }
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+    currentDoc = await res.json();
+
+    // Show viewer
+    document.getElementById('no-doc-state').style.display = 'none';
+    const viewerPanel = document.getElementById('viewer-panel');
+    viewerPanel.style.display = 'flex';
+    viewerPanel.style.flexDirection = 'column';
+    viewerPanel.style.flex = '1';
+
+    document.getElementById('viewer-title').textContent = currentDoc.title;
+    document.getElementById('viewer-course').textContent = currentDoc.course_name || currentDoc.course_code || '';
+    document.getElementById('viewer-version').textContent = `v${currentDoc.version_no}`;
+    document.getElementById('viewer-updated').textContent = formatDate(currentDoc.updated_at);
+
+    // Render markdown
+    const content = currentDoc.content_md || '*（文档内容为空）*';
+    try {
+      document.getElementById('viewer-content').innerHTML = marked.parse(content);
+    } catch (e) {
+      document.getElementById('viewer-content').innerHTML = `<div class="alert alert-error">渲染错误</div>`;
+    }
+
+    // Show comments section
+    document.getElementById('comments-section').style.display = 'flex';
+    document.getElementById('new-comment').value = '';
+    loadComments();
+
+    // Update sidebar
+    renderDocList();
+
+    // Scroll viewer to top
+    document.getElementById('viewer-content').scrollTop = 0;
+  } catch (e) {
+    alert('加载文档失败: ' + e.message);
+  }
+}
+
+// =========================================================================
+// Comments
+// =========================================================================
+async function loadComments() {
+  if (!currentDoc) return;
+
+  const listEl = document.getElementById('comments-list');
+  listEl.innerHTML = '<div style="padding:20px;color:#888;text-align:center;">⏳ 加载中...</div>';
+
+  try {
+    const res = await fetch(`${API}/api/editor/documents/${currentDoc.id}/comments`, {
+      headers: { 'Authorization': `Bearer ${TOKEN}` }
+    });
+    if (!res.ok) {
+      listEl.innerHTML = '<div style="padding:20px;color:#888;text-align:center;">无法加载评论</div>';
+      return;
+    }
+    const comments = await res.json();
+
+    if (!comments.length) {
+      listEl.innerHTML = '<div style="padding:20px;color:#888;text-align:center;">📭 暂无评论 — 成为第一个审阅者吧！</div>';
+      return;
+    }
+
+    listEl.innerHTML = comments.map(c => {
+      const hasResponse = c.content && c.content.includes('**教师回复**');
+      return `<div class="comment-card">
+        <div class="comment-header">
+          <span class="comment-author">👤 ${escHtml(c.author_name || '匿名')}</span>
+          <span class="comment-time">${formatDate(c.created_at)}</span>
+        </div>
+        <div class="comment-body">${escHtml(c.content)}</div>
+        ${hasResponse ? '<div style="margin-top:6px;font-size:.78rem;color:#2e7d32;">✅ 教师已回复</div>' : '<div style="margin-top:6px;font-size:.78rem;color:#e65100;">⏳ 等待教师确认</div>'}
+      </div>`;
+    }).join('');
+  } catch (e) {
+    listEl.innerHTML = '<div style="padding:20px;color:#c62828;text-align:center;">加载评论失败</div>';
+  }
+}
+
+async function submitComment() {
+  const content = document.getElementById('new-comment').value.trim();
+  if (!content) { alert('请输入评论内容'); return; }
+  if (!currentDoc) return;
+
+  const btn = document.querySelector('.comment-form .btn-primary');
+  btn.textContent = '⏳ 提交中...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/api/editor/student/documents/${currentDoc.id}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+      body: JSON.stringify({ content })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+
+    document.getElementById('new-comment').value = '';
+    showCommentToast('✅ 评论已提交，教师确认后将收到通知');
+    loadComments();
+  } catch (e) {
+    alert('提交失败: ' + e.message);
+  } finally {
+    btn.textContent = '📤 提交评论';
+    btn.disabled = false;
+  }
+}
+
+function clearComment() {
+  document.getElementById('new-comment').value = '';
+}
+
+function showCommentToast(msg) {
+  const toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;top:60px;right:20px;background:#2e7d32;color:#fff;padding:10px 20px;border-radius:8px;font-size:.88rem;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,.2);transition:opacity .3s;';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+}
+
+// =========================================================================
+// Helpers
+// =========================================================================
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function formatDate(d) {
+  if (!d) return '';
+  try {
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return d;
+    return dt.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch (e) { return d; }
+}
+
+// =========================================================================
+// Startup
+// =========================================================================
+(async function() {
+  if (TOKEN && await checkToken()) {
+    const savedInfo = sessionStorage.getItem('review_student_info');
+    if (savedInfo) {
+      try { studentInfo = JSON.parse(savedInfo); } catch (e) {}
+    }
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('student-info').textContent =
+      studentInfo ? `👤 ${studentInfo.name} (${studentInfo.student_id})` : '';
+    await loadReviewDocuments();
+  }
+})();
+</script>
+</body>
+</html>
