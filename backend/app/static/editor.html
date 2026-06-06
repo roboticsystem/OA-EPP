@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>需求文档编辑器 — OA-EPP</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; background: #f0f2f5; color: #333; }
+
+  /* Login */
+  .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+  .login-box { background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,.2); width: 360px; text-align: center; }
+  .login-box h2 { margin-bottom: 8px; color: #667eea; }
+  .login-box p { color: #888; margin-bottom: 24px; font-size: .9rem; }
+
+  /* Layout */
+  #app { display: none; height: 100vh; }
+  .topbar { background: #1a1a2e; color: #fff; padding: 0 20px; height: 52px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .topbar h1 { font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+  .main-area { display: flex; height: calc(100vh - 52px); }
+
+  /* Sidebar */
+  .sidebar { width: 260px; background: #fff; border-right: 1px solid #e0e0e0; display: flex; flex-direction: column; flex-shrink: 0; }
+  .sidebar-header { padding: 16px; border-bottom: 1px solid #e0e0e0; }
+  .sidebar-list { flex: 1; overflow-y: auto; }
+  .doc-item { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: background .15s; }
+  .doc-item:hover { background: #f5f5ff; }
+  .doc-item.active { background: #e8eaf6; border-left: 3px solid #667eea; }
+  .doc-item .doc-title { font-size: .9rem; font-weight: 500; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .doc-item .doc-meta { font-size: .75rem; color: #999; display: flex; gap: 8px; }
+
+  /* Status badges */
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: .7rem; font-weight: bold; }
+  .badge-draft { background: #fff3e0; color: #e65100; }
+  .badge-reviewing { background: #e3f2fd; color: #1565c0; }
+  .badge-sealed { background: #e8f5e9; color: #2e7d32; }
+  .badge-archived { background: #f5f5f5; color: #888; }
+
+  /* Editor area */
+  .editor-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .toolbar { background: #fff; border-bottom: 1px solid #e0e0e0; padding: 8px 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+  .toolbar .sep { width: 1px; height: 24px; background: #ddd; margin: 0 4px; }
+  .doc-title-input { border: none; font-size: 1.1rem; font-weight: bold; padding: 4px 8px; flex: 1; min-width: 200px; outline: none; background: transparent; }
+  .doc-title-input:focus { background: #f5f5ff; border-radius: 4px; }
+
+  .split-pane { flex: 1; display: flex; min-height: 0; }
+  .edit-pane, .preview-pane { flex: 1; overflow-y: auto; padding: 20px; }
+  .edit-pane { border-right: 1px solid #e0e0e0; background: #fafafa; }
+  .preview-pane { background: #fff; }
+  .edit-pane textarea { width: 100%; height: 100%; border: none; outline: none; resize: none; font-family: "Cascadia Code", "Fira Code", Consolas, monospace; font-size: .88rem; line-height: 1.7; background: transparent; }
+
+  /* Preview styling */
+  .preview-pane h2 { border-bottom: 2px solid #667eea; padding-bottom: 6px; margin: 24px 0 12px; }
+  .preview-pane h3 { margin: 16px 0 8px; color: #333; }
+  .preview-pane table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+  .preview-pane th, .preview-pane td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  .preview-pane th { background: #f5f5f5; font-weight: bold; }
+  .preview-pane code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: .85em; }
+  .preview-pane pre { background: #282c34; color: #abb2bf; padding: 16px; border-radius: 8px; overflow-x: auto; }
+  .preview-pane pre code { background: none; padding: 0; color: inherit; }
+  .preview-pane blockquote { border-left: 3px solid #667eea; padding: 8px 16px; margin: 12px 0; background: #f5f5ff; }
+  .preview-pane li { margin: 4px 0; }
+  .preview-pane input[type=checkbox] { margin-right: 6px; }
+
+  /* Status bar */
+  .statusbar { background: #fff; border-top: 1px solid #e0e0e0; padding: 6px 16px; font-size: .8rem; color: #888; display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 4px; padding: 7px 14px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: .85rem; background: #fff; transition: all .15s; white-space: nowrap; }
+  .btn:hover { background: #f5f5f5; border-color: #bbb; }
+  .btn-primary { background: #667eea; color: #fff; border-color: #667eea; }
+  .btn-primary:hover { background: #5a6fd6; }
+  .btn-success { background: #2e7d32; color: #fff; border-color: #2e7d32; }
+  .btn-success:hover { background: #1b5e20; }
+  .btn-danger { background: #c62828; color: #fff; border-color: #c62828; }
+  .btn-danger:hover { background: #b71c1c; }
+  .btn-warning { background: #e65100; color: #fff; border-color: #e65100; }
+  .btn-warning:hover { background: #bf360c; }
+  .btn-sm { padding: 4px 10px; font-size: .78rem; }
+
+  /* Modal / Popover */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+  .modal { background: #fff; border-radius: 10px; padding: 24px; max-width: 560px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
+  .modal h3 { margin-bottom: 16px; }
+  .modal .btn-row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+  /* Copilot popover */
+  .copilot-popover { position: absolute; background: #fff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.15); z-index: 100; width: 360px; max-height: 280px; overflow-y: auto; }
+  .copilot-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #f0f0f0; font-size: .85rem; }
+  .copilot-item:hover { background: #f5f5ff; }
+  .copilot-item .item-type { font-size: .7rem; color: #667eea; font-weight: bold; }
+
+  /* Validation panel */
+  .validation-panel { border-top: 1px solid #e0e0e0; background: #fff; padding: 12px 16px; max-height: 200px; overflow-y: auto; display: none; }
+  .val-error { color: #c62828; font-size: .82rem; margin: 4px 0; }
+  .val-warning { color: #e65100; font-size: .82rem; margin: 4px 0; }
+  .val-ok { color: #2e7d32; font-size: .82rem; margin: 4px 0; }
+
+  /* Issues panel */
+  .issues-panel { border-top: 1px solid #e0e0e0; background: #fafafa; max-height: 280px; overflow-y: auto; display: none; }
+  .issues-panel table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  .issues-panel th { background: #f0f0f0; padding: 8px 12px; text-align: left; position: sticky; top: 0; }
+  .issues-panel td { padding: 7px 12px; border-bottom: 1px solid #eee; }
+
+  /* Comments panel */
+  .comments-panel { border-top: 1px solid #e0e0e0; background: #fff; max-height: 240px; overflow-y: auto; display: none; }
+  .comment-item { padding: 10px 16px; border-bottom: 1px solid #f0f0f0; }
+  .comment-item .comment-author { font-size: .8rem; font-weight: bold; color: #667eea; margin-bottom: 4px; }
+  .comment-item .comment-text { font-size: .85rem; }
+  .comment-item .comment-meta { font-size: .72rem; color: #999; margin-top: 4px; }
+
+  /* Alerts */
+  .alert { padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; font-size: .85rem; }
+  .alert-success { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+  .alert-error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #bbb; font-size: 1rem; }
+  .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- Login Gate -->
+<div id="login-page" class="login-wrap">
+  <div class="login-box">
+    <h2>📝 需求文档编辑器</h2>
+    <p>OA-EPP 工程实践平台</p>
+    <div id="login-msg"></div>
+    <input type="password" id="login-pwd" placeholder="请输入教师密码" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:1rem;margin-bottom:16px;outline:none;">
+    <button class="btn btn-primary" onclick="doLogin()" style="width:100%;justify-content:center;padding:10px;">登 录</button>
+    <p style="margin-top:12px;font-size:.78rem;color:#999;">学生审阅模式请从课程页面进入</p>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app">
+  <div class="topbar">
+    <h1>📝 需求文档编辑器 <span style="font-size:.75rem;opacity:.7;">F-T-006</span></h1>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span id="doc-status-badge" style="font-size:.8rem;"></span>
+      <button class="btn btn-sm" onclick="logout()" style="color:#fff;border-color:rgba(255,255,255,.3);">退出</button>
+    </div>
+  </div>
+  <div class="main-area">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <select id="course-filter" onchange="loadDocuments()" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem;">
+          <option value="">全部课程</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="showNewDocModal()" style="width:100%;margin-top:8px;justify-content:center;">＋ 新建文档</button>
+      </div>
+      <div class="sidebar-list" id="doc-list">
+        <div class="empty-state"><span class="icon">📄</span>暂无文档</div>
+      </div>
+    </div>
+
+    <!-- Editor Area -->
+    <div class="editor-area" id="editor-area">
+      <!-- No document selected -->
+      <div id="no-doc-state" class="empty-state">
+        <span class="icon">📂</span>
+        <div>选择左侧文档或新建文档开始编辑</div>
+      </div>
+
+      <!-- Editor (hidden when no doc) -->
+      <div id="editor-panel" style="display:none;flex:1;display:none;flex-direction:column;">
+        <!-- Toolbar -->
+        <div class="toolbar">
+          <input type="text" class="doc-title-input" id="doc-title" placeholder="文档标题..." onchange="markUnsaved()">
+          <span class="sep"></span>
+          <button class="btn btn-sm" onclick="insertTemplate()" title="插入预置模板">📋 模板</button>
+          <button class="btn btn-sm" onclick="triggerImport()" title="导入外部 .md 文件">📥 导入</button>
+          <button class="btn btn-sm" onclick="validateDocument()" title="格式校验">✅ 校验</button>
+          <span class="sep"></span>
+          <button class="btn btn-sm" onclick="toggleCopilot()" id="copilot-btn" title="AI 补全建议">🤖 Copilot</button>
+          <button class="btn btn-sm" onclick="toggleIssuesPanel()" id="issues-btn" title="GitHub Issues">🔗 Issue</button>
+          <button class="btn btn-sm btn-warning" onclick="toggleCommentsPanel()" id="comments-btn" title="学生评论/审阅">💬 评论</button>
+          <span class="sep"></span>
+          <button class="btn btn-sm btn-primary" onclick="saveDocument()" id="save-btn">💾 保存</button>
+          <div style="flex:1;"></div>
+          <!-- Status actions -->
+          <select id="status-select" onchange="changeStatus()" style="padding:5px 8px;border:1px solid #ddd;border-radius:4px;font-size:.82rem;">
+            <option value="">状态操作...</option>
+            <option value="reviewing">🔄 发布审阅</option>
+            <option value="sealed">🔒 确认封存</option>
+            <option value="archived">📦 归档</option>
+            <option value="draft">📝 退回草稿</option>
+          </select>
+        </div>
+
+        <!-- Split Pane -->
+        <div class="split-pane">
+          <div class="edit-pane" id="edit-pane" style="position:relative;">
+            <textarea id="editor-textarea" placeholder="在此编写 Markdown 需求文档..." oninput="onEditorInput()" onkeyup="onEditorKeyUp(event)"></textarea>
+            <div class="copilot-popover" id="copilot-popover" style="display:none;"></div>
+          </div>
+          <div class="preview-pane" id="preview-pane">
+            <div class="empty-state"><span class="icon">👁</span>实时预览</div>
+          </div>
+        </div>
+
+        <!-- Validation Panel -->
+        <div class="validation-panel" id="validation-panel"></div>
+
+        <!-- Issues Panel -->
+        <div class="issues-panel" id="issues-panel"></div>
+
+        <!-- Comments Panel -->
+        <div class="comments-panel" id="comments-panel"></div>
+
+        <!-- Status Bar -->
+        <div class="statusbar">
+          <span id="status-version">版本: -</span>
+          <span id="status-saved">未保存</span>
+          <span id="status-words">字数: 0</span>
+          <span style="margin-left:auto;" id="status-doc-id"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal container -->
+<div id="modal-container"></div>
+
+<script>
+// =========================================================================
+// Global State
+// =========================================================================
+const API = '';
+let TOKEN = sessionStorage.getItem('teacher_token') || '';
+let currentDoc = null;
+let currentRole = 'teacher';  // 'teacher' or 'student'
+let isDirty = false;
+let templates = [];
+let copilotEnabled = false;
+let issuesVisible = false;
+let commentsVisible = false;
+
+// Configure marked.js
+marked.setOptions({ breaks: true, gfm: true });
+
+// =========================================================================
+// Auth
+// =========================================================================
+async function doLogin() {
+  const pwd = document.getElementById('login-pwd').value;
+  try {
+    const res = await fetch(`${API}/api/teacher/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pwd })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || '登录失败'); }
+    const data = await res.json();
+    TOKEN = data.token;
+    sessionStorage.setItem('teacher_token', TOKEN);
+    currentRole = 'teacher';
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('app').style.flexDirection = 'column';
+    await initApp();
+  } catch (err) {
+    document.getElementById('login-msg').innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+  }
+}
+
+function logout() {
+  TOKEN = '';
+  sessionStorage.removeItem('teacher_token');
+  currentDoc = null;
+  currentRole = 'teacher';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('login-pwd').value = '';
+}
+
+async function checkToken() {
+  if (!TOKEN) return false;
+  try {
+    const res = await fetch(`${API}/api/editor/courses`, {
+      headers: { 'Authorization': `Bearer ${TOKEN}` }
+    });
+    if (res.ok) return true;
+  } catch (e) {}
+  TOKEN = '';
+  sessionStorage.removeItem('teacher_token');
+  return false;
+}
+
+// =========================================================================
+// Init
+// =========================================================================
+let cachedCourses = [];  // 缓存课程数据
+
+async function initApp() {
+  await loadCourses();
+  await loadDocuments();
+  await loadTemplates();
+}
+
+async function loadCourses() {
+  try {
+    const res = await fetch(`${API}/api/editor/courses`, {
+      headers: { 'Authorization': `Bearer ${TOKEN}` }
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`课程API返回 ${res.status}: ${errText}`);
+      throw new Error(`服务器返回 ${res.status}: ${errText}`);
+    }
+    cachedCourses = await res.json();
+    console.log(`课程加载成功: ${cachedCourses.length} 门`, cachedCourses);
+    const sel = document.getElementById('course-filter');
+    sel.innerHTML = '<option value="">全部课程</option>';
+    cachedCourses.forEach(c => {
+      sel.innerHTML += `<option value="${c.id}">${c.code} - ${c.name}</option>`;
+    });
+  } catch (e) {
+    console.error('加载课程失败:', e);
+    document.getElementById('course-filter').innerHTML = '<option value="">加载失败</option>';
+    alert(`加载课程数据失败:\n${e.message}\n\n请检查:\n1. 终端中服务是否正常运行\n2. MySQL 数据库是否可连接`);
+  }
+}
+
+async function loadTemplates() {
+  try {
+    const res = await fetch(`${API}/api/editor/templates`, {
+      headers: { 'Authorization': `Bearer ${TOKEN}` }
+    });
+    if (res.ok) templates = await res.json();
+  } catch (e) {}
+}
+
+// =========================================================================
+// Document List
+// =========================================================================
+async function loadDocuments() {
+  const courseId = document.getElementById('course-filter').value;
+  try {
+    let url = `${API}/api/editor/documents`;
+    if (courseId) url += `?course_id=${courseId}`;
+    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
+    if (!res.ok) throw new Error('加载文档列表失败');
+    const docs = await res.json();
+    renderDocList(docs);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function renderDocList(docs) {
+  const container = document.getElementById('doc-list');
+  if (!docs.length) {
+    container.innerHTML = '<div class="empty-state"><span class="icon">📄</span>暂无文档</div>';
+    return;
+  }
+  container.innerHTML = docs.map(d => `
+    <div class="doc-item ${currentDoc && currentDoc.id === d.id ? 'active' : ''}" onclick="selectDocument(${d.id})">
+      <div class="doc-title">${escHtml(d.title)}</div>
+      <div class="doc-meta">
+        <span class="badge badge-${d.status}">${statusLabel(d.status)}</span>
+        <span>v${d.version_no}</span>
+        <span>${d.course_name || ''}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function selectDocument(id) {
+  if (isDirty && !confirm('当前文档有未保存的修改，是否放弃？')) return;
+
+  try {
+    const res = await fetch(`${API}/api/editor/documents/${id}`, {
+      headers: { 'Authorization': `Bearer ${TOKEN}` }
+    });
+    if (!res.ok) throw new Error('加载文档失败');
+    currentDoc = await res.json();
+    isDirty = false;
+
+    document.getElementById('no-doc-state').style.display = 'none';
+    const panel = document.getElementById('editor-panel');
+    panel.style.display = 'flex';
+    panel.style.flexDirection = 'column';
+    panel.style.flex = '1';
+
+    document.getElementById('doc-title').value = currentDoc.title;
+    document.getElementById('editor-textarea').value = currentDoc.content_md || '';
+    document.getElementById('status-version').textContent = `版本: v${currentDoc.version_no}`;
+    document.getElementById('status-saved').textContent = '已加载';
+    document.getElementById('status-words').textContent = `字数: ${countWords(currentDoc.content_md || '')}`;
+    document.getElementById('status-doc-id').textContent = `#${currentDoc.id}`;
+    document.getElementById('doc-status-badge').textContent = statusLabel(currentDoc.status);
+
+    // Update status select
+    const sel = document.getElementById('status-select');
+    sel.value = '';  // reset
+
+    updatePreview();
+    renderDocList([]);  // will be repopulated
+    loadDocuments();
+
+    document.getElementById('validation-panel').style.display = 'none';
+    document.getElementById('issues-panel').style.display = 'none';
+    commentsVisible = false;
+    document.getElementById('comments-panel').style.display = 'none';
+    document.getElementById('comments-btn').style.background = '';
+    document.getElementById('comments-btn').style.color = '';
+
+    // Auto-load comments if document is in reviewing status
+    if (currentDoc.status === 'reviewing') {
+      setTimeout(() => { commentsVisible = true; loadCommentsPanel(); }, 300);
+    }
+  } catch (e) {
+    alert('加载失败: ' + e.message);
+  }
+}
+
+// =========================================================================
+// Editor
+// =========================================================================
+function onEditorInput() {
+  isDirty = true;
+  document.getElementById('status-saved').textContent = '未保存';
+  document.getElementById('status-words').textContent = `字数: ${countWords(document.getElementById('editor-textarea').value)}`;
+  updatePreview();
+  if (copilotEnabled) debounceCopilot();
+}
+
+function onEditorKeyUp(e) {
+  // ESC to close copilot
+  if (e.key === 'Escape') {
+    document.getElementById('copilot-popover').style.display = 'none';
+  }
+}
+
+function updatePreview() {
+  const md = document.getElementById('editor-textarea').value;
+  const preview = document.getElementById('preview-pane');
+  if (!md.trim()) {
+    preview.innerHTML = '<div class="empty-state"><span class="icon">👁</span>实时预览</div>';
+    return;
+  }
+  try {
+    preview.innerHTML = marked.parse(md);
+  } catch (e) {
+    preview.innerHTML = `<div class="alert alert-error">渲染错误: ${e.message}</div>`;
+  }
+}
+
+function countWords(text) {
+  // Chinese character count + English words
+  const cn = (text.match(/[一-鿿㐀-䶿]/g) || []).length;
+  const en = (text.match(/[a-zA-Z]+/g) || []).length;
+  return cn + en;
+}
+
+async function saveDocument() {
+  if (!currentDoc) return;
+  const title = document.getElementById('doc-title').value.trim();
+  const contentMd = document.getElementById('editor-textarea').value;
+
+  if (!title) { alert('请输入文档标题'); return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.textContent = '⏳ 保存中...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/api/editor/documents/${currentDoc.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+      body: JSON.stringify({ title, content_md: contentMd, increment_version: true })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+    currentDoc = await res.json();
+    isDirty = false;
+    document.getElementById('status-version').textContent = `版本: v${currentDoc.version_no}`;
+    document.getElementById('status-saved').textContent = '✅ 已保存';
+    loadDocuments();
+  } catch (e) {
+    alert('保存失败: ' + e.message);
+  } finally {
+    btn.textContent = '💾 保存';
+    btn.disabled = false;
+  }
+}
+
+function markUnsaved() { isDirty = true; document.getElementById('status-saved').textContent = '未保存'; }
+
+// =========================================================================
+// Templates
+// =========================================================================
+function insertTemplate() {
+  if (!templates.length) { alert('模板加载中，请稍后...'); return; }
+
+  let html = '<div class="modal-backdrop" onclick="this.remove()"><div class="modal" onclick="event.stopPropagation()">';
+  html += '<h3>📋 选择预置模板</h3>';
+  templates.forEach(t => {
+    html += `<div style="padding:10px;margin:4px 0;border:1px solid #eee;border-radius:6px;cursor:pointer;transition:background .15s;"
+                  onmouseover="this.style.background='#f5f5ff'" onmouseout="this.style.background='#fff'"
+                  onclick="applyTemplate('${t.id}')">
+      <div style="font-weight:bold;font-size:.9rem;">${escHtml(t.name)}</div>
+      <div style="font-size:.78rem;color:#888;">${escHtml(t.description)}</div>
+    </div>`;
+  });
+  html += '<div class="btn-row"><button class="btn" onclick="this.closest(\'.modal-backdrop\').remove()">取消</button></div>';
+  html += '</div></div>';
+  document.getElementById('modal-container').innerHTML = html;
+}
+
+function applyTemplate(tplId) {
+  const tpl = templates.find(t => t.id === tplId);
+  if (!tpl) return;
+  const ta = document.getElementById('editor-textarea');
+  const cursor = ta.selectionStart;
+  const before = ta.value.substring(0, cursor);
+  const after = ta.value.substring(cursor);
+  const insert = (before.endsWith('\n') || before === '') ? tpl.content : '\n' + tpl.content;
+  ta.value = before + insert + '\n' + after;
+  ta.focus();
+  const pos = cursor + insert.length + 1;
+  ta.setSelectionRange(pos, pos);
+  isDirty = true;
+  document.getElementById('status-saved').textContent = '未保存';
+  updatePreview();
+  document.getElementById('modal-container').innerHTML = '';
+}
+
+// =========================================================================
+// Import
+// =========================================================================
+function triggerImport() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.md,.markdown,.txt';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('course_id', currentDoc ? currentDoc.course_id : '1');
+
+    try {
+      const res = await fetch(`${API}/api/editor/import`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${TOKEN}` },
+        body: formData
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+      const data = await res.json();
+      alert(`导入成功！文档 "#${data.document.id} - ${data.document.title}" 已创建`);
+      await loadDocuments();
+      await selectDocument(data.document.id);
+    } catch (e) {
+      alert('导入失败: ' + e.message);
+    }
+  };
+  input.click();
+}
+
+// =========================================================================
+// New Document
+// =========================================================================
+async function showNewDocModal() {
+  // 如果缓存为空，尝试重新加载
+  if (!cachedCourses.length) {
+    try {
+      const res = await fetch(`${API}/api/editor/courses`, {
+        headers: { 'Authorization': `Bearer ${TOKEN}` }
+      });
+      if (res.ok) cachedCourses = await res.json();
+    } catch (e) {}
+  }
+
+  if (!cachedCourses.length) {
+    alert('未加载到课程数据，请确认：\n1. 数据库连接正常\n2. courses 表中有数据\n3. 刷新页面后重试');
+    return;
+  }
+
+  const coursesHtml = cachedCourses.map(c =>
+    `<option value="${c.id}">${escHtml(c.code)} - ${escHtml(c.name)}</option>`
+  ).join('');
+
+  const html = `
+    <div class="modal-backdrop" onclick="this.remove()">
+      <div class="modal" onclick="event.stopPropagation()">
+        <h3>📝 新建需求文档</h3>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:.85rem;color:#555;">所属课程</label>
+          <select id="new-doc-course" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-top:4px;">${coursesHtml}</select>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:.85rem;color:#555;">文档标题</label>
+          <input id="new-doc-title" placeholder="如：OA-EPP v1.1.0 需求规格说明书" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-top:4px;">
+        </div>
+        <div class="btn-row">
+          <button class="btn" onclick="this.closest('.modal-backdrop').remove()">取消</button>
+          <button class="btn btn-primary" onclick="createDocument()">创建</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('modal-container').innerHTML = html;
+}
+
+async function createDocument() {
+  const courseId = parseInt(document.getElementById('new-doc-course').value) || 1;
+  const title = document.getElementById('new-doc-title').value.trim();
+  if (!title) { alert('请输入标题'); return; }
+
+  try {
+    const res = await fetch(`${API}/api/editor/documents`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+      body: JSON.stringify({ course_id: courseId, title, content_md: '' })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+    const doc = await res.json();
+    document.getElementById('modal-container').innerHTML = '';
+    await loadDocuments();
+    await selectDocument(doc.id);
+  } catch (e) {
+    alert('创建失败: ' + e.message);
+  }
+}
+
+// =========================================================================
+// Status
+// =========================================================================
+async function changeStatus() {
+  const sel = document.getElementById('status-select');
+  const newStatus = sel.value;
+  if (!newStatus || !currentDoc) { sel.value = ''; return; }
+
+  if (!confirm(`确认将文档状态从「${statusLabel(currentDoc.status)}」变更为「${statusLabel(newStatus)}」？`)) {
+    sel.value = ''; return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/editor/documents/${currentDoc.id}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+      body: JSON.stringify({ status: newStatus })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+    currentDoc.status = newStatus;
+    document.getElementById('doc-status-badge').textContent = statusLabel(newStatus);
+    document.getElementById('status-select').value = '';
+    loadDocuments();
+  } catch (e) {
+    alert('状态变更失败: ' + e.message);
+    sel.value = '';
+  }
+}
+
+function statusLabel(s) {
+  const map = { draft: '草稿', reviewing: '审阅中', sealed: '已封存', archived: '已归档' };
+  return map[s] || s;
+}
+
+// =========================================================================
+// Validation (Phase 4 - placeholder, full implementation later)
+// =========================================================================
+async function validateDocument() {
+  const contentMd = document.getElementById('editor-textarea').value;
+  if (!contentMd.trim()) { alert('文档内容为空'); return; }
+
+  try {
+    const res = await fetch(`${API}/api/editor/validate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+      body: JSON.stringify({ content_md: contentMd })
+    });
+    const report = await res.json();
+    const panel = document.getElementById('validation-panel');
+    panel.style.display = 'block';
+    if (report.valid) {
+      panel.innerHTML = '<div class="val-ok">✅ 格式校验通过，无问题。</div>';
+      return;
+    }
+    let html = '<div style="font-weight:bold;margin-bottom:8px;">📋 校验报告</div>';
+    (report.errors || []).forEach(e => {
+      html += `<div class="val-error">❌ 第${e.line}行: ${e.message} — ${e.suggestion || ''}</div>`;
+    });
+    (report.warnings || []).forEach(w => {
+      html += `<div class="val-warning">⚠️ 第${w.line}行: ${w.message}</div>`;
+    });
+    panel.innerHTML = html;
+  } catch (e) {
+    alert('校验失败: ' + e.message);
+  }
+}
+
+// =========================================================================
+// Copilot (Phase 4 - will be enhanced)
+// =========================================================================
+let copilotTimer = null;
+
+function toggleCopilot() {
+  copilotEnabled = !copilotEnabled;
+  const btn = document.getElementById('copilot-btn');
+  btn.style.background = copilotEnabled ? '#667eea' : '';
+  btn.style.color = copilotEnabled ? '#fff' : '';
+  if (!copilotEnabled) {
+    document.getElementById('copilot-popover').style.display = 'none';
+  }
+}
+
+function debounceCopilot() {
+  if (copilotTimer) clearTimeout(copilotTimer);
+  copilotTimer = setTimeout(fetchCopilotSuggestions, 500);
+}
+
+async function fetchCopilotSuggestions() {
+  const ta = document.getElementById('editor-textarea');
+  const content = ta.value;
+  if (!content.trim()) return;
+  const cursorLine = content.substring(0, ta.selectionStart).split('\n').length;
+
+  try {
+    const res = await fetch(`${API}/api/editor/suggestions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+      body: JSON.stringify({ content_md: content, cursor_line: cursorLine })
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    showCopilotPopover(data);
+  } catch (e) {}
+}
+
+function showCopilotPopover(data) {
+  const popover = document.getElementById('copilot-popover');
+  if (!data.suggestions || !data.suggestions.length) {
+    popover.style.display = 'none';
+    return;
+  }
+  let html = `<div style="padding:8px 14px;font-size:.75rem;color:#888;border-bottom:1px solid #eee;">💡 ${data.section_type || '智能建议'}</div>`;
+  data.suggestions.forEach(s => {
+    html += `<div class="copilot-item" onclick="insertSuggestion('${escAttr(s.text)}')">
+      <div class="item-type">${s.label || s.type}</div>
+      <div>${escHtml(s.text.substring(0, 80))}...</div>
+    </div>`;
+  });
+  popover.innerHTML = html;
+  popover.style.display = 'block';
+
+  // Position near cursor area
+  const ta = document.getElementById('editor-textarea');
+  const rect = ta.getBoundingClientRect();
+  popover.style.left = '20px';
+  popover.style.bottom = '40px';
+}
+
+function insertSuggestion(text) {
+  const ta = document.getElementById('editor-textarea');
+  const cursor = ta.selectionStart;
+  const before = ta.value.substring(0, cursor);
+  const after = ta.value.substring(cursor);
+  const insert = (before.endsWith('\n') || before === '') ? text : '\n' + text;
+  ta.value = before + insert + '\n' + after;
+  ta.focus();
+  const pos = cursor + insert.length + 1;
+  ta.setSelectionRange(pos, pos);
+  isDirty = true;
+  document.getElementById('status-saved').textContent = '未保存';
+  updatePreview();
+  document.getElementById('copilot-popover').style.display = 'none';
+}
+
+// =========================================================================
+// Issues Panel (Phase 5)
+// =========================================================================
+function toggleIssuesPanel() {
+  issuesVisible = !issuesVisible;
+  const panel = document.getElementById('issues-panel');
+  const btn = document.getElementById('issues-btn');
+  if (issuesVisible) {
+    btn.style.background = '#2e7d32';
+    btn.style.color = '#fff';
+    loadIssuesPanel();
+  } else {
+    panel.style.display = 'none';
+    btn.style.background = '';
+    btn.style.color = '';
+  }
+}
+
+async function loadIssuesPanel() {
+  const panel = document.getElementById('issues-panel');
+  panel.style.display = 'block';
+
+  if (!currentDoc) { panel.innerHTML = '<div style="padding:16px;color:#888;">请先选择一个文档</div>'; return; }
+
+  // Parse features from document
+  const content = document.getElementById('editor-textarea').value;
+  const features = parseFeatures(content);
+
+  if (!features.length) {
+    panel.innerHTML = '<div style="padding:16px;color:#888;">文档中未检测到功能需求块（### F-xxx），请先编写需求</div>';
+    return;
+  }
+
+  let html = '<div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fafafa;z-index:1;">';
+  html += '<span style="font-weight:bold;">🔗 功能 Issue 列表 (' + features.length + ')</span>';
+  html += '<div style="display:flex;gap:8px;">';
+  html += '<button class="btn btn-sm" onclick="toggleAllFeatures(true)">全选</button>';
+  html += '<button class="btn btn-sm" onclick="toggleAllFeatures(false)">取消全选</button>';
+  html += '<button class="btn btn-sm btn-success" onclick="generateIssues()">🚀 创建 Issues</button>';
+  html += '</div></div>';
+  html += '<table><thead><tr><th style="width:40px;">选</th><th>编号</th><th>标题</th><th>状态</th></tr></thead><tbody>';
+  features.forEach((f, i) => {
+    html += `<tr>
+      <td><input type="checkbox" class="feature-check" value="${escAttr(f.code)}" checked></td>
+      <td style="font-family:monospace;">${escHtml(f.code)}</td>
+      <td>${escHtml(f.title)}</td>
+      <td id="issue-status-${escAttr(f.code)}">-</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  html += '<div id="issue-results" style="padding:12px 16px;"></div>';
+  panel.innerHTML = html;
+}
+
+function parseFeatures(md) {
+  const features = [];
+  const regex = /^###\s+(F-[A-Z]-\d{3})\s+(.+)$/gm;
+  let match;
+  while ((match = regex.exec(md)) !== null) {
+    features.push({ code: match[1], title: match[2] });
+  }
+  return features;
+}
+
+function toggleAllFeatures(checked) {
+  document.querySelectorAll('.feature-check').forEach(cb => { cb.checked = checked; });
+}
+
+async function generateIssues() {
+  if (!currentDoc) return;
+  const checkboxes = document.querySelectorAll('.feature-check:checked');
+  const selectedFeatures = Array.from(checkboxes).map(cb => cb.value);
+  if (!selectedFeatures.length) { alert('请至少选择一个功能'); return; }
+
+  try {
+    const res = await fetch(`${API}/api/editor/documents/${currentDoc.id}/generate-issues`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+      body: JSON.stringify({ selected_features: selectedFeatures })
+    });
+    const data = await res.json();
+    const resultsDiv = document.getElementById('issue-results');
+    resultsDiv.innerHTML = `<div class="alert alert-success" style="margin:0;">✅ Issues 生成完成: 成功 ${data.created || 0} / 失败 ${data.failed || 0}</div>`;
+    // Refresh status
+    selectedFeatures.forEach(code => {
+      const cell = document.getElementById(`issue-status-${code}`);
+      if (cell) cell.innerHTML = '<span class="badge badge-sealed">已创建</span>';
+    });
+  } catch (e) {
+    document.getElementById('issue-results').innerHTML = `<div class="alert alert-error" style="margin:0;">❌ 生成失败: ${e.message}</div>`;
+  }
+}
+
+// =========================================================================
+// Comments / Review Panel
+// =========================================================================
+function toggleCommentsPanel() {
+  commentsVisible = !commentsVisible;
+  const panel = document.getElementById('comments-panel');
+  const btn = document.getElementById('comments-btn');
+  if (commentsVisible) {
+    btn.style.background = '#e65100';
+    btn.style.color = '#fff';
+    loadCommentsPanel();
+  } else {
+    panel.style.display = 'none';
+    btn.style.background = '';
+    btn.style.color = '';
+  }
+}
+
+async function loadCommentsPanel() {
+  const panel = document.getElementById('comments-panel');
+  panel.style.display = 'block';
+
+  if (!currentDoc) { panel.innerHTML = '<div style="padding:16px;color:#888;text-align:center;">请先选择一个文档</div>'; return; }
+
+  try {
+    const res = await fetch(`${API}/api/editor/documents/${currentDoc.id}/comments`, {
+      headers: { 'Authorization': `Bearer ${TOKEN}` }
+    });
+    if (!res.ok) throw new Error('加载评论失败');
+    const comments = await res.json();
+
+    let html = `<div style="padding:10px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1;border-bottom:1px solid #e0e0e0;">`;
+    html += `<span style="font-weight:bold;">💬 审阅评论 (${comments.length}条)</span>`;
+    html += `<button class="btn btn-sm" onclick="loadCommentsPanel()" title="刷新评论">🔄 刷新</button>`;
+    html += `</div>`;
+    html += `<div style="max-height:200px;overflow-y:auto;">`;
+
+    if (!comments.length) {
+      html += '<div style="padding:16px;color:#888;text-align:center;">📭 暂无评论 — 学生将在审阅模式下查看并评论</div>';
+    } else {
+      comments.forEach(c => {
+        // Check if this comment has a teacher response
+        const hasResponse = c.content && c.content.includes('**教师回复**');
+        html += `<div class="comment-item" style="padding:10px 16px;border-bottom:1px solid #f0f0f0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <span style="font-weight:bold;color:#667eea;font-size:.82rem;">👤 ${escHtml(c.author_name || '学生')}</span>
+            <span style="font-size:.72rem;color:#999;">${c.created_at || ''}</span>
+          </div>
+          <div style="font-size:.85rem;white-space:pre-wrap;margin-bottom:${hasResponse ? '4px' : '0'};">${escHtml(c.content)}</div>`;
+
+        // Teacher response buttons
+        if (!hasResponse) {
+          html += `<div style="margin-top:6px;display:flex;gap:6px;" id="comment-actions-${c.id}">
+            <button class="btn btn-sm btn-success" onclick="respondToComment(${c.id}, 'confirmed')" style="font-size:.75rem;">✅ 确认</button>
+            <button class="btn btn-sm" onclick="respondToComment(${c.id}, 'dismissed')" style="font-size:.75rem;">❌ 忽略</button>
+            <button class="btn btn-sm" onclick="showReplyInput(${c.id})" style="font-size:.75rem;">💬 回复</button>
+          </div>
+          <div id="reply-input-${c.id}" style="display:none;margin-top:6px;">
+            <textarea id="reply-text-${c.id}" placeholder="输入教师回复..." style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px;font-size:.82rem;resize:vertical;min-height:50px;"></textarea>
+            <div style="margin-top:4px;display:flex;gap:6px;">
+              <button class="btn btn-sm btn-primary" onclick="submitReply(${c.id})" style="font-size:.75rem;">提交回复</button>
+              <button class="btn btn-sm" onclick="document.getElementById('reply-input-${c.id}').style.display='none'" style="font-size:.75rem;">取消</button>
+            </div>
+          </div>`;
+        }
+
+        html += `</div>`;
+      });
+    }
+    html += '</div>';
+
+    // If document is in reviewing status, show seal button
+    if (currentDoc && currentDoc.status === 'reviewing') {
+      html += `<div style="padding:10px 16px;border-top:1px solid #e0e0e0;text-align:center;background:#fafafa;">
+        <span style="font-size:.82rem;color:#888;margin-right:12px;">审阅完成后可封存文档</span>
+        <button class="btn btn-sm btn-success" onclick="quickSeal()">🔒 确认封存</button>
+      </div>`;
+    }
+
+    panel.innerHTML = html;
+  } catch (e) {
+    panel.innerHTML = `<div style="padding:16px;color:#c62828;">加载评论失败: ${e.message}</div>`;
+  }
+}
+
+function showReplyInput(commentId) {
+  document.getElementById('reply-input-' + commentId).style.display = 'block';
+}
+
+async function submitReply(commentId) {
+  const replyText = document.getElementById('reply-text-' + commentId).value.trim();
+  if (!replyText) { alert('请输入回复内容'); return; }
+
+  try {
+    const res = await fetch(`${API}/api/editor/comments/${commentId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+      body: JSON.stringify({ teacher_response: replyText, status: 'confirmed' })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+    loadCommentsPanel();
+  } catch (e) {
+    alert('回复失败: ' + e.message);
+  }
+}
+
+async function respondToComment(commentId, status) {
+  const actionText = status === 'confirmed' ? '确认' : '忽略';
+  if (!confirm(`确定${actionText}这条评论？`)) return;
+
+  try {
+    const res = await fetch(`${API}/api/editor/comments/${commentId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+      body: JSON.stringify({ status })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+    loadCommentsPanel();
+  } catch (e) {
+    alert('操作失败: ' + e.message);
+  }
+}
+
+async function quickSeal() {
+  if (!confirm('确认封存当前文档？封存后将无法编辑，学生评论将结束。')) return;
+
+  try {
+    const res = await fetch(`${API}/api/editor/documents/${currentDoc.id}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+      body: JSON.stringify({ status: 'sealed' })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+    currentDoc.status = 'sealed';
+    document.getElementById('doc-status-badge').textContent = statusLabel('sealed');
+    loadDocuments();
+    loadCommentsPanel();
+  } catch (e) {
+    alert('封存失败: ' + e.message);
+  }
+}
+
+// =========================================================================
+// Key Bindings
+// =========================================================================
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveDocument();
+  }
+});
+
+// =========================================================================
+// Window unload
+// =========================================================================
+window.addEventListener('beforeunload', (e) => {
+  if (isDirty) {
+    e.preventDefault();
+    e.returnValue = '您有未保存的修改';
+  }
+});
+
+// =========================================================================
+// Helpers
+// =========================================================================
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function escAttr(s) {
+  if (!s) return '';
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/`/g, '&#96;').replace(/\n/g, '\\n');
+}
+
+// =========================================================================
+// Startup
+// =========================================================================
+(async function() {
+  if (TOKEN && await checkToken()) {
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('app').style.flexDirection = 'column';
+    await initApp();
+  }
+})();
+</script>
+</body>
+</html>
