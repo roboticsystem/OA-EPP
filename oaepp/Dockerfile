@@ -1,26 +1,11 @@
 FROM python:3.11-slim
 
-ENV PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    REFLEX_FRONTEND_PORT=3000 \
-    REFLEX_BACKEND_PORT=8003 \
-    REFLEX_BACKEND_HOST=0.0.0.0
-
 WORKDIR /app
+COPY oaepp/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends nginx ca-certificates unzip curl \
-    && rm -rf /var/lib/apt/lists/*
+COPY oaepp/ ./oaepp/
+COPY oaepp/assets/ ./assets/
 
-COPY requirements.txt /app/requirements.txt
-RUN pip install -r /app/requirements.txt
-
-COPY . /app
-RUN rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf
-COPY nginx.conf /etc/nginx/conf.d/oaepp_reflex.conf
-COPY start.sh /start.sh
-RUN chmod +x /start.sh
-
-EXPOSE 80 3000 8003
-
-CMD ["/start.sh"]
+EXPOSE 3000 8000
+CMD ["reflex", "run", "--env", "prod"]
