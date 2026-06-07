@@ -27,5 +27,5 @@ config = rx.Config(
     ),
     deploy_url=os.environ.get("REFLEX_DEPLOY_URL"),
     # Reflex 原生参数，直接注入 Vite server.allowedHosts
-    vite_allowed_hosts=[".uwis.cn", "oaepp_reflex.uwis.cn"],
+    vite_allowed_hosts=[".uwis.cn", "oaepp-reflex.uwis.cn"],
 )
