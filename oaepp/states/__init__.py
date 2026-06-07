@@ -14,6 +14,16 @@ try:
 except Exception:
     DeadlineState = None
 
+try:
+    from .score import ScoreState
+except Exception:
+    ScoreState = None
+
+try:
+    from .feedback import FeedbackState
+except Exception:
+    FeedbackState = None
+
 # ── 全局状态基类（学生功能继承此类） ──
 try:
     import reflex as rx
@@ -65,4 +75,4 @@ try:
 except Exception:
     GlobalState = None
 
-__all__ = ["DeadlineState"]
+__all__ = ["DeadlineState", "ScoreState", "FeedbackState"]
