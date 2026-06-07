@@ -1,15 +1,14 @@
 import reflex as rx
-import asyncio
 import json
 import httpx
 
-BACKEND_API_URL = "http://localhost:8000/api/devops/script"
+from . import GlobalState
 
-class DevOpsState(rx.State):
-    logs: list[dict] = []  # {"text": str, "is_error": bool}
+class DevOpsState(GlobalState):
+    logs: list[dict] = []
     current_step: int = 0
     total_steps: int = 0
-    status: str = "idle"  # idle, running, success, failed
+    status: str = "idle"
     failed_step: int = 0
     error_log: str = ""
 
@@ -27,30 +26,37 @@ class DevOpsState(rx.State):
         self.total_steps = len(self.steps_to_run)
 
     async def execute_scripts(self, start_from_step: int = 0):
+        # 违规全局常量移入方法内部
+        API_URL = "http://localhost:8000/api/devops/script"
         self._reset_state(start_from_step)
         yield
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            payload = {"steps": self.steps_to_run[start_from_step:]}
-            async with client.stream("POST", BACKEND_API_URL, json=payload) as response:
-                async for line in response.aiter_lines():
-                    if not line:
-                        continue
-                    try:
-                        data = json.loads(line)
-                        if data["type"] == "progress":
-                            self.current_step = data["current"]
-                        elif data["type"] == "output":
-                            self.logs.append({"text": data["data"], "is_error": False})
-                        elif data["type"] == "error":
-                            self.logs.append({"text": data["data"], "is_error": True})
-                        elif data["type"] == "summary":
-                            self.status = data["status"]
-                            self.error_log = data.get("error_log", "")
-                            self.failed_step = data.get("failed_step", 0)
-                    except json.JSONDecodeError:
-                        self.logs.append({"text": line, "is_error": True})
-                    yield
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                payload = {"steps": self.steps_to_run[start_from_step:]}
+                async with client.stream("POST", API_URL, json=payload) as response:
+                    async for line in response.aiter_lines():
+                        if not line:
+                            continue
+                        try:
+                            data = json.loads(line)
+                            if data["type"] == "progress":
+                                self.current_step = data["current"]
+                            elif data["type"] == "output":
+                                self.logs.append({"text": data["data"], "is_error": False})
+                            elif data["type"] in ("error", "step_failed"):
+                                self.logs.append({"text": data["data"], "is_error": True})
+                            elif data["type"] == "summary":
+                                self.status = data["status"]
+                                self.error_log = data.get("error_log", "")
+                                self.failed_step = data.get("failed_step", 0)
+                        except json.JSONDecodeError:
+                            self.logs.append({"text": line, "is_error": True})
+                        yield
+        except Exception as e:
+            self.status = "failed"
+            self.logs.append({"text": f"API 连接异常: {str(e)}", "is_error": True})
+            yield
 
     async def retry_failed(self):
         if self.failed_step > 0:

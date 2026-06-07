@@ -65,4 +65,10 @@ try:
 except Exception:
     GlobalState = None
 
-__all__ = ["DeadlineState"]
+# ── 新增 DevOpsState 导入 ──
+try:
+    from .devops_state import DevOpsState
+except Exception:
+    DevOpsState = None
+
+__all__ = ["DeadlineState", "DevOpsState", "GlobalState"]
