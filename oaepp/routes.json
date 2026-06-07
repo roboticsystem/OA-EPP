@@ -1,0 +1,34 @@
+# OA-EPP 功能路由映射表
+
+> **用途**：此文件定义了 `/prototype` 目录下的快速原型文件与 Reflex 功能页面的一一对应关系。
+> 学生开发功能时，**功能文件命名必须与原型文件命名一致**（`.html` → `.py`）。
+> 教师/负责人在 `app.py` 中注册路由时，使用 `route` 字段作为页面路径。
+
+## 路由映射
+
+| 原型文件 | 功能文件 | 路由 (route) | 功能名称 | 需求编号 | 说明 |
+|----------|----------|-------------|----------|----------|------|
+| `login.html` | `login.py` | `/` | 登录页 | F-S-001 | 首页，学号/邮箱+密码登录 |
+| `dashboard.html` | `dashboard.py` | `/dashboard` | 课程主页 | F-S-010 | 课程信息、学习进度、章节任务 |
+| `courses.html` | `courses.py` | `/courses` | 课程列表 | F-S-010 | 所有课程列表与筛选 |
+| `assignments.html` | `assignments.py` | `/assignments` | 作业提交 | F-S-020 | 作业列表、提交、版本记录 |
+| `attendance.html` | `attendance.py` | `/attendance` | 课堂点名 | F-S-052 | 签到、出勤记录 |
+| `exam.html` | `exam.py` | `/exam` | 在线考试 | F-S-053 | 限时考试、答题 |
+| `grades.html` | `grades.py` | `/grades` | 成绩看板 | F-S-030 | 成绩实时统计、得分看板 |
+| `profile.html` | `profile.py` | `/profile` | 个人资料 | F-S-002 | 个人信息、密码修改、GitHub 绑定 |
+
+## 管理员/教师端路由（由负责人统一维护，学生禁止修改）
+
+| 原型文件 | 路由 (route) | 功能名称 | 说明 |
+|----------|-------------|----------|------|
+| `admin_students.html` | `/admin_students` | 学生管理 | 学生名单、GitHub 账号映射 |
+| `admin_grades.html` | `/admin_grades` | 成绩管理 | 全班成绩、导出 |
+| `admin_settings.html` | `/admin_settings` | 系统设置 | 课程配置、CI/CD 配置 |
+| `admin_devops.html` | `/admin_devops` | 开发运维 | GitHub 快捷链接、仓库配置 |
+
+## 使用规则
+
+1. **学生功能文件**放在 `/oaepp/pages/` 目录下，命名与原型文件一致（如 `dashboard.py`）。
+2. **路由注册**由负责人统一在 `app.py` 中完成，学生禁止修改 `app.py`。
+3. **管理员/教师端页面**由负责人统一维护，学生禁止创建或修改。
+4. 新增功能时，先在原型目录创建 `.html` 原型文件，再在 `pages/` 创建同名 `.py` 文件。
