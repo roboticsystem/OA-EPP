@@ -60,3 +60,24 @@ def test_student_auth_returns_token_for_known_student_and_exam(client, db_conn):
     assert body["already_submitted"] is False
     assert body["name"] == "李四"
     assert body["token"]
+
+
+def test_teacher_login_rejects_wrong_password(client):
+    response = client.post(
+        "/api/teacher/login",
+        json={"password": "wrong-password"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "密码错误"
+
+
+def test_teacher_login_returns_token_for_correct_password(client):
+    response = client.post(
+        "/api/teacher/login",
+        json={"password": "test-teacher-password"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["token"]
