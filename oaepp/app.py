@@ -50,7 +50,18 @@ if app is not None and hasattr(app, "_api") and app._api is not None:
     app._api.routes.append(Route("/api/status", _api_status, methods=["GET"]))
 
 # ─────────────────────────────────────────────────────────────────────────
+# --- admin_devops page ---
+try:
+    from pages import admin_devops as admin_devops_mod
+except Exception:
+    try:
+        from oaepp.pages import admin_devops as admin_devops_mod
+    except Exception:
+        admin_devops_mod = None
 
+if app is not None and admin_devops_mod is not None:
+    if hasattr(admin_devops_mod, "admin_devops_page") and callable(getattr(admin_devops_mod, "admin_devops_page")):
+        app.add_page(admin_devops_mod.admin_devops_page, route="/admin/devops")
 # --- profile page ---
 try:
     from pages import profile as profile_mod
