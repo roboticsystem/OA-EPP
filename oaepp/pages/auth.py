@@ -12,6 +12,7 @@ except Exception:
     rx = None
 
 from fastapi import APIRouter, HTTPException, Header, Query
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 
@@ -140,8 +141,14 @@ def get_valid_roles():
 # ==================== 页面渲染 ====================
 
 def auth_page():
-    """仓库协作者权限管理页面"""
+    """仓库协作者权限管理页面（Reflex 组件）"""
     return rx.html(render())
+
+
+@router.get("/auth")
+def auth_page_html():
+    """仓库协作者权限管理页面（直接返回 HTML）"""
+    return HTMLResponse(content=render())
 
 
 def render():
@@ -460,7 +467,7 @@ def render():
         <!-- 用户信息栏 -->
         <div class="user-bar">
             <span>👤 教师已登录</span>
-            <button onclick="logout()">退出登录</button>
+            <button id="btn-logout">退出登录</button>
         </div>
 
         <!-- 头部卡片 -->
@@ -505,9 +512,9 @@ def render():
 
         <!-- 标签页切换 -->
         <div class="tabs">
-            <button class="tab active" onclick="showTab('manage')">权限操作</button>
-            <button class="tab" onclick="showTab('audit')">操作记录</button>
-            <button class="tab" onclick="showTab('roles')">角色说明</button>
+            <button class="tab active" id="tab-manage">权限操作</button>
+            <button class="tab" id="tab-audit">操作记录</button>
+            <button class="tab" id="tab-roles">角色说明</button>
         </div>
 
         <!-- 权限操作标签页 -->
@@ -534,7 +541,7 @@ def render():
                         </select>
                     </div>
                 </div>
-                <button class="btn btn-primary" onclick="addCollaborator()">添加协作者</button>
+                <button class="btn btn-primary" id="btn-add-collaborator">添加协作者</button>
             </div>
 
             <!-- 协作者列表 -->
@@ -542,7 +549,7 @@ def render():
                 <div class="card-title">协作者列表</div>
                 <div class="search-row">
                     <input type="text" id="list_team_name" placeholder="团队名称" value="robotics-course-2024">
-                    <button class="btn btn-primary" onclick="loadCollaborators()">查询</button>
+                    <button class="btn btn-primary" id="btn-load-collaborators">查询</button>
                 </div>
                 <div id="collaborator-list">
                     <div class="empty-state">点击查询查看协作者列表</div>
@@ -562,7 +569,7 @@ def render():
                         <input type="text" id="remove_user_id" placeholder="要移除的用户 ID">
                     </div>
                 </div>
-                <button class="btn btn-danger" onclick="removeCollaborator()">移除协作者</button>
+                <button class="btn btn-danger" id="btn-remove-collaborator">移除协作者</button>
             </div>
         </div>
 
@@ -603,7 +610,31 @@ def render():
     </div>
 
     <script>
-        const API_BASE = '/api';
+        // ── 虚拟前端数据存储 ──
+        const collaboratorsData = {};  // { "team_name:user_id": { user_id, role, team_name, added_at } }
+        const auditLogsData = [];      // 审计日志数组
+        let auditIdCounter = 1;
+
+        // 初始化一些示例数据
+        const initTeamName = 'robotics-course-2024';
+        collaboratorsData[`${initTeamName}:teacher-zhang`] = {
+            user_id: 'teacher-zhang',
+            role: 'Admin',
+            team_name: initTeamName,
+            added_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+        };
+        collaboratorsData[`${initTeamName}:student-li`] = {
+            user_id: 'student-li',
+            role: 'Write',
+            team_name: initTeamName,
+            added_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+        };
+        collaboratorsData[`${initTeamName}:student-wang`] = {
+            user_id: 'student-wang',
+            role: 'Read',
+            team_name: initTeamName,
+            added_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+        };
 
         function showToast(message, type = 'success') {
             const toast = document.createElement('div');
@@ -613,15 +644,27 @@ def render():
             setTimeout(() => toast.remove(), 3000);
         }
 
-        function showTab(tabName) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('[id$="-tab"]').forEach(c => c.style.display = 'none');
-            event.target.classList.add('active');
-            document.getElementById(tabName + '-tab').style.display = 'block';
-            if (tabName === 'audit') loadAuditLogs();
+        function _logAudit(action, targetType, targetId, detail) {
+            auditLogsData.push({
+                id: auditIdCounter++,
+                actor_user_id: 'teacher',
+                action: action,
+                target_type: targetType,
+                target_id: targetId,
+                detail_json: JSON.stringify(detail),
+                action_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+            });
         }
 
-        async function addCollaborator() {
+        function showTab(tabName, clickedTab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('[id$="-tab"]').forEach(c => c.style.display = 'none');
+            clickedTab.classList.add('active');
+            document.getElementById(tabName + '-tab').style.display = 'block';
+            if (tabName === 'audit') renderAuditLogs(auditLogsData);
+        }
+
+        function addCollaborator() {
             const team_name = document.getElementById('team_name').value.trim();
             const user_id = document.getElementById('user_id').value.trim();
             const role = document.getElementById('role').value;
@@ -631,73 +674,56 @@ def render():
                 return;
             }
 
-            const button = event.target;
-            button.disabled = true;
-            button.innerHTML = '添加中...';
-
-            try {
-                const res = await fetch(`${API_BASE}/devops/collaborators?team_name=${encodeURIComponent(team_name)}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ user_id, role })
-                });
-
-                if (res.ok) {
-                    showToast(`✓ 已通过团队 ${team_name} 添加协作者 ${user_id}，角色：${role}`);
-                    document.getElementById('user_id').value = '';
-                    document.getElementById('list_team_name').value = team_name;
-                    loadAuditLogs();
-                    loadCollaborators();
-                } else {
-                    const errData = await res.json();
-                    showToast(errData.detail || '添加失败', 'error');
-                }
-            } catch (err) {
-                console.error('API call error:', err);
-                showToast('网络请求失败', 'error');
-            } finally {
-                button.disabled = false;
-                button.innerHTML = '添加协作者';
+            const validRoles = ['Admin', 'Write', 'Triage', 'Read'];
+            if (!validRoles.includes(role)) {
+                showToast(`无效角色，必须是 ${validRoles.join('/')} 之一`, 'error');
+                return;
             }
+
+            const key = `${team_name}:${user_id}`;
+            const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+            const isUpdate = key in collaboratorsData;
+
+            collaboratorsData[key] = {
+                user_id: user_id,
+                role: role,
+                team_name: team_name,
+                added_at: now
+            };
+
+            _logAudit('collaborator_add', 'collaborators', user_id, {
+                team_name: team_name,
+                user_id: user_id,
+                role: role
+            });
+
+            showToast(`✓ 已通过团队 ${team_name} ${isUpdate ? '更新' : '添加'}协作者 ${user_id}，角色：${role}`);
+            document.getElementById('user_id').value = '';
+            document.getElementById('list_team_name').value = team_name;
+            renderAuditLogs(auditLogsData);
+            loadCollaborators();
         }
 
-        async function loadCollaborators() {
+        function loadCollaborators() {
             const team_name = document.getElementById('list_team_name').value.trim();
             if (!team_name) {
                 showToast('请填写团队名称', 'error');
                 return;
             }
 
-            const list = document.getElementById('collaborator-list');
-            list.innerHTML = '<div class="empty-state">查询中...</div>';
-
-            const button = document.querySelector('.search-row .btn-primary');
-            if (button) {
-                button.disabled = true;
-                button.innerHTML = '查询中...';
-            }
-
-            try {
-                const res = await fetch(`${API_BASE}/devops/collaborators/list?team_name=${encodeURIComponent(team_name)}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    renderCollaborators(data);
-                    document.getElementById('team_name').value = team_name;
-                    document.getElementById('remove_team_name').value = team_name;
-                } else {
-                    renderCollaborators([]);
-                }
-            } catch (err) {
-                console.error('API call error:', err);
-                renderCollaborators([]);
-            } finally {
-                if (button) {
-                    button.disabled = false;
-                    button.innerHTML = '查询';
+            // 从虚拟数据存储中查询
+            const result = [];
+            for (const key in collaboratorsData) {
+                const data = collaboratorsData[key];
+                if (data.team_name === team_name) {
+                    result.push(data);
                 }
             }
+            result.sort((a, b) => (b.added_at || '').localeCompare(a.added_at || ''));
+
+            renderCollaborators(result);
+            document.getElementById('team_name').value = team_name;
+            document.getElementById('remove_team_name').value = team_name;
         }
 
         function renderCollaborators(data) {
@@ -738,7 +764,7 @@ def render():
             `;
         }
 
-        async function removeCollaborator() {
+        function removeCollaborator() {
             const team_name = document.getElementById('remove_team_name').value.trim();
             const user_id = document.getElementById('remove_user_id').value.trim();
 
@@ -751,49 +777,27 @@ def render():
                 return;
             }
 
-            const button = event.target;
-            button.disabled = true;
-            button.innerHTML = '移除中...';
+            const key = `${team_name}:${user_id}`;
+            if (key in collaboratorsData) {
+                delete collaboratorsData[key];
 
-            try {
-                const res = await fetch(`${API_BASE}/devops/collaborators/${user_id}?team_name=${encodeURIComponent(team_name)}`, {
-                    method: 'DELETE'
+                _logAudit('collaborator_remove', 'collaborators', user_id, {
+                    team_name: team_name,
+                    user_id: user_id
                 });
-                if (res.ok) {
-                    showToast(`✓ 已从团队 ${team_name} 移除协作者 ${user_id}`);
-                    document.getElementById('remove_user_id').value = '';
-                    document.getElementById('list_team_name').value = team_name;
-                    loadAuditLogs();
-                    loadCollaborators();
-                } else {
-                    const errData = await res.json();
-                    showToast(errData.detail || '移除失败', 'error');
-                }
-            } catch (err) {
-                console.error('API call error:', err);
-                showToast('网络请求失败', 'error');
-            } finally {
-                button.disabled = false;
-                button.innerHTML = '移除协作者';
+
+                showToast(`✓ 已从团队 ${team_name} 移除协作者 ${user_id}`);
+                document.getElementById('remove_user_id').value = '';
+                document.getElementById('list_team_name').value = team_name;
+                renderAuditLogs(auditLogsData);
+                loadCollaborators();
+            } else {
+                showToast('协作者不存在', 'error');
             }
         }
 
-        async function loadAuditLogs() {
-            const list = document.getElementById('audit-list');
-            list.innerHTML = '<div class="empty-state">加载中...</div>';
-
-            try {
-                const res = await fetch(`${API_BASE}/devops/collaborators/audit`);
-                if (res.ok) {
-                    const data = await res.json();
-                    renderAuditLogs(data);
-                } else {
-                    renderAuditLogs([]);
-                }
-            } catch (err) {
-                console.error('API call error:', err);
-                renderAuditLogs([]);
-            }
+        function loadAuditLogs() {
+            renderAuditLogs(auditLogsData);
         }
 
         function renderAuditLogs(data) {
@@ -830,7 +834,28 @@ def render():
             showToast('已退出登录', 'success');
         }
 
-        loadAuditLogs();
+        // ── 事件绑定 ──
+        document.addEventListener('DOMContentLoaded', function() {
+            // 标签页切换
+            document.getElementById('tab-manage').addEventListener('click', function() {
+                showTab('manage', this);
+            });
+            document.getElementById('tab-audit').addEventListener('click', function() {
+                showTab('audit', this);
+            });
+            document.getElementById('tab-roles').addEventListener('click', function() {
+                showTab('roles', this);
+            });
+
+            // 按钮事件
+            document.getElementById('btn-add-collaborator').addEventListener('click', addCollaborator);
+            document.getElementById('btn-load-collaborators').addEventListener('click', loadCollaborators);
+            document.getElementById('btn-remove-collaborator').addEventListener('click', removeCollaborator);
+            document.getElementById('btn-logout').addEventListener('click', logout);
+
+            // 初始化：加载审计日志
+            renderAuditLogs(auditLogsData);
+        });
     </script>
 </body>
 </html>
