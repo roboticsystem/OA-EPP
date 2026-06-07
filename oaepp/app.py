@@ -64,6 +64,19 @@ if app is not None and profile_mod is not None:
     if hasattr(profile_mod, "profile_page") and callable(getattr(profile_mod, "profile_page")):
         app.add_page(profile_mod.profile_page, route="/profile")
 
+# --- vscode config page ---
+try:
+    from pages import vscode_config as vscode_config_mod
+except Exception:
+    try:
+        from oaepp.pages import vscode_config as vscode_config_mod
+    except Exception:
+        vscode_config_mod = None
+
+if app is not None and vscode_config_mod is not None:
+    if hasattr(vscode_config_mod, "vscode_config_page") and callable(getattr(vscode_config_mod, "vscode_config_page")):
+        app.add_page(vscode_config_mod.vscode_config_page, route="/vscode-config")
+
 if app is not None and login_mod is not None:
     try:
         if hasattr(login_mod, "login_page") and callable(getattr(login_mod, "login_page")):

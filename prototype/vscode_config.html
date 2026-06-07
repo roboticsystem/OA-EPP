@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VS Code 配置 - 教师端 - OA-EPP</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- 顶部导航 -->
+  <nav class="bg-indigo-700 text-white px-6 py-3 flex items-center justify-between shadow">
+    <div class="flex items-center gap-4">
+      <span class="text-white font-bold text-lg">OA-EPP</span>
+      <span class="px-2 py-0.5 bg-indigo-500 text-xs rounded">教师端</span>
+      <span class="text-indigo-200 text-sm">/ VS Code 配置</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <a href="admin_devops.html" class="text-sm text-indigo-200 hover:text-white">返回运维</a>
+      <span class="text-sm text-indigo-200">李老师</span>
+      <div class="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-sm font-bold">李</div>
+    </div>
+  </nav>
+
+  <!-- 侧边栏 + 主内容 -->
+  <div class="flex">
+    <aside class="w-56 bg-white border-r border-gray-200 min-h-screen pt-4">
+      <nav class="px-3 space-y-1">
+        <a href="admin_students.html" class="flex items-center gap-2 px-3 py-2 rounded text-gray-600 hover:bg-gray-100 text-sm">
+          学生管理
+        </a>
+        <a href="admin_grades.html" class="flex items-center gap-2 px-3 py-2 rounded text-gray-600 hover:bg-gray-100 text-sm">
+          成绩管理
+        </a>
+        <a href="admin_devops.html" class="flex items-center gap-2 px-3 py-2 rounded text-gray-600 hover:bg-gray-100 text-sm">
+          开发运维
+        </a>
+        <a href="admin_settings.html" class="flex items-center gap-2 px-3 py-2 rounded text-gray-600 hover:bg-gray-100 text-sm">
+          系统设置
+        </a>
+      </nav>
+    </aside>
+
+    <main class="flex-1 p-6">
+      <h1 class="text-xl font-bold text-gray-800 mb-6">VS Code & Copilot 配置管理</h1>
+
+      <!-- 卡片1: 扩展管理 -->
+      <div class="bg-white rounded-lg shadow mb-5">
+        <div class="px-5 py-3 border-b border-gray-100 bg-blue-50 rounded-t-lg flex items-center justify-between">
+          <span class="font-semibold text-gray-800 text-sm">VS Code 扩展管理</span>
+          <span class="text-xs text-gray-400">F-T-002</span>
+        </div>
+        <div class="p-5">
+          <div class="grid grid-cols-2 gap-4">
+            <!-- 推荐扩展 -->
+            <div>
+              <h4 class="text-sm font-medium text-blue-700 mb-2">推荐安装 <span class="font-normal text-xs text-gray-400">recommendations</span></h4>
+              <div class="space-y-1 mb-3">
+                <div class="flex items-center justify-between px-3 py-1.5 bg-blue-50 rounded text-sm">
+                  <span class="font-mono text-xs">GitHub.copilot</span>
+                  <span class="text-gray-400 text-xs">GitHub Copilot</span>
+                  <button class="text-red-500 text-sm">&times;</button>
+                </div>
+                <div class="flex items-center justify-between px-3 py-1.5 bg-blue-50 rounded text-sm">
+                  <span class="font-mono text-xs">ms-python.python</span>
+                  <span class="text-gray-400 text-xs">Python</span>
+                  <button class="text-red-500 text-sm">&times;</button>
+                </div>
+                <div class="flex items-center justify-between px-3 py-1.5 bg-blue-50 rounded text-sm">
+                  <span class="font-mono text-xs">charliermarsh.ruff</span>
+                  <span class="text-gray-400 text-xs">Ruff</span>
+                  <button class="text-red-500 text-sm">&times;</button>
+                </div>
+              </div>
+              <div class="flex gap-1.5">
+                <input type="text" placeholder="扩展 ID" class="flex-1 px-2 py-1 border border-gray-200 rounded text-xs">
+                <input type="text" placeholder="名称" class="w-20 px-2 py-1 border border-gray-200 rounded text-xs">
+                <button class="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">+ 添加</button>
+              </div>
+            </div>
+            <!-- 禁止扩展 -->
+            <div>
+              <h4 class="text-sm font-medium text-red-600 mb-2">禁止安装 <span class="font-normal text-xs text-gray-400">unwantedRecommendations</span></h4>
+              <div class="space-y-1 mb-3">
+                <div class="flex items-center justify-between px-3 py-1.5 bg-red-50 rounded text-sm">
+                  <span class="font-mono text-xs">ms-python.pylint</span>
+                  <span class="text-gray-400 text-xs">Pylint</span>
+                  <button class="text-red-500 text-sm">&times;</button>
+                </div>
+              </div>
+              <div class="flex gap-1.5">
+                <input type="text" placeholder="扩展 ID" class="flex-1 px-2 py-1 border border-gray-200 rounded text-xs">
+                <input type="text" placeholder="名称" class="w-20 px-2 py-1 border border-gray-200 rounded text-xs">
+                <button class="px-3 py-1 border border-red-400 text-red-600 rounded text-xs hover:bg-red-50">+ 添加</button>
+              </div>
+            </div>
+          </div>
+          <!-- 预设模板 -->
+          <div class="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2">
+            <span class="text-xs text-gray-400">预设模板：</span>
+            <button class="px-3 py-1 border border-gray-200 rounded-full text-xs hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600">Python标准</button>
+            <button class="px-3 py-1 border border-gray-200 rounded-full text-xs hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600">Copilot全家桶</button>
+            <button class="px-3 py-1 border border-gray-200 rounded-full text-xs hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600">Reflex开发</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 卡片2: JSON预览与生成 -->
+      <div class="bg-white rounded-lg shadow mb-5">
+        <div class="px-5 py-3 border-b border-gray-100 bg-gray-50 rounded-t-lg font-semibold text-gray-800 text-sm">
+          生成预览 &middot; <code class="font-normal text-xs text-gray-400">.vscode/extensions.json</code>
+        </div>
+        <div class="p-5">
+          <pre class="bg-gray-900 text-green-400 p-4 rounded text-xs overflow-x-auto mb-3 max-h-60 overflow-y-auto">{
+  "recommendations": ["GitHub.copilot", "ms-python.python", "charliermarsh.ruff"],
+  "unwantedRecommendations": ["ms-python.pylint"]
+}</pre>
+          <div class="flex gap-2">
+            <button class="px-4 py-1.5 border border-gray-300 rounded text-sm hover:bg-gray-50">复制 JSON</button>
+            <button class="px-4 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">写入文件</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 卡片3: Copilot指令编辑 -->
+      <div class="bg-white rounded-lg shadow mb-5">
+        <div class="px-5 py-3 border-b border-gray-100 bg-gray-50 rounded-t-lg font-semibold text-gray-800 text-sm">
+          Copilot 指令文件编辑
+        </div>
+        <div class="p-5">
+          <!-- 文件选项卡 -->
+          <div class="flex gap-0.5 mb-3 border-b-2 border-gray-200">
+            <button class="px-4 py-1.5 text-sm text-blue-600 border-b-2 border-blue-600 -mb-0.5 font-semibold">copilot-instructions.md</button>
+            <button class="px-4 py-1.5 text-sm text-gray-500">commit-message.instructions.md</button>
+          </div>
+          <!-- 编辑器 -->
+          <textarea class="w-full h-64 border border-gray-200 rounded p-3 font-mono text-sm resize-y focus:outline-none focus:border-blue-400" placeholder="选择文件后在此编辑..."># OA-EPP Copilot Instructions
+
+- Use Python 3.10+ with type hints
+- Follow PEP 8 style guide
+- Write docstrings for all functions</textarea>
+          <div class="flex gap-2 mt-3">
+            <button class="px-4 py-1.5 border border-gray-300 rounded text-sm hover:bg-gray-50">重新加载</button>
+            <button class="px-4 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700">保存文件</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 底部: Git 操作 -->
+      <div class="bg-white rounded-lg shadow">
+        <div class="p-5">
+          <div class="flex items-center gap-3 mb-3 text-sm">
+            <span class="w-2.5 h-2.5 rounded-full inline-block bg-green-500"></span>
+            <span class="text-gray-600">工作区干净 &middot; 分支: main</span>
+          </div>
+          <div class="flex gap-2">
+            <button class="px-5 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">提交到仓库</button>
+            <button class="px-4 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50">刷新状态</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</body>
+</html>

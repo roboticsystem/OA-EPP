@@ -25,6 +25,7 @@
 | `admin_grades.html` | `/admin_grades` | 成绩管理 | 全班成绩、导出 |
 | `admin_settings.html` | `/admin_settings` | 系统设置 | 课程配置、CI/CD 配置 |
 | `admin_devops.html` | `/admin_devops` | 开发运维 | GitHub 快捷链接、仓库配置 |
+| `vscode_config.html` | `/vscode-config` | VS Code配置 | VS Code扩展与Copilot提示词管理 |
 
 ## 使用规则
 
