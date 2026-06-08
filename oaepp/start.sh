@@ -3,23 +3,19 @@ set -eu
 
 cd /app
 
-# 初始化数据库（建表 + 种子用户），失败不阻塞启动
 echo "[start.sh] 初始化数据库..."
 python scripts/init_db_and_seed.py || echo "[start.sh] 数据库初始化失败（可能已存在），继续启动..."
 
-# Reflex 生产模式（跳过 Vite HMR 文件监听，避免 EMFILE）
 echo "[start.sh] 启动 Reflex (生产模式)..."
-reflex run --env prod &
+reflex run --env prod --host 0.0.0.0 --port 8000 &
 REFLEX_PID=$!
 
 echo "[start.sh] 启动 Nginx..."
 nginx -g 'daemon off;' &
 NGINX_PID=$!
 
-# 任一关键进程退出，都让容器退出（避免只剩 Nginx 欢迎页）。
-# BusyBox /bin/sh 不支持 wait -n，因此用可移植轮询。
 while kill -0 "$REFLEX_PID" 2>/dev/null && kill -0 "$NGINX_PID" 2>/dev/null; do
-	sleep 1
+    sleep 1
 done
 
 exit 1
