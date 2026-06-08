@@ -47,11 +47,11 @@ if _env_file.exists():
 
 COOLIFY_BASE = "https://coolify.uwis.cn/api/v1"
 COOLIFY_API_KEY = os.environ.get("COOLIFY_API_KEY", "")
-PROJECT_NAME = "Robotics_Systems_Course"
-APP_NAME     = "robotics_systems_course"
-GIT_REPO     = "https://github.com/uwislab/robotics-systems-course.git"
+PROJECT_NAME = "OAEPP"
+APP_NAME     = "oa-epp"
+GIT_REPO     = "https://github.com/roboticsystem/OA-EPP.git"
 GIT_BRANCH   = "main"
-DOMAIN       = "https://robotics.uwis.cn"
+DOMAIN       = "https://oaepp.uwis.cn"
 ENVIRONMENT  = "production"
 COMPOSE_SERVICE = "oaepp_web"
 API_ENV_VARS    = ["TEACHER_PASSWORD", "JWT_SECRET"]
@@ -69,7 +69,7 @@ CONTAINER_FIXED_ENV = {
 def show_menu() -> str:
     print()
     print("╔" + "═" * 53 + "╗")
-    print("║    🤖  研究生《机器人系统》课程新教材 — 管理工具    ║")
+    print("║    🤖  本科生《工程实践1-4》在线平台 — 管理工具    ║")
     print("╠" + "═" * 53 + "╣")
     print("║  [1]  本地预览   MkDocs + API（热重载）             ║")
     print("║  [2]  Reflex 本地开发（Reflex 热启动）             ║")
@@ -615,8 +615,7 @@ def run_reflex_dev(sync_summary: dict = None, port: int = REFLEX_PORT):
     """Start local Reflex development server for the /oaepp prototype.
 
     Installs oaepp/requirements.txt if present, ensures port availability,
-    then tries to run via the `oaepp.app` helper or falls back to the
-    `reflex` CLI / python -m reflex invocation.
+    then runs `reflex run` from the oaepp/ directory.
     """
     print("\n🔧 启动 Reflex 本地开发（热重载）...")
 
@@ -631,62 +630,35 @@ def run_reflex_dev(sync_summary: dict = None, port: int = REFLEX_PORT):
 
     ensure_port_available(HOST, port)
 
-    # Try to run via oaepp.app
+    oaepp_dir = REPO_ROOT / "oaepp"
+    if not oaepp_dir.exists():
+        print("❌ oaepp 目录不存在，无法启动 Reflex")
+        return
+
+    # 定位 reflex 命令
+    binpath = shutil.which("reflex")
+    reflex_cmd = [binpath] if binpath else [sys.executable, "-m", "reflex"]
+
+    # 从 oaepp/ 目录启动 reflex run
     try:
-        import oaepp.app as _app
-        if hasattr(_app, "run"):
-            print(f"✅ 使用 oaepp.app.run 在端口 {port} 启动 Reflex")
-            _app.run(port=port)
-            return
-    except Exception:
-        pass
+        print(f"✅ 在 {oaepp_dir.relative_to(REPO_ROOT)} 目录下启动 Reflex（端口 {port}）")
+        subprocess.check_call(
+            reflex_cmd + ["run", "--backend-port", str(port)],
+            cwd=str(oaepp_dir),
+        )
+        return
+    except subprocess.CalledProcessError:
+        print("⚠️  带 --backend-port 参数启动失败，尝试默认端口启动...")
 
-    # Fallback to reflex CLI
     try:
-        binpath = shutil.which("reflex")
-        cmds = []
-        if binpath:
-            cmds = [
-                [binpath, "run", "--backend-port", str(port)],
-                [binpath, "run", "--single-port", str(port)],
-                [binpath, "run"],
-            ]
-        else:
-            cmds = [
-                [sys.executable, "-m", "reflex", "run", "--backend-port", str(port)],
-                [sys.executable, "-m", "reflex", "run", "--single-port", str(port)],
-                [sys.executable, "-m", "reflex", "run"],
-            ]
-        for cmd in cmds:
-            try:
-                subprocess.check_call(cmd)
-                return
-            except subprocess.CalledProcessError:
-                continue
-    except Exception as exc:
-        print(f"❌ 启动 Reflex 失败: {exc}\n请确认已安装 reflex，并可通过 'reflex run' 启动。")
-
-    # 如果无法启动 Reflex（版本/配置不兼容），提供静态预览回退：
-    try:
-        from http.server import SimpleHTTPRequestHandler
-        import socketserver
-
-        serve_dir = REPO_ROOT / "oaepp"
-        if not serve_dir.exists():
-            print("❌ oaepp 目录不存在，无法提供静态预览")
-            return
-
-        print(f"⚠️  Reflex 未能启动，退回到静态预览 {serve_dir} (http://{HOST}:{port}/)")
-        os.chdir(str(serve_dir))
-        handler = SimpleHTTPRequestHandler
-        with socketserver.TCPServer((HOST, port), handler) as httpd:
-            print(f"✅ 静态预览运行中： http://{HOST}:{port}/login.html (按 Ctrl+C 停止)")
-            try:
-                httpd.serve_forever()
-            except KeyboardInterrupt:
-                print("\n⛔ 静态预览已停止")
-    except Exception as exc:
-        print(f"❌ 无法启动静态预览: {exc}")
+        subprocess.check_call(
+            reflex_cmd + ["run"],
+            cwd=str(oaepp_dir),
+        )
+        return
+    except subprocess.CalledProcessError as exc:
+        print(f"❌ Reflex 启动失败: {exc}")
+        print("   请确认 oaepp/ 目录下存在 rxconfig.py，且 reflex 已正确安装。")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
