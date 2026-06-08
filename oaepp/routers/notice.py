@@ -204,16 +204,17 @@ def create_notification(
         if not student_ids:
             raise HTTPException(status_code=422, detail="没有目标学生")
 
-        # 批量插入（含 priority 信息存储在 body 中作为 meta）
+        # 批量插入（priority 信息编码到 body 末尾，前端可解析获取）
         import json as _json
-        meta = _json.dumps({"priority": req.priority}) if req.priority != "normal" else None
+        priority_meta = _json.dumps({"priority": req.priority})
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ids = []
         for uid in student_ids:
+            body_with_meta = (req.content or "") + "\n<!--META:" + priority_meta + "-->"
             cur.execute(
                 "INSERT INTO notifications (user_id, title, body, category, created_at) "
                 "VALUES (%s, %s, %s, %s, %s)",
-                (uid, req.title, req.content or "", req.category, now),
+                (uid, req.title, body_with_meta, req.category, now),
             )
             ids.append(cur.lastrowid)
         conn.commit()
@@ -343,7 +344,7 @@ def delete_notification(
 # ═══════════════════════════════════════════════════════════════
 
 def _infer_priority(category: str, is_read: bool, created_at: str) -> str:
-    """根据分类和是否已读推断优先级"""
+    """根据分类和是否已读推断优先级（兜底逻辑）"""
     if is_read:
         return "normal"
     if category == "deadline":
@@ -355,6 +356,22 @@ def _infer_priority(category: str, is_read: bool, created_at: str) -> str:
     if category == "grade":
         return "important"
     return "normal"
+
+
+def _extract_priority_from_body(body: str) -> Optional[str]:
+    """从 body 中解析教师写入的真实 priority（格式: <!--META:{"priority":"urgent"}-->）"""
+    import re as _re
+    import json as _json
+    if not body:
+        return None
+    m = _re.search(r'<!--META:(\{.*?\})-->', body)
+    if m:
+        try:
+            meta = _json.loads(m.group(1))
+            return meta.get("priority")
+        except Exception:
+            pass
+    return None
 
 
 @router.get("/api/notifications", summary="学生通知列表")
@@ -405,7 +422,9 @@ def student_list_notifications(
         d["content"] = d.pop("body", "")
         d["is_read"] = bool(d.get("is_read", 0))
         d["course_name"] = d.get("course_name") or ""
-        d["priority"] = _infer_priority(
+        # 优先使用教师写入的真实 priority，兜底用推断逻辑
+        real_priority = _extract_priority_from_body(d.get("content", ""))
+        d["priority"] = real_priority or _infer_priority(
             d.get("category", ""), d["is_read"], d.get("created_at", "")
         )
         items.append(d)
@@ -502,20 +521,17 @@ def public_list_notifications(
         )
         total = cur.fetchone()["cnt"]
 
-        # 分组查询
+        # 分组查询：按 title+category 分组，每组取最新一条
         cur.execute(
-            "SELECT id, body, title, category, created_at, "
-            "       MAX(is_read) AS any_read "
-            "FROM ("
-            "  SELECT n.id, n.body, n.title, n.category, "
-            "         n.created_at, n.is_read, "
+            "SELECT id, body, title, category, created_at, any_read FROM ("
+            "  SELECT n.id, n.body, n.title, n.category, n.created_at,"
+            "         MAX(n.is_read) OVER (PARTITION BY n.title, n.category) AS any_read,"
             "         ROW_NUMBER() OVER ("
-            "           PARTITION BY n.title, n.category "
-            "           ORDER BY n.created_at DESC"
-            "         ) AS rn "
+            "           PARTITION BY n.title, n.category ORDER BY n.created_at DESC"
+            "         ) AS rn"
             "  FROM notifications n WHERE n.user_id = %s"
             ") ranked "
-            "WHERE rn <= 50 ORDER BY created_at DESC LIMIT %s OFFSET %s",
+            "WHERE rn = 1 ORDER BY created_at DESC LIMIT %s OFFSET %s",
             (user_id, page_size, (page - 1) * page_size),
         )
         rows = cur.fetchall()

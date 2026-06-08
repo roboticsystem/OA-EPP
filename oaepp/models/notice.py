@@ -67,7 +67,7 @@ def get_unread_count(conn, user_id: int) -> int:
 
 
 def get_category_counts(conn, user_id: int) -> Dict[str, int]:
-    """统计各分类通知数量"""
+    """统计各分类通知数量（覆盖全部 VALID_CATEGORIES）"""
     with conn.cursor() as cur:
         cur.execute(
             "SELECT category, COUNT(*) AS cnt FROM notifications "
@@ -75,7 +75,7 @@ def get_category_counts(conn, user_id: int) -> Dict[str, int]:
             (user_id,),
         )
         counts = {r["category"]: r["cnt"] for r in cur.fetchall()}
-        for cat in ("announcement", "deadline", "grade"):
+        for cat in VALID_CATEGORIES:
             if cat not in counts:
                 counts[cat] = 0
         return counts

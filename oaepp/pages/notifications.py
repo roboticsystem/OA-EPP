@@ -18,9 +18,11 @@ API_BASE = os.environ.get("API_BASE_URL", "http://localhost:8000")
 # ── 分类配置 ──────────────────────────────────────────────────
 
 CATEGORY_META = {
-    "announcement": {"label": "课程公告", "icon": "megaphone", "color": "blue"},
-    "deadline":     {"label": "截止提醒", "icon": "clock",     "color": "orange"},
-    "grade":        {"label": "成绩通知", "icon": "bar-chart-3","color": "green"},
+    "announcement": {"label": "课程公告", "icon": "megaphone",   "color": "blue"},
+    "deadline":     {"label": "截止提醒", "icon": "clock",       "color": "orange"},
+    "grade":        {"label": "成绩通知", "icon": "bar-chart-3", "color": "green"},
+    "system":       {"label": "系统通知", "icon": "settings",    "color": "purple"},
+    "graded":       {"label": "已批改",   "icon": "check-circle", "color": "teal"},
 }
 
 TABS = [
@@ -28,6 +30,8 @@ TABS = [
     ("announcement", "课程公告"),
     ("deadline",     "截止提醒"),
     ("grade",        "成绩通知"),
+    ("system",       "系统通知"),
+    ("graded",       "已批改"),
     ("unread",       "未读"),
 ]
 

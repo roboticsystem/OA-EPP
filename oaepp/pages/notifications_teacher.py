@@ -18,12 +18,14 @@ API_BASE = os.environ.get("API_BASE_URL", "http://localhost:8000")
 # ── 分类配置 ──────────────────────────────────────────────────
 
 CATEGORY_META = {
-    "all":          {"label": "全部",     "icon": "layout-list", "color": "gray"},
-    "announcement": {"label": "课程公告", "icon": "megaphone",   "color": "blue"},
-    "deadline":     {"label": "截止提醒", "icon": "clock",       "color": "orange"},
-    "grade":        {"label": "成绩通知", "icon": "bar-chart-3", "color": "green"},
+    "all":          {"label": "全部",     "icon": "layout-list",  "color": "gray"},
+    "announcement": {"label": "课程公告", "icon": "megaphone",    "color": "blue"},
+    "deadline":     {"label": "截止提醒", "icon": "clock",        "color": "orange"},
+    "grade":        {"label": "成绩通知", "icon": "bar-chart-3",  "color": "green"},
+    "system":       {"label": "系统通知", "icon": "settings",     "color": "purple"},
+    "graded":       {"label": "已批改",   "icon": "check-circle", "color": "teal"},
 }
-CATEGORY_OPTIONS = ["announcement", "deadline", "grade"]
+CATEGORY_OPTIONS = ["announcement", "deadline", "grade", "system", "graded"]
 PRIORITY_OPTIONS = ["normal", "important", "urgent"]
 
 # ── 状态管理 ──────────────────────────────────────────────────
