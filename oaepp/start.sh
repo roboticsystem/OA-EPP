@@ -3,10 +3,16 @@ set -eu
 
 cd /app
 
+# 初始化数据库（建表 + 种子用户），失败不阻塞启动
+echo "[start.sh] 初始化数据库..."
+python scripts/init_db_and_seed.py || echo "[start.sh] 数据库初始化失败（可能已存在），继续启动..."
+
 # Reflex 前后端分别监听 3000 / 8000；Nginx 对外统一暴露 80。
+echo "[start.sh] 启动 Reflex..."
 reflex run &
 REFLEX_PID=$!
 
+echo "[start.sh] 启动 Nginx..."
 nginx -g 'daemon off;' &
 NGINX_PID=$!
 

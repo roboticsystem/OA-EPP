@@ -20,6 +20,15 @@ except Exception:
     except Exception:
         login_mod = None
 
+# Import AuthState so Reflex registers it as a state class
+try:
+    from states.auth import AuthState
+except Exception:
+    try:
+        from oaepp.states.auth import AuthState
+    except Exception:
+        AuthState = None
+
 app = None
 if rx is not None:
     try:
