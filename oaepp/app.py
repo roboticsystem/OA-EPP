@@ -30,7 +30,7 @@ if rx is not None:
         except Exception:
             app = None
 
-# ── 最简后台 API（挂载在 Reflex 内置 Starlette，端口 8000） ─────────────
+# ── 后台 API（挂载在 Reflex 内置 Starlette） ─────────────────────
 if app is not None and hasattr(app, "_api") and app._api is not None:
     from datetime import datetime, timezone
     from starlette.routing import Route
@@ -48,6 +48,27 @@ if app is not None and hasattr(app, "_api") and app._api is not None:
 
     app._api.routes.append(Route("/api/hello", _api_hello, methods=["GET"]))
     app._api.routes.append(Route("/api/status", _api_status, methods=["GET"]))
+
+    # ── 挂载通知公告路由 ──
+    try:
+        from oaepp.routers.notice import router as notice_router
+    except ModuleNotFoundError:
+        try:
+            from routers.notice import router as notice_router
+        except ModuleNotFoundError:
+            notice_router = None
+
+    if notice_router is not None:
+        from fastapi import FastAPI
+        # Reflex 的 _api 可能是 FastAPI 或 Starlette
+        # 尝试以 FastAPI 方式挂载子路由
+        if hasattr(app._api, "include_router"):
+            app._api.include_router(notice_router)
+        else:
+            # 如果是 Starlette Router，逐个挂载 route
+            for route in notice_router.routes:
+                app._api.routes.append(route)
+        print("[OA-EPP] 通知公告 API 路由已挂载")
 
 # ─────────────────────────────────────────────────────────────────────────
 
@@ -75,6 +96,39 @@ if app is not None and login_mod is not None:
             app.add_page(login_mod.page)
     except Exception:
         pass
+
+# ── 通知公告页面 ─────────────────────────────────────────────────
+# 学生端
+try:
+    from oaepp.pages.notifications import notifications_page, NotificationsState
+except ModuleNotFoundError:
+    try:
+        from pages.notifications import notifications_page, NotificationsState
+    except ModuleNotFoundError:
+        notifications_page = None
+
+if app is not None and notifications_page is not None:
+    try:
+        app.add_page(notifications_page, route="/notifications", title="公告与通知")
+        print("[OA-EPP] 学生端通知页面已注册: /notifications")
+    except Exception as e:
+        print(f"[OA-EPP] 学生端通知页面注册失败: {e}")
+
+# 教师端
+try:
+    from oaepp.pages.notifications_teacher import notifications_teacher_page, TeacherNotificationsState
+except ModuleNotFoundError:
+    try:
+        from pages.notifications_teacher import notifications_teacher_page, TeacherNotificationsState
+    except ModuleNotFoundError:
+        notifications_teacher_page = None
+
+if app is not None and notifications_teacher_page is not None:
+    try:
+        app.add_page(notifications_teacher_page, route="/notifications/teacher", title="通知管理")
+        print("[OA-EPP] 教师端通知页面已注册: /notifications/teacher")
+    except Exception as e:
+        print(f"[OA-EPP] 教师端通知页面注册失败: {e}")
 
 
 def run(port: int = 3000):
