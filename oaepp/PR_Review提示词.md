@@ -5,18 +5,18 @@
 审查必须严格遵守以下规则：
 
 ## 一、目录规范检查（最核心）
-1. 学生**只能修改自己的功能目录**：`/oaepp/pages/` 下的 `.py` 文件
-2. 功能文件命名必须与 `/prototype` 目录下的快速原型文件命名一致（例如：原型文件为 `editor.html`，则功能文件命名为 `editor.py`）
-3. 禁止修改以下全局目录与文件（出现即打回）：
-   - state.py
+1. 学生**只能修改自己的功能目录**：`/oaepp/pages/` 下的 `.py` 文件和 `/oaepp/states/` 下的 `.py` 文件
+2. 功能文件命名必须与 `/prototype` 目录下的快速原型文件命名一致（例如：原型文件为 `editor.html`，则功能页面文件命名为 `editor.py`，对应的状态文件在 `/oaepp/states/editor.py`）
+3. `/oaepp/states/` 目录用于存放各功能的 State 类，文件命名必须与 `/oaepp/pages/` 下的功能页面文件命名一致（例如：页面为 `dashboard.py`，则状态文件为 `states/dashboard.py`）
+4. 禁止修改以下全局目录与文件（出现即打回）：
    - constants.py
    - utils/
    - db.py
    - rxconfig.py
    - **`backend/` 目录下的所有文件**（包括 `backend/app/main.py`、`backend/app/routers/`、`backend/app/static/` 等）
    - 根目录文件
-4. 禁止创建无关文件、禁止跨目录修改他人代码
-5. **禁止在 `backend/` 目录下创建或修改任何文件**（API 路由、静态页面等均由负责人统一维护）
+5. 禁止创建无关文件、禁止跨目录修改他人代码
+6. **禁止在 `backend/` 目录下创建或修改任何文件**（API 路由、静态页面等均由负责人统一维护）
 
 ## 二、全局状态审查规则
 1. 学生**只能读取全局状态，禁止直接修改、赋值、覆盖** rx.State
@@ -24,6 +24,7 @@
    rx.State.xxx = yyy
 3. 若必须修改全局状态，**必须调用 GlobalState 提供的方法**，不能直接赋值
 4. 禁止新增全局变量、全局状态字段
+5. 学生在 `/oaepp/states/` 下创建的功能 State 类，**禁止继承或修改全局 State**，应作为独立 State 实现
 
 ## 三、全局变量/常量/工具函数审查
 1. 只能使用已有的 constants.py 中的常量，**不能新增、不能重复定义**
