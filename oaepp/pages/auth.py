@@ -587,22 +587,133 @@ def render():
         <div id="roles-tab" style="display: none;">
             <div class="card">
                 <div class="card-title">角色权限说明</div>
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
-                    <div style="background: #fef2f2; padding: 16px; border-radius: 10px; border-left: 4px solid #dc2626;">
-                        <h3 style="color: #dc2626; margin-bottom: 8px; font-size: 15px;">👑 Admin</h3>
-                        <p style="color: #4b5563; font-size: 13px;">完全仓库权限，包括删除仓库、管理团队、设置保护分支等</p>
+                <div style="margin-bottom: 24px;">
+                    <p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">权限通过 GitHub Team 统一管理，禁止个人直接授权，确保权限管理规范化。</p>
+                    
+                    <!-- 角色卡片 -->
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px;">
+                        <div style="background: #fef2f2; padding: 20px; border-radius: 12px; border-left: 4px solid #dc2626;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                                <span style="font-size: 24px;">👑</span>
+                                <h3 style="color: #dc2626; font-size: 16px; font-weight: 600;">Admin</h3>
+                            </div>
+                            <p style="color: #4b5563; font-size: 13px; margin-bottom: 12px;">完全仓库权限，包括删除仓库、管理团队、设置保护分支等</p>
+                            <div style="background: rgba(220, 38, 38, 0.1); padding: 12px; border-radius: 8px;">
+                                <div style="font-size: 12px; color: #dc2626; font-weight: 600; margin-bottom: 8px;">权限列表：</div>
+                                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                                    <span style="background: rgba(220, 38, 38, 0.2); color: #dc2626; padding: 4px 8px; border-radius: 4px; font-size: 11px;">push</span>
+                                    <span style="background: rgba(220, 38, 38, 0.2); color: #dc2626; padding: 4px 8px; border-radius: 4px; font-size: 11px;">pull</span>
+                                    <span style="background: rgba(220, 38, 38, 0.2); color: #dc2626; padding: 4px 8px; border-radius: 4px; font-size: 11px;">manage</span>
+                                    <span style="background: rgba(220, 38, 38, 0.2); color: #dc2626; padding: 4px 8px; border-radius: 4px; font-size: 11px;">delete</span>
+                                    <span style="background: rgba(220, 38, 38, 0.2); color: #dc2626; padding: 4px 8px; border-radius: 4px; font-size: 11px;">admin</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="background: #fffbeb; padding: 20px; border-radius: 12px; border-left: 4px solid #f59e0b;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                                <span style="font-size: 24px;">✏️</span>
+                                <h3 style="color: #f59e0b; font-size: 16px; font-weight: 600;">Write</h3>
+                            </div>
+                            <p style="color: #4b5563; font-size: 13px; margin-bottom: 12px;">推送代码、创建分支、发起 PR、管理 Issues</p>
+                            <div style="background: rgba(245, 158, 11, 0.1); padding: 12px; border-radius: 8px;">
+                                <div style="font-size: 12px; color: #f59e0b; font-weight: 600; margin-bottom: 8px;">权限列表：</div>
+                                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                                    <span style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; padding: 4px 8px; border-radius: 4px; font-size: 11px;">push</span>
+                                    <span style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; padding: 4px 8px; border-radius: 4px; font-size: 11px;">pull</span>
+                                    <span style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; padding: 4px 8px; border-radius: 4px; font-size: 11px;">manage</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="background: #eff6ff; padding: 20px; border-radius: 12px; border-left: 4px solid #2563eb;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                                <span style="font-size: 24px;">🏷️</span>
+                                <h3 style="color: #2563eb; font-size: 16px; font-weight: 600;">Triage</h3>
+                            </div>
+                            <p style="color: #4b5563; font-size: 13px; margin-bottom: 12px;">管理 Issues 和 PR，添加标签，无法推送代码</p>
+                            <div style="background: rgba(37, 99, 235, 0.1); padding: 12px; border-radius: 8px;">
+                                <div style="font-size: 12px; color: #2563eb; font-weight: 600; margin-bottom: 8px;">权限列表：</div>
+                                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                                    <span style="background: rgba(37, 99, 235, 0.2); color: #2563eb; padding: 4px 8px; border-radius: 4px; font-size: 11px;">pull</span>
+                                    <span style="background: rgba(37, 99, 235, 0.2); color: #2563eb; padding: 4px 8px; border-radius: 4px; font-size: 11px;">triage</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="background: #f3f4f6; padding: 20px; border-radius: 12px; border-left: 4px solid #6b7280;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                                <span style="font-size: 24px;">📖</span>
+                                <h3 style="color: #6b7280; font-size: 16px; font-weight: 600;">Read</h3>
+                            </div>
+                            <p style="color: #4b5563; font-size: 13px; margin-bottom: 12px;">仅查看仓库内容，无法修改或提交</p>
+                            <div style="background: rgba(107, 114, 128, 0.1); padding: 12px; border-radius: 8px;">
+                                <div style="font-size: 12px; color: #6b7280; font-weight: 600; margin-bottom: 8px;">权限列表：</div>
+                                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                                    <span style="background: rgba(107, 114, 128, 0.2); color: #6b7280; padding: 4px 8px; border-radius: 4px; font-size: 11px;">pull</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div style="background: #fffbeb; padding: 16px; border-radius: 10px; border-left: 4px solid #f59e0b;">
-                        <h3 style="color: #f59e0b; margin-bottom: 8px; font-size: 15px;">✏️ Write</h3>
-                        <p style="color: #4b5563; font-size: 13px;">推送代码、创建分支、发起 PR、管理 Issues</p>
-                    </div>
-                    <div style="background: #eff6ff; padding: 16px; border-radius: 10px; border-left: 4px solid #2563eb;">
-                        <h3 style="color: #2563eb; margin-bottom: 8px; font-size: 15px;">🏷️ Triage</h3>
-                        <p style="color: #4b5563; font-size: 13px;">管理 Issues 和 PR，添加标签，无法推送代码</p>
-                    </div>
-                    <div style="background: #f3f4f6; padding: 16px; border-radius: 10px; border-left: 4px solid #6b7280;">
-                        <h3 style="color: #6b7280; margin-bottom: 8px; font-size: 15px;">📖 Read</h3>
-                        <p style="color: #4b5563; font-size: 13px;">仅查看仓库内容，无法修改或提交</p>
+                    
+                    <!-- 权限对比表格 -->
+                    <div style="background: #f9fafb; padding: 16px; border-radius: 12px;">
+                        <h4 style="font-size: 14px; font-weight: 600; color: #1f2937; margin-bottom: 12px;">权限对比</h4>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                            <thead>
+                                <tr style="background: #e5e7eb;">
+                                    <th style="padding: 10px; text-align: left; font-weight: 600; color: #374151;">权限</th>
+                                    <th style="padding: 10px; text-align: center; font-weight: 600; color: #374151;">Admin</th>
+                                    <th style="padding: 10px; text-align: center; font-weight: 600; color: #374151;">Write</th>
+                                    <th style="padding: 10px; text-align: center; font-weight: 600; color: #374151;">Triage</th>
+                                    <th style="padding: 10px; text-align: center; font-weight: 600; color: #374151;">Read</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-bottom: 1px solid #e5e7eb;">
+                                    <td style="padding: 10px; color: #4b5563;">查看仓库</td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #10b981; font-weight: 600;">✓</span></td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #10b981; font-weight: 600;">✓</span></td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #10b981; font-weight: 600;">✓</span></td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #10b981; font-weight: 600;">✓</span></td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid #e5e7eb;">
+                                    <td style="padding: 10px; color: #4b5563;">推送代码</td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #10b981; font-weight: 600;">✓</span></td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #10b981; font-weight: 600;">✓</span></td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #d1d5db;">-</span></td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #d1d5db;">-</span></td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid #e5e7eb;">
+                                    <td style="padding: 10px; color: #4b5563;">创建分支</td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #10b981; font-weight: 600;">✓</span></td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #10b981; font-weight: 600;">✓</span></td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #d1d5db;">-</span></td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #d1d5db;">-</span></td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid #e5e7eb;">
+                                    <td style="padding: 10px; color: #4b5563;">管理 Issues</td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #10b981; font-weight: 600;">✓</span></td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #10b981; font-weight: 600;">✓</span></td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #10b981; font-weight: 600;">✓</span></td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #d1d5db;">-</span></td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid #e5e7eb;">
+                                    <td style="padding: 10px; color: #4b5563;">管理团队</td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #10b981; font-weight: 600;">✓</span></td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #d1d5db;">-</span></td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #d1d5db;">-</span></td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #d1d5db;">-</span></td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px; color: #4b5563;">删除仓库</td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #10b981; font-weight: 600;">✓</span></td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #d1d5db;">-</span></td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #d1d5db;">-</span></td>
+                                    <td style="padding: 10px; text-align: center;"><span style="color: #d1d5db;">-</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -621,20 +732,51 @@ def render():
             user_id: 'teacher-zhang',
             role: 'Admin',
             team_name: initTeamName,
-            added_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+            added_at: new Date(Date.now() - 3600000).toISOString().slice(0, 19).replace('T', ' ')
         };
         collaboratorsData[`${initTeamName}:student-li`] = {
             user_id: 'student-li',
             role: 'Write',
             team_name: initTeamName,
-            added_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+            added_at: new Date(Date.now() - 1800000).toISOString().slice(0, 19).replace('T', ' ')
         };
         collaboratorsData[`${initTeamName}:student-wang`] = {
             user_id: 'student-wang',
             role: 'Read',
             team_name: initTeamName,
-            added_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+            added_at: new Date(Date.now() - 900000).toISOString().slice(0, 19).replace('T', ' ')
         };
+
+        // 初始化审计日志
+        auditLogsData.push(
+            {
+                id: auditIdCounter++,
+                actor_user_id: 'teacher',
+                action: 'collaborator_add',
+                target_type: 'collaborators',
+                target_id: 'teacher-zhang',
+                detail_json: JSON.stringify({ team_name: initTeamName, user_id: 'teacher-zhang', role: 'Admin' }),
+                action_at: new Date(Date.now() - 3600000).toISOString().slice(0, 19).replace('T', ' ')
+            },
+            {
+                id: auditIdCounter++,
+                actor_user_id: 'teacher',
+                action: 'collaborator_add',
+                target_type: 'collaborators',
+                target_id: 'student-li',
+                detail_json: JSON.stringify({ team_name: initTeamName, user_id: 'student-li', role: 'Write' }),
+                action_at: new Date(Date.now() - 1800000).toISOString().slice(0, 19).replace('T', ' ')
+            },
+            {
+                id: auditIdCounter++,
+                actor_user_id: 'teacher',
+                action: 'collaborator_add',
+                target_type: 'collaborators',
+                target_id: 'student-wang',
+                detail_json: JSON.stringify({ team_name: initTeamName, user_id: 'student-wang', role: 'Read' }),
+                action_at: new Date(Date.now() - 900000).toISOString().slice(0, 19).replace('T', ' ')
+            }
+        );
 
         function showToast(message, type = 'success') {
             const toast = document.createElement('div');
@@ -803,31 +945,105 @@ def render():
         function renderAuditLogs(data) {
             const list = document.getElementById('audit-list');
             if (!data || data.length === 0) {
-                list.innerHTML = '<div class="empty-state">暂无操作记录</div>';
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
+                        <div>暂无操作记录</div>
+                        <div style="font-size: 12px; color: #9ca3af; margin-top: 8px;">操作协作者后会在此记录</div>
+                    </div>
+                `;
                 return;
             }
 
-            const actionText = {
-                'collaborator_add': '添加协作者',
-                'collaborator_remove': '移除协作者',
-                'collaborator_role_update': '更新角色权限'
+            const actionConfig = {
+                'collaborator_add': { text: '添加协作者', icon: '➕', color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.1)' },
+                'collaborator_remove': { text: '移除协作者', icon: '➖', color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.1)' },
+                'collaborator_role_update': { text: '更新角色权限', icon: '🔄', color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.1)' }
             };
 
-            list.innerHTML = data.map(item => {
-                const detail = typeof item.detail_json === 'string' ? JSON.parse(item.detail_json) : item.detail_json;
-                return `
-                    <div style="background: #f9fafb; padding: 16px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #6366f1;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <span style="font-weight: 600; color: #1f2937;">${actionText[item.action] || item.action}</span>
-                            <span style="font-size: 12px; color: #6b7280;">${item.action_at || '未知时间'}</span>
-                        </div>
-                        <div style="font-size: 13px; color: #6b7280;">
-                            <strong>目标:</strong> ${item.target_type || ''} #${item.target_id || ''}<br>
-                            <strong>详情:</strong> 团队=${detail.team_name || ''}, 用户=${detail.user_id || ''}, 角色=${detail.role || ''}
-                        </div>
+            function formatTime(dateStr) {
+                if (!dateStr) return '未知时间';
+                const now = new Date();
+                const actionTime = new Date(dateStr.replace(' ', 'T'));
+                const diffMs = now - actionTime;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMins / 60);
+                const diffDays = Math.floor(diffHours / 24);
+
+                if (diffMins < 1) return '刚刚';
+                if (diffMins < 60) return `${diffMins}分钟前`;
+                if (diffHours < 24) return `${diffHours}小时前`;
+                return dateStr;
+            }
+
+            // 统计信息
+            const stats = {
+                total: data.length,
+                add: data.filter(item => item.action === 'collaborator_add').length,
+                remove: data.filter(item => item.action === 'collaborator_remove').length,
+                update: data.filter(item => item.action === 'collaborator_role_update').length
+            };
+
+            list.innerHTML = `
+                <!-- 统计卡片 -->
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
+                    <div style="background: #f9fafb; padding: 14px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 20px; font-weight: 700; color: #6366f1;">${stats.total}</div>
+                        <div style="font-size: 12px; color: #6b7280;">总记录</div>
                     </div>
-                `;
-            }).join('');
+                    <div style="background: rgba(16, 185, 129, 0.1); padding: 14px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 20px; font-weight: 700; color: #10b981;">${stats.add}</div>
+                        <div style="font-size: 12px; color: #059669;">添加</div>
+                    </div>
+                    <div style="background: rgba(239, 68, 68, 0.1); padding: 14px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 20px; font-weight: 700; color: #ef4444;">${stats.remove}</div>
+                        <div style="font-size: 12px; color: #dc2626;">移除</div>
+                    </div>
+                    <div style="background: rgba(245, 158, 11, 0.1); padding: 14px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 20px; font-weight: 700; color: #f59e0b;">${stats.update}</div>
+                        <div style="font-size: 12px; color: #d97706;">更新</div>
+                    </div>
+                </div>
+
+                <!-- 日志列表 -->
+                <div style="max-height: 500px; overflow-y: auto; padding-right: 8px;">
+                    ${data.map(item => {
+                        const config = actionConfig[item.action] || { text: item.action, icon: '📝', color: '#6b7280', bgColor: '#f3f4f6' };
+                        const detail = typeof item.detail_json === 'string' ? JSON.parse(item.detail_json) : item.detail_json;
+                        return `
+                            <div style="background: white; border: 1px solid #e5e7eb; padding: 16px; border-radius: 10px; margin-bottom: 12px;">
+                                <div style="display: flex; align-items: flex-start; gap: 14px;">
+                                    <div style="width: 40px; height: 40px; border-radius: 10px; background: ${config.bgColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                        <span style="font-size: 18px;">${config.icon}</span>
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <span style="font-weight: 600; color: ${config.color};">${config.text}</span>
+                                                <span style="background: #f3f4f6; color: #6b7280; padding: 2px 8px; border-radius: 4px; font-size: 11px;">#${item.id}</span>
+                                            </div>
+                                            <span style="font-size: 12px; color: #9ca3af;">${formatTime(item.action_at)}</span>
+                                        </div>
+                                        <div style="font-size: 13px; color: #6b7280; margin-bottom: 8px;">
+                                            <div style="display: flex; align-items: center; gap: 4px;">
+                                                <span>👤</span>
+                                                <span><strong style="color: #374151;">操作人:</strong> ${item.actor_user_id || '未知'}</span>
+                                            </div>
+                                        </div>
+                                        <div style="background: #f9fafb; padding: 10px; border-radius: 6px;">
+                                            <div style="font-size: 12px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                                                <div><span style="color: #6b7280;">团队:</span> <span style="font-weight: 500; color: #374151;">${detail.team_name || '-'}</span></div>
+                                                <div><span style="color: #6b7280;">用户:</span> <span style="font-weight: 500; color: #374151;">${detail.user_id || '-'}</span></div>
+                                                <div><span style="color: #6b7280;">角色:</span> <span style="font-weight: 500; color: #374151;">${detail.role || '-'}</span></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
         }
 
         function logout() {
