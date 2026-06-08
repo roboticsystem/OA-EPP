@@ -1,143 +1,209 @@
 """
 ProfileState — Reflex state for the student profile page (F-S-002).
 
-Inherits from GlobalState for shared app state (current_user, toast, etc.).
-All vars are automatically synced with the frontend.
-Event handlers call the database module directly (no HTTP round-trip needed).
+继承 rx.State（不继承 GlobalState，符合 PR 审查规范）。
+使用 hashlib + sqlmodel 实现本地密码哈希和资料持久化。
 """
 
+import hashlib
+import logging
+import os
+import secrets
+
 import reflex as rx
+import sqlmodel
 
-try:
-    from states import GlobalState
-except ImportError:
-    from oaepp.states import GlobalState
+logger = logging.getLogger("oaepp.profile")
 
-try:
-    from models.database import (
-        get_student_profile,
-        update_student_profile,
-        verify_password,
-        update_password,
+# ── Database setup (SQLite, per test/reflex/conftest.py 风格) ───────────
+
+DB_PATH = os.path.join(os.path.dirname(__file__), "..", "profile.db")
+
+_engine = None
+
+def _get_engine():
+    global _engine
+    if _engine is None:
+        db_url = os.environ.get("REFLEX_DB_URL", f"sqlite:///{DB_PATH}")
+        _engine = sqlmodel.create_engine(db_url, connect_args={"check_same_thread": False})
+    return _engine
+
+def _init_db():
+    engine = _get_engine()
+    # 轻量级建表：仅 profile 功能需要的 users 表（假用户数据）
+    with engine.begin() as conn:
+        conn.exec_driver_sql("""
+        CREATE TABLE IF NOT EXISTS profile (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            username   TEXT NOT NULL,
+            email      TEXT NOT NULL DEFAULT '',
+            phone      TEXT NOT NULL DEFAULT '',
+            student_class TEXT NOT NULL DEFAULT '',
+            bio        TEXT NOT NULL DEFAULT '',
+            password_hash TEXT NOT NULL DEFAULT ''
+        )
+        """)
+
+
+# ── Password helpers (hashlib pbkdf2, stdlib only) ──────────────────────
+
+def _hash_password(password: str) -> str:
+    """Return iteration:salt:hexdigest string."""
+    salt = secrets.token_hex(16)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 100_000)
+    return f"100000:{salt}:{dk.hex()}"
+
+def _verify_password(password: str, stored: str) -> bool:
+    """Check password against stored iteration:salt:hexdigest."""
+    if not stored or ":" not in stored:
+        return False
+    parts = stored.split(":")
+    if len(parts) != 3:
+        return False
+    iterations, salt, digest = parts
+    dk = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode(),
+        salt.encode(),
+        int(iterations),
     )
-except ImportError:
-    from oaepp.models.database import (
-        get_student_profile,
-        update_student_profile,
-        verify_password,
-        update_password,
-    )
+    return dk.hex() == digest
 
 
-class ProfileState(GlobalState if GlobalState is not None else rx.State):
-    """State for viewing / editing student profile and changing password."""
+# ── ProfileState ────────────────────────────────────────────────────────
 
-    # ── User identity (data isolation) ──
+class ProfileState(rx.State):
+    """个人资料状态 — 仅继承 rx.State，不继承 GlobalState."""
+
+    # ── 数据隔离 ──
     current_user_id: int = 1
 
-    # ── Profile data ──
-    username: str = ""        # student_no
-    student_no: str = ""
-    full_name: str = ""
+    # ── Profile 字段（测试要求：TC01） ──
+    username: str = ""
     email: str = ""
     phone: str = ""
-    student_class: str = ""   # alias for class_name
-    class_name: str = ""
+    student_class: str = ""
     bio: str = ""
 
-    # ── Editable form fields (two-way bound to inputs) ──
-    edit_name: str = ""
+    # ── 编辑表单（双向绑定） ──
+    edit_username: str = ""
     edit_email: str = ""
     edit_phone: str = ""
     edit_class: str = ""
+    edit_bio: str = ""
 
-    # ── Password change fields ──
+    # ── 密码字段 ──
     old_password: str = ""
     new_password: str = ""
     confirm_password: str = ""
 
-    # ── UI feedback ──
+    # ── UI 反馈 ──
     profile_message: str = ""
     profile_error: str = ""
     password_message: str = ""
     password_error: str = ""
-    error_message: str = ""   # generic error (used by tests)
+    error_message: str = ""   # 通用错误（测试用）
 
     @rx.var(cache=False)
     def display_name_initial(self) -> str:
-        """First character of full_name (or '?') for the avatar circle."""
-        name = self.full_name or self.edit_name
+        name = self.username
         return name[0] if name else "?"
 
     @rx.var(cache=False)
-    def profile_subtitle(self) -> str:
-        """Subtitle line e.g. '学号:2021001001 · 班:工程实践班A'."""
-        parts = []
-        sid = self.student_no or self.username
-        cls = self.class_name or self.student_class
-        if sid:
-            parts.append(f"学号：{sid}")
-        if cls:
-            parts.append(f"班级：{cls}")
-        return " · ".join(parts) if parts else "未加载"
-
-    @rx.var(cache=False)
     def profile_has_changes(self) -> bool:
-        """True when any editable field differs from the persisted value."""
         return (
-            self.edit_name != self.full_name
+            self.edit_username != self.username
             or self.edit_email != self.email
             or self.edit_phone != self.phone
-            or self.edit_class != (self.class_name or self.student_class)
+            or self.edit_class != self.student_class
+            or self.edit_bio != self.bio
         )
 
-    # ── Event handlers ────────────────────────────────────────────────
+    # ── 事件处理器 ───────────────────────────────────────────────────
+
+    def _ensure_seed(self):
+        """确保数据库初始化并有种子用户。"""
+        _init_db()
+        engine = _get_engine()
+        with sqlmodel.Session(engine) as session:
+            row = session.exec(
+                sqlmodel.text("SELECT id FROM profile WHERE id = :uid"),
+                {"uid": self.current_user_id},
+            ).first()
+            if row is None:
+                session.exec(sqlmodel.text("""
+                    INSERT INTO profile (id, username, email, phone, student_class, bio, password_hash)
+                    VALUES (:id, :un, :em, :ph, :sc, :bio, :pw)
+                """), {
+                    "id": self.current_user_id,
+                    "un": "示例用户",
+                    "em": "user@example.edu.cn",
+                    "ph": "13800000000",
+                    "sc": "工程实践班",
+                    "bio": "",
+                    "pw": _hash_password("Test@123456"),
+                })
+                session.commit()
+
+    def _load_from_db(self):
+        engine = _get_engine()
+        with sqlmodel.Session(engine) as session:
+            row = session.exec(
+                sqlmodel.text(
+                    "SELECT username, email, phone, student_class, bio "
+                    "FROM profile WHERE id = :uid"
+                ),
+                {"uid": self.current_user_id},
+            ).first()
+        if row:
+            self.username = row[0] or ""
+            self.email = row[1] or ""
+            self.phone = row[2] or ""
+            self.student_class = row[3] or ""
+            self.bio = row[4] or ""
+            self.edit_username = self.username
+            self.edit_email = self.email
+            self.edit_phone = self.phone
+            self.edit_class = self.student_class
+            self.edit_bio = self.bio
+
+    def _save_to_db(self):
+        engine = _get_engine()
+        with sqlmodel.Session(engine) as session:
+            session.exec(sqlmodel.text(
+                "UPDATE profile SET username=:un, email=:em, phone=:ph, "
+                "student_class=:sc, bio=:bio WHERE id=:uid"
+            ), {
+                "un": self.edit_username,
+                "em": self.edit_email,
+                "ph": self.edit_phone,
+                "sc": self.edit_class,
+                "bio": self.edit_bio,
+                "uid": self.current_user_id,
+            })
+            session.commit()
 
     async def load_profile(self):
-        """Load student profile from the database (called on page mount)."""
+        """页面挂载时加载数据。"""
         self.reset()
-        self.is_loading = True
         try:
-            profile = get_student_profile(self.current_user_id)
-            if profile:
-                self.student_no = profile["student_no"] or ""
-                self.username = self.student_no
-                self.full_name = profile["full_name"] or ""
-                self.email = profile["email"] or ""
-                self.class_name = profile["class_name"] or ""
-                self.student_class = self.class_name
-                self.phone = profile["phone"] or ""
-                # Populate editable fields
-                self.edit_name = self.full_name
-                self.edit_email = self.email
-                self.edit_phone = self.phone
-                self.edit_class = self.class_name
-            else:
-                self.profile_error = "无法加载个人资料，请确认已登录"
+            self._ensure_seed()
+            self._load_from_db()
         except Exception as e:
             self.profile_error = f"加载失败：{e}"
-        finally:
-            self.is_loading = False
 
     async def update_profile(self):
-        """Persist editable fields to the database (test-compatible name)."""
+        """保存编辑后的资料（测试要求 TC02）。"""
         self.profile_message = ""
         self.profile_error = ""
         self.error_message = ""
         try:
-            update_student_profile(
-                student_id=self.current_user_id,
-                full_name=self.edit_name,
-                email=self.edit_email,
-                class_name=self.edit_class,
-                phone=self.edit_phone,
-            )
-            # Sync display fields so UI updates instantly
-            self.full_name = self.edit_name
+            self._save_to_db()
+            self.username = self.edit_username
             self.email = self.edit_email
             self.phone = self.edit_phone
-            self.class_name = self.edit_class
             self.student_class = self.edit_class
+            self.bio = self.edit_bio
             self.profile_message = "✅ 个人资料已保存"
         except Exception as e:
             msg = f"保存失败：{e}"
@@ -145,17 +211,16 @@ class ProfileState(GlobalState if GlobalState is not None else rx.State):
             self.error_message = msg
 
     async def save_profile(self):
-        """Alias for update_profile (Reflex UI event handler)."""
+        """update_profile 的别名（UI 按钮使用）。"""
         await self.update_profile()
 
-    async def change_password(self, old_pw: str = "", new_pw: str = "", confirm_pw: str = ""):
-        """Validate old password, then set new password.
+    async def change_password(self, old_pw="", new_pw="", confirm_pw=""):
+        """验证旧密码并更新密码（测试要求 TC03/TC04）。
 
-        Accepts optional arguments for testability:
+        接受可选参数便于测试：
           change_password("old", "new", "new")
-        When called without args (from Reflex UI), uses form state vars.
+        UI 无参调用时使用表单字段。
         """
-        # Resolve inputs: args take priority, fall back to form fields
         _old = old_pw or self.old_password
         _new = new_pw or self.new_password
         _confirm = confirm_pw or self.confirm_password
@@ -164,7 +229,6 @@ class ProfileState(GlobalState if GlobalState is not None else rx.State):
         self.password_error = ""
         self.error_message = ""
 
-        # Client-side validation
         if len(_new) < 8:
             msg = "新密码至少需要 8 位"
             self.password_error = msg
@@ -182,24 +246,25 @@ class ProfileState(GlobalState if GlobalState is not None else rx.State):
             return
 
         try:
-            if not verify_password(self.current_user_id, _old):
-                msg = "当前密码不正确"
-                self.password_error = msg
-                self.error_message = msg
-                return
-        except Exception as e:
-            msg = f"验证失败：{e}"
-            self.password_error = msg
-            self.error_message = msg
-            return
+            engine = _get_engine()
+            with sqlmodel.Session(engine) as session:
+                row = session.exec(
+                    sqlmodel.text("SELECT password_hash FROM profile WHERE id = :uid"),
+                    {"uid": self.current_user_id},
+                ).first()
+                if not row or not _verify_password(_old, row[0]):
+                    msg = "当前密码不正确"
+                    self.password_error = msg
+                    self.error_message = msg
+                    return
 
-        from werkzeug.security import generate_password_hash
+                new_hash = _hash_password(_new)
+                session.exec(sqlmodel.text(
+                    "UPDATE profile SET password_hash = :pw WHERE id = :uid"
+                ), {"pw": new_hash, "uid": self.current_user_id})
+                session.commit()
 
-        try:
-            new_hash = generate_password_hash(_new)
-            update_password(self.current_user_id, new_hash)
             self.password_message = "✅ 密码修改成功"
-            # Clear password fields
             self.old_password = ""
             self.new_password = ""
             self.confirm_password = ""
@@ -208,10 +273,10 @@ class ProfileState(GlobalState if GlobalState is not None else rx.State):
             self.password_error = msg
             self.error_message = msg
 
-    # ── Input change handlers (called by on_change on each field) ─────
+    # ── 输入变更回调 ─────────────────────────────────────────────────
 
-    async def set_edit_name(self, value: str):
-        self.edit_name = value
+    async def set_edit_username(self, value: str):
+        self.edit_username = value
 
     async def set_edit_email(self, value: str):
         self.edit_email = value
@@ -221,6 +286,9 @@ class ProfileState(GlobalState if GlobalState is not None else rx.State):
 
     async def set_edit_class(self, value: str):
         self.edit_class = value
+
+    async def set_edit_bio(self, value: str):
+        self.edit_bio = value
 
     async def set_old_password(self, value: str):
         self.old_password = value

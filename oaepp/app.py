@@ -20,14 +20,6 @@ except Exception:
     except Exception:
         login_mod = None
 
-try:
-    from pages import profile as profile_mod
-except Exception:
-    try:
-        from oaepp.pages import profile as profile_mod
-    except Exception:
-        profile_mod = None
-
 app = None
 if rx is not None:
     try:
@@ -54,98 +46,8 @@ if app is not None and hasattr(app, "_api") and app._api is not None:
             "app": "OA-EPP",
         })
 
-    async def _api_health(request):
-        return JSONResponse({"status": "healthy", "app": "OA-EPP"})
-
-    app._api.routes.append(Route("/", _api_health, methods=["GET"]))
     app._api.routes.append(Route("/api/hello", _api_hello, methods=["GET"]))
     app._api.routes.append(Route("/api/status", _api_status, methods=["GET"]))
-
-    # ── Profile API routes ──────────────────────────────────────────
-    try:
-        try:
-            from models.database import (
-                get_student_profile,
-                update_student_profile,
-                verify_password,
-                update_password,
-                init_db,
-                seed_student,
-            )
-        except ImportError:
-            from oaepp.models.database import (
-                get_student_profile,
-                update_student_profile,
-                verify_password,
-                update_password,
-                init_db,
-                seed_student,
-            )
-
-        # Initialise DB on startup
-        init_db()
-        seed_student()
-
-        async def _api_profile_get(request):
-            """GET /api/profile?student_id=<id>"""
-            student_id = request.query_params.get("student_id")
-            if not student_id:
-                return JSONResponse({"error": "student_id required"}, status_code=400)
-            try:
-                profile = get_student_profile(int(student_id))
-                if profile:
-                    return JSONResponse({"data": profile})
-                return JSONResponse({"error": "not found"}, status_code=404)
-            except Exception as e:
-                return JSONResponse({"error": str(e)}, status_code=500)
-
-        async def _api_profile_update(request):
-            """PUT /api/profile"""
-            try:
-                body = await request.json()
-            except Exception:
-                return JSONResponse({"error": "invalid JSON"}, status_code=400)
-            student_id = body.get("student_id")
-            if not student_id:
-                return JSONResponse({"error": "student_id required"}, status_code=400)
-            try:
-                update_student_profile(
-                    student_id=int(student_id),
-                    full_name=body.get("full_name", ""),
-                    email=body.get("email", ""),
-                    class_name=body.get("class_name", ""),
-                    phone=body.get("phone", ""),
-                )
-                return JSONResponse({"status": "ok"})
-            except Exception as e:
-                return JSONResponse({"error": str(e)}, status_code=500)
-
-        async def _api_profile_password(request):
-            """PUT /api/profile/password"""
-            try:
-                body = await request.json()
-            except Exception:
-                return JSONResponse({"error": "invalid JSON"}, status_code=400)
-            student_id = body.get("student_id")
-            old_pw = body.get("old_password", "")
-            new_pw = body.get("new_password", "")
-            if not student_id or not old_pw or not new_pw:
-                return JSONResponse(
-                    {"error": "student_id, old_password, new_password required"},
-                    status_code=400,
-                )
-            sid = int(student_id)
-            if not verify_password(sid, old_pw):
-                return JSONResponse({"error": "incorrect old password"}, status_code=403)
-            from werkzeug.security import generate_password_hash
-            update_password(sid, generate_password_hash(new_pw))
-            return JSONResponse({"status": "ok"})
-
-        app._api.routes.append(Route("/api/profile", _api_profile_get, methods=["GET"]))
-        app._api.routes.append(Route("/api/profile", _api_profile_update, methods=["PUT"]))
-        app._api.routes.append(Route("/api/profile/password", _api_profile_password, methods=["PUT"]))
-    except Exception:
-        pass  # Profile API not available without database
 
 # ─────────────────────────────────────────────────────────────────────────
 
@@ -173,6 +75,7 @@ if app is not None and login_mod is not None:
             app.add_page(login_mod.page)
     except Exception:
         pass
+
 
 def run(port: int = 3000):
     """Run Reflex dev server (prefer `reflex` CLI, fallback to python -m reflex)."""
