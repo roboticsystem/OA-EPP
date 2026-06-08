@@ -871,7 +871,13 @@ def render():
         function renderCollaborators(data) {
             const list = document.getElementById('collaborator-list');
             if (!data || data.length === 0) {
-                list.innerHTML = '<div class="empty-state">暂无协作者</div>';
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div style="font-size: 48px; margin-bottom: 16px;">👥</div>
+                        <div>暂无协作者</div>
+                        <div style="font-size: 12px; color: #9ca3af; margin-top: 8px;">在上方添加协作者</div>
+                    </div>
+                `;
                 return;
             }
 
@@ -889,19 +895,39 @@ def render():
                                 <th>角色权限</th>
                                 <th>团队名称</th>
                                 <th>添加时间</th>
+                                <th style="width: 120px;">操作</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${data.map(item => `
                                 <tr>
-                                    <td>${item.user_id}</td>
-                                    <td><span class="role-tag" style="background: ${getRoleColor(item.role)}">${item.role}</span></td>
+                                    <td style="font-weight: 500; color: #374151;">${item.user_id}</td>
+                                    <td>
+                                        <span class="role-tag" style="background: ${getRoleColor(item.role)}">${item.role}</span>
+                                    </td>
                                     <td>${item.team_name || ''}</td>
-                                    <td>${item.added_at || '-'}</td>
+                                    <td style="color: #6b7280;">${item.added_at || '-'}</td>
+                                    <td>
+                                        <div style="display: flex; gap: 6px;">
+                                            <button 
+                                                onclick="editRole('${item.user_id}', '${item.team_name}', '${item.role}')"
+                                                style="padding: 4px 10px; background: #f3f4f6; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; color: #374151;">
+                                                编辑
+                                            </button>
+                                            <button 
+                                                onclick="quickRemove('${item.user_id}', '${item.team_name}')"
+                                                style="padding: 4px 10px; background: #fee2e2; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; color: #dc2626;">
+                                                删除
+                                            </button>
+                                        </div>
+                                    </td>
                                 </tr>
                             `).join('')}
                         </tbody>
                     </table>
+                    <div style="margin-top: 12px; font-size: 13px; color: #6b7280;">
+                        共 ${data.length} 位协作者
+                    </div>
                 </div>
             `;
         }
@@ -931,6 +957,64 @@ def render():
                 showToast(`✓ 已从团队 ${team_name} 移除协作者 ${user_id}`);
                 document.getElementById('remove_user_id').value = '';
                 document.getElementById('list_team_name').value = team_name;
+                renderAuditLogs(auditLogsData);
+                loadCollaborators();
+            } else {
+                showToast('协作者不存在', 'error');
+            }
+        }
+
+        // 编辑角色权限
+        window.editRole = function(user_id, team_name, current_role) {
+            const roles = ['Admin', 'Write', 'Triage', 'Read'];
+            const roleOptions = roles.filter(r => r !== current_role).map(r => `<option value="${r}">${r}</option>`).join('');
+            
+            const newRole = prompt(`为 ${user_id} 选择新角色（当前：${current_role}）:\n\n${roles.join('\n')}`, current_role);
+            
+            if (!newRole || !roles.includes(newRole)) {
+                if (newRole !== null) showToast('无效角色', 'error');
+                return;
+            }
+
+            if (newRole === current_role) {
+                showToast('角色未变化', 'error');
+                return;
+            }
+
+            const key = `${team_name}:${user_id}`;
+            if (key in collaboratorsData) {
+                collaboratorsData[key].role = newRole;
+                collaboratorsData[key].added_at = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+                _logAudit('collaborator_role_update', 'collaborators', user_id, {
+                    team_name: team_name,
+                    user_id: user_id,
+                    role: newRole,
+                    previous_role: current_role
+                });
+
+                showToast(`✓ 已将 ${user_id} 的角色更新为 ${newRole}`);
+                renderAuditLogs(auditLogsData);
+                loadCollaborators();
+            }
+        }
+
+        // 快速删除
+        window.quickRemove = function(user_id, team_name) {
+            if (!confirm(`确定要从团队 ${team_name} 中移除协作者 ${user_id} 吗？`)) {
+                return;
+            }
+
+            const key = `${team_name}:${user_id}`;
+            if (key in collaboratorsData) {
+                delete collaboratorsData[key];
+
+                _logAudit('collaborator_remove', 'collaborators', user_id, {
+                    team_name: team_name,
+                    user_id: user_id
+                });
+
+                showToast(`✓ 已从团队 ${team_name} 移除协作者 ${user_id}`);
                 renderAuditLogs(auditLogsData);
                 loadCollaborators();
             } else {
@@ -1069,7 +1153,8 @@ def render():
             document.getElementById('btn-remove-collaborator').addEventListener('click', removeCollaborator);
             document.getElementById('btn-logout').addEventListener('click', logout);
 
-            // 初始化：加载审计日志
+            // 初始化：自动加载协作者列表和审计日志
+            loadCollaborators();
             renderAuditLogs(auditLogsData);
         });
     </script>
