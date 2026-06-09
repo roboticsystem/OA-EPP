@@ -1,13 +1,13 @@
 """F-D-009 Commitlint 规则配置 TDD 测试
 
-被测 State : oaepp.states.devops_commitlint.CommitlintState
-TDD RED   : oaepp.states.devops_commitlint 不存在 → ImportError → 所有用例失败（预期）
+被测 State : oaepp.states.commitlint_state.CommitlintState
+TDD RED   : oaepp.states.commitlint_state 不存在 → ImportError → 所有用例失败（预期）
 TDD GREEN : CommitlintState 实现后 → 全部通过
 """
 import pytest
 
 try:
-    from oaepp.states.devops_commitlint import CommitlintState
+    from oaepp.states.commitlint_state import CommitlintState
     _IMPORT_ERROR = None
 except ImportError as _e:
     CommitlintState = None
