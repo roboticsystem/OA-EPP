@@ -15,9 +15,9 @@ except Exception:
     DeadlineState = None
 
 try:
-    from .commitlint_state import CommitlintState
+    from .auth import AuthState
 except Exception:
-    CommitlintState = None
+    AuthState = None
 
 # ── 全局状态基类（学生功能继承此类） ──
 try:
@@ -70,4 +70,4 @@ try:
 except Exception:
     GlobalState = None
 
-__all__ = ["DeadlineState", "CommitlintState"]
+__all__ = ["AuthState", "DeadlineState"]
