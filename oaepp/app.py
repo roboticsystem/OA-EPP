@@ -1,6 +1,8 @@
 """
-Minimal Reflex app registration and run helper.
+OA-EPP Reflex app — 路由注册 & 启动入口
+路由映射表：oaepp/routes.json
 """
+import importlib
 import shutil
 import sys
 
@@ -9,18 +11,34 @@ try:
 except Exception:
     rx = None
 
-# Attempt to import page module (may fail if reflex not installed).
-# Priority: local `pages.login` when running inside /oaepp,
-# fallback to `oaepp.pages.login` when running from repo root.
-try:
-    from pages import login as login_mod
-except Exception:
-    try:
-        from oaepp.pages import login as login_mod
-    except Exception:
-        login_mod = None
+# ── 辅助函数 ─────────────────────────────────────────────────────────────
 
-# Import AuthState so Reflex registers it as a state class
+def _import_page(module_name: str):
+    """尝试导入 pages.<module_name>，优先本地，回退 oaepp. 前缀。"""
+    for prefix in ("pages", "oaepp.pages"):
+        try:
+            return importlib.import_module(f"{prefix}.{module_name}")
+        except Exception:
+            continue
+    return None
+
+
+def _register_page(app, route: str, module_name: str, attr_name: str):
+    """安全地导入页面模块并注册路由，失败时静默跳过。"""
+    if app is None:
+        return
+    mod = _import_page(module_name)
+    if mod is None:
+        return
+    page_fn = getattr(mod, attr_name, None)
+    if page_fn is not None and callable(page_fn):
+        try:
+            app.add_page(page_fn, route=route)
+        except Exception:
+            pass
+
+
+# ── 导入 AuthState（Reflex 需要注册为全局 State） ─────────────────────────
 try:
     from states.auth import AuthState
 except Exception:
@@ -29,6 +47,7 @@ except Exception:
     except Exception:
         AuthState = None
 
+# ── 创建 App ─────────────────────────────────────────────────────────────
 app = None
 if rx is not None:
     try:
@@ -58,32 +77,22 @@ if app is not None and hasattr(app, "_api") and app._api is not None:
     app._api.routes.append(Route("/api/hello", _api_hello, methods=["GET"]))
     app._api.routes.append(Route("/api/status", _api_status, methods=["GET"]))
 
-# ─────────────────────────────────────────────────────────────────────────
+# ── 注册所有路由（routes.json 映射表） ─────────────────────────────────────
+# 学生端页面
+_register_page(app, "/",              "login",       "login_page")
+_register_page(app, "/dashboard",     "dashboard",   "dashboard_page")
+_register_page(app, "/courses",       "courses",     "courses_page")
+_register_page(app, "/assignments",   "assignments", "assignments_page")
+_register_page(app, "/attendance",    "attendance",  "attendance_page")
+_register_page(app, "/exam",          "exam",        "exam_page")
+_register_page(app, "/grades",        "grades",      "grades_page")
+_register_page(app, "/profile",       "profile",     "profile_page")
 
-# --- profile page ---
-try:
-    from pages import profile as profile_mod
-except Exception:
-    try:
-        from oaepp.pages import profile as profile_mod
-    except Exception:
-        profile_mod = None
-
-if app is not None and profile_mod is not None:
-    if hasattr(profile_mod, "profile_page") and callable(getattr(profile_mod, "profile_page")):
-        app.add_page(profile_mod.profile_page, route="/profile")
-
-if app is not None and login_mod is not None:
-    try:
-        if hasattr(login_mod, "login_page") and callable(getattr(login_mod, "login_page")):
-            try:
-                app.add_page(login_mod.login_page, route="/")
-            except Exception:
-                app.add_page(login_mod.login_page)
-        elif hasattr(login_mod, "page"):
-            app.add_page(login_mod.page)
-    except Exception:
-        pass
+# 管理员/教师端页面（由负责人维护）
+_register_page(app, "/admin_students",  "admin_students",  "admin_students_page")
+_register_page(app, "/admin_grades",    "admin_grades",    "admin_grades_page")
+_register_page(app, "/admin_settings",  "admin_settings",  "admin_settings_page")
+_register_page(app, "/admin_devops",    "admin_devops",    "admin_devops_page")
 
 
 def run(port: int = 3000):
