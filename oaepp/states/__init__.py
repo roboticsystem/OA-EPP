@@ -17,6 +17,11 @@ except Exception:
     DeadlineState = None
 
 try:
+    from .auth import AuthState
+except Exception:
+    AuthState = None
+
+try:
     from .timeline import TimelineState
 except Exception:
     TimelineState = None
@@ -72,4 +77,4 @@ try:
 except Exception:
     GlobalState = None
 
-__all__ = ["DeadlineState"]
+__all__ = ["AuthState", "DeadlineState", "TimelineState"]
