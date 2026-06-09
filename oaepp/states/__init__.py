@@ -3,10 +3,12 @@
 导出：
 - GlobalState：全局状态基类（所有功能状态继承此类）
 - DeadlineState：截止规则状态（F-S-022）
+- TimelineState：学习时间线状态（F-S-041）
 
 使用方式：
     from states import GlobalState
     from states.deadline import DeadlineState
+    from states.timeline import TimelineState
 """
 
 try:
@@ -18,6 +20,11 @@ try:
     from .auth import AuthState
 except Exception:
     AuthState = None
+
+try:
+    from .timeline import TimelineState
+except Exception:
+    TimelineState = None
 
 # ── 全局状态基类（学生功能继承此类） ──
 try:
@@ -70,4 +77,4 @@ try:
 except Exception:
     GlobalState = None
 
-__all__ = ["AuthState", "DeadlineState"]
+__all__ = ["AuthState", "DeadlineState", "TimelineState"]
