@@ -2,7 +2,6 @@
 课程主页 (F-S-010)
 展示学生已选课程与当前学习进度
 """
-from datetime import datetime
 
 try:
     import reflex as rx

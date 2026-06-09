@@ -9,7 +9,7 @@ import reflex as rx
 from sqlalchemy import select, and_
 from sqlalchemy.sql.functions import count
 from oaepp.models.database import (
-    Course, Chapter, Task, Student,
+    Course, Chapter, Task,
     StudentCourse, TaskCompletion
 )
 

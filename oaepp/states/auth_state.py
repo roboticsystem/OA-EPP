@@ -1,5 +1,4 @@
 import reflex as rx
-from typing import Optional
 
 
 class AuthState(rx.State):
