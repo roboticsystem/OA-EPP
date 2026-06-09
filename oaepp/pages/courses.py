@@ -1,13 +1,27 @@
-import reflex as rx
+"""
+课程主页 (F-S-010)
+展示学生已选课程与当前学习进度
+"""
 from datetime import datetime
-from oaepp.states.course_state import CourseState
+
+try:
+    import reflex as rx
+except Exception:
+    rx = None
+
+# 仅在 Reflex 可用时导入 State
+if rx is not None:
+    from oaepp.states.course_state import CourseState
 
 
-def course_card(course: "CourseState.courses[0]") -> rx.Component:
+def course_card(course) -> "rx.Component":
     """
     单门课程卡片组件
     展示课程名称、章节数、完成进度、截止提醒
     """
+    if rx is None:
+        return None
+
     return rx.card(
         rx.vstack(
             # 课程标题和代码
@@ -26,7 +40,7 @@ def course_card(course: "CourseState.courses[0]") -> rx.Component:
                 width="100%",
             ),
             rx.divider(),
-            
+
             # 课程统计信息
             rx.grid(
                 # 章节数
@@ -63,21 +77,21 @@ def course_card(course: "CourseState.courses[0]") -> rx.Component:
                 spacing="4",
                 width="100%",
             ),
-            
+
             # 进度条
             rx.progress(
                 value=course["progress_percentage"] / 100,
                 width="100%",
             ),
-            
+
             # 截止提醒
             rx.cond(
-                course["next_due_date"].isnot(None),
+                course["has_due_date"],
                 rx.vstack(
                     rx.hstack(
                         rx.icon(tag="clock"),
                         rx.text(
-                            f"下一截止: {rx.format_date(course['next_due_date'], 'YYYY-MM-DD')}",
+                            f"下一截止: {course['next_due_date_str']}",
                             color="orange",
                             size="sm",
                         ),
@@ -87,7 +101,7 @@ def course_card(course: "CourseState.courses[0]") -> rx.Component:
                 ),
                 rx.box(),
             ),
-            
+
             # 操作按钮
             rx.hstack(
                 rx.button(
@@ -103,7 +117,7 @@ def course_card(course: "CourseState.courses[0]") -> rx.Component:
                 width="100%",
                 spacing="2",
             ),
-            
+
             spacing="4",
             width="100%",
         ),
@@ -112,11 +126,14 @@ def course_card(course: "CourseState.courses[0]") -> rx.Component:
     )
 
 
-def courses_page() -> rx.Component:
+def courses_page_content() -> "rx.Component":
     """
-    课程主页 (F-S-010)
+    课程主页核心内容 (F-S-010)
     展示学生已选课程与当前学习进度
     """
+    if rx is None:
+        return None
+
     return rx.box(
         rx.vstack(
             # 页面标题
@@ -130,7 +147,7 @@ def courses_page() -> rx.Component:
                 color="gray",
                 size="md",
             ),
-            
+
             # 刷新按钮
             rx.button(
                 "刷新数据",
@@ -139,7 +156,7 @@ def courses_page() -> rx.Component:
                 variant="outline",
                 size="sm",
             ),
-            
+
             # 加载状态
             rx.cond(
                 CourseState.loading,
@@ -150,7 +167,7 @@ def courses_page() -> rx.Component:
                 ),
                 rx.box(),
             ),
-            
+
             # 错误提示
             rx.cond(
                 CourseState.error_message != "",
@@ -161,7 +178,7 @@ def courses_page() -> rx.Component:
                 ),
                 rx.box(),
             ),
-            
+
             # 课程列表
             rx.cond(
                 CourseState.courses.length() > 0,
@@ -179,7 +196,7 @@ def courses_page() -> rx.Component:
                     color_scheme="gray",
                 ),
             ),
-            
+
             spacing="6",
             width="100%",
             padding="6",
@@ -192,9 +209,5 @@ def courses_page() -> rx.Component:
     )
 
 
-# 路由配置
-@rx.page(route="/courses", title="我的课程")
-def courses():
-    return rx.fragment(
-        courses_page(),
-    )
+# 对外暴露的页面组件
+courses_page = courses_page_content if rx is not None else None
