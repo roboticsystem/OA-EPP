@@ -131,34 +131,87 @@ class TimelineState:
             self.timeline_events = []
 
     async def _load_from_production(self) -> None:
-        """从生产 MySQL 数据库加载时间线事件"""
+        """从生产 MySQL 数据库加载时间线事件
+
+        从 submissions、feedbacks、exams 等现有表 UNION 构建时间线。
+        """
         try:
             from oaepp.database import db as db_ctx
 
-            conditions = ["1=1"]
-            params = []
+            sql = """
+            SELECT * FROM (
+                -- 提交事件
+                SELECT
+                    CONCAT('submit_', s.id) AS id,
+                    'submit' AS event_type,
+                    a.title AS title,
+                    CONCAT('版本 ', s.version_no) AS description,
+                    c.name AS course,
+                    a.id AS related_id,
+                    s.submitted_at AS event_time,
+                    s.submitted_at AS created_at
+                FROM submissions s
+                JOIN assignments a ON a.id = s.assignment_id
+                JOIN courses c ON c.id = a.course_id
+                JOIN users u ON u.id = s.student_user_id
+                WHERE u.role = 'student'
 
-            if self._student_no:
-                conditions.append("t.student_no = %s")
-                params.append(self._student_no)
-            if self.filter_course:
-                conditions.append("t.course = %s")
-                params.append(self.filter_course)
-            if self.filter_start:
-                conditions.append("t.event_time >= %s")
-                params.append(self.filter_start)
-            if self.filter_end:
-                conditions.append("t.event_time <= %s")
-                params.append(self.filter_end)
+                UNION ALL
 
-            sql = (
-                "SELECT t.* FROM timeline_events t"
-                " WHERE " + " AND ".join(conditions) +
-                " ORDER BY t.event_time DESC"
-            )
+                -- 批改完成事件
+                SELECT
+                    CONCAT('grade_', s.id) AS id,
+                    'grade' AS event_type,
+                    a.title AS title,
+                    '已批改完成' AS description,
+                    c.name AS course,
+                    a.id AS related_id,
+                    s.submitted_at AS event_time,
+                    s.submitted_at AS created_at
+                FROM submissions s
+                JOIN assignments a ON a.id = s.assignment_id
+                JOIN courses c ON c.id = a.course_id
+                JOIN users u ON u.id = s.student_user_id
+                WHERE u.role = 'student' AND s.grading_status = 'graded'
+
+                UNION ALL
+
+                -- 反馈事件
+                SELECT
+                    CONCAT('fb_', f.id) AS id,
+                    'feedback' AS event_type,
+                    a.title AS title,
+                    LEFT(f.content, 100) AS description,
+                    c.name AS course,
+                    f.source_id AS related_id,
+                    f.created_at AS event_time,
+                    f.created_at AS created_at
+                FROM feedbacks f
+                JOIN assignments a ON a.id = f.source_id AND f.source_type = 'assignment'
+                JOIN courses c ON c.id = a.course_id
+                JOIN users u ON u.id = f.student_user_id
+                WHERE u.role = 'student'
+
+                UNION ALL
+
+                -- 考试发布事件
+                SELECT
+                    CONCAT('exam_', e.id) AS id,
+                    'task_publish' AS event_type,
+                    e.title AS title,
+                    CONCAT(e.exam_type, ' 考试') AS description,
+                    COALESCE(c.name, '') AS course,
+                    e.id AS related_id,
+                    e.start_at AS event_time,
+                    e.created_at AS created_at
+                FROM exams e
+                LEFT JOIN courses c ON c.id = e.course_id
+            ) AS timeline
+            ORDER BY event_time DESC
+            """
 
             async with db_ctx() as cur:
-                await cur.execute(sql, params)
+                await cur.execute(sql)
                 rows = await cur.fetchall()
 
             self.timeline_events = []
