@@ -60,9 +60,22 @@ except Exception:
     except Exception:
         profile_mod = None
 
+# --- grades page ---
+try:
+    from pages import grades as grades_mod
+except Exception:
+    try:
+        from oaepp.pages import grades as grades_mod
+    except Exception:
+        grades_mod = None
+
 if app is not None and profile_mod is not None:
     if hasattr(profile_mod, "profile_page") and callable(getattr(profile_mod, "profile_page")):
         app.add_page(profile_mod.profile_page, route="/profile")
+
+if app is not None and grades_mod is not None:
+    if hasattr(grades_mod, "grades_page") and callable(getattr(grades_mod, "grades_page")):
+        app.add_page(grades_mod.grades_page, route="/grades")
 
 if app is not None and login_mod is not None:
     try:
