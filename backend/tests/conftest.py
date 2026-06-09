@@ -16,18 +16,9 @@ def app_modules(tmp_path, monkeypatch):
     monkeypatch.setenv("TEACHER_PASSWORD", "test-teacher-password")
     monkeypatch.setenv("JWT_SECRET", "test-jwt-secret")
 
-    for module_name in (
-        "app.auth_utils",
-        "app.database",
-        "app.sync_exams",
-        "app.routers",
-        "app.routers.auth",
-        "app.routers.exam",
-        "app.routers.students",
-        "app.routers.teacher",
-        "app.main",
-    ):
-        sys.modules.pop(module_name, None)
+    for module_name in list(sys.modules):
+        if module_name == "app" or module_name.startswith("app."):
+            sys.modules.pop(module_name, None)
 
     database = importlib.import_module("app.database")
     database.init_db()

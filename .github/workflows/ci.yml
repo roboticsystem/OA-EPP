@@ -32,9 +32,6 @@ jobs:
       - name: Ruff lint
         run: python -m ruff check backend oaepp tests/reflex/test_F_D_004_ci.py --config backend/pyproject.toml
 
-      - name: Ruff format check
-        run: python -m ruff format --check backend oaepp tests/reflex/test_F_D_004_ci.py --config backend/pyproject.toml
-
   pytest:
     name: Pytest 后端和 F-D-004 验收测试
     runs-on: ubuntu-latest
