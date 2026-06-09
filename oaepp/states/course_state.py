@@ -1,20 +1,38 @@
 """
 课程状态管理 (F-S-010)
 提供学生课程加载、进度统计、课程选择等功能
+
+映射到远程 MySQL oaepp_dev 现有表结构：
+  - enrollments  → 学生选课记录
+  - courses      → 课程信息
+  - chapters     → 章节（用于统计章节数）
+  - assignments  → 作业/任务（用于统计任务数、截止日期）
+  - submissions  → 提交记录（用于统计完成数）
 """
 from datetime import datetime
 from typing import List, Optional
 
+import os as _os
+
 import reflex as rx
+from pydantic import BaseModel
 from sqlalchemy import select, and_
 from sqlalchemy.sql.functions import count
-from oaepp.models.database import (
-    Course, Chapter, Task,
-    StudentCourse, TaskCompletion
-)
+
+# 优先相对导入（运行在 oaepp/ 目录内），fallback 绝对导入（运行在仓库根目录）
+try:
+    from models.database import (
+        Course, Chapter, Enrollment,
+        Assignment, Submission,
+    )
+except ImportError:
+    from oaepp.models.database import (
+        Course, Chapter, Enrollment,
+        Assignment, Submission,
+    )
 
 
-class CourseProgress(rx.Base):
+class CourseProgress(BaseModel):
     """课程进度数据结构"""
     course_id: int
     course_code: str
@@ -22,10 +40,10 @@ class CourseProgress(rx.Base):
     total_chapters: int
     completed_tasks: int
     total_tasks: int
-    next_due_date_str: str = ""  # 格式化后的截止日期字符串，用于页面展示
+    next_due_date_str: str = ""  # 格式化后的截止日期字符串
     has_due_date: bool = False  # 是否有截止日期
     status: str  # active, completed, dropped
-    progress_percentage: float  # 0-100
+    progress_percentage: int  # 0-100
 
 
 class CourseState(rx.State):
@@ -44,88 +62,114 @@ class CourseState(rx.State):
 
             # 如果没有传入 student_id，使用 AuthState 中的值
             if student_id == 0:
-                from oaepp.states.auth_state import AuthState
+                try:
+                    from auth_state import AuthState
+                except ImportError:
+                    from oaepp.states.auth_state import AuthState
                 student_id = AuthState.current_student_id
 
+            if not student_id:
+                # 测试环境：从环境变量获取默认测试学生 ID
+                student_id = int(_os.environ.get(
+                    "OAEPP_TEST_STUDENT_ID", "0"
+                ))
             if not student_id:
                 self.error_message = "未找到学生信息"
                 return
 
-            # 获取学生的课程列表
             with rx.session() as session:
-                # 查询学生选课记录
-                student_courses = session.exec(
-                    select(StudentCourse).where(
-                        StudentCourse.student_id == student_id
+                # 查询学生选课记录（enrollments 表用 student_user_id）
+                enrollments = session.exec(
+                    select(Enrollment).where(
+                        Enrollment.student_user_id == student_id
                     )
                 ).all()
 
                 courses_data: List[CourseProgress] = []
 
-                for sc in student_courses:
+                for enr in enrollments:
                     # 获取课程信息
                     course = session.exec(
-                        select(Course).where(Course.id == sc.course_id)
+                        select(Course).where(Course.id == enr.course_id)
                     ).first()
 
                     if not course:
                         continue
 
-                    # 统计该课程的总任务数（通过 Chapter 关联）
+                    # 统计该课程的总章节数
+                    total_chapters = session.exec(
+                        select(count(Chapter.id)).where(
+                            Chapter.course_id == course.id
+                        )
+                    ).first()
+
+                    # 统计该课程的总任务数（通过 assignments 表）
                     total_tasks = session.exec(
-                        select(count(Task.id))
-                        .join(Chapter, Task.chapter_id == Chapter.id)
-                        .where(Chapter.course_id == course.id)
+                        select(count(Assignment.id)).where(
+                            Assignment.course_id == course.id
+                        )
                     ).first()
 
                     # 统计该学生在该课程的已完成任务数
+                    # 通过 submissions 表 JOIN assignments，按 grading_status = 'graded' 计数
                     completed_tasks = session.exec(
-                        select(count(TaskCompletion.id))
-                        .join(Task, TaskCompletion.task_id == Task.id)
-                        .join(Chapter, Task.chapter_id == Chapter.id)
+                        select(count(Submission.id))
+                        .join(
+                            Assignment,
+                            Submission.assignment_id == Assignment.id,
+                        )
                         .where(
                             and_(
-                                Chapter.course_id == course.id,
-                                TaskCompletion.student_id == student_id,
-                                TaskCompletion.status == "completed",
+                                Assignment.course_id == course.id,
+                                Submission.student_user_id == student_id,
+                                Submission.grading_status == "graded",
                             )
                         )
                     ).first()
 
                     # 获取该课程下一个截止任务
+                    now = datetime.now()
                     next_due = session.exec(
-                        select(Task)
-                        .join(Chapter, Task.chapter_id == Chapter.id)
+                        select(Assignment)
                         .where(
                             and_(
-                                Chapter.course_id == course.id,
-                                Task.due_date.isnot(None),
-                                Task.due_date > datetime.now(),
+                                Assignment.course_id == course.id,
+                                Assignment.deadline > now,
                             )
                         )
-                        .order_by(Task.due_date)
+                        .order_by(Assignment.deadline)
                     ).first()
 
                     completed_count = completed_tasks or 0
                     total_count = total_tasks or 0
                     progress_pct = (
-                        (completed_count / total_count * 100)
+                        int(completed_count / total_count * 100)
                         if total_count > 0 else 0
                     )
+
+                    # 课程状态映射: courses.status enum('draft','open','closed')
+                    if course.status == "closed":
+                        display_status = "completed"
+                    elif course.status == "draft":
+                        display_status = "draft"
+                    else:
+                        display_status = "active"
 
                     course_progress = CourseProgress(
                         course_id=course.id,
                         course_code=course.code,
                         course_name=course.name,
-                        total_chapters=course.total_chapters,
+                        total_chapters=total_chapters or 0,
                         completed_tasks=completed_count,
                         total_tasks=total_count,
                         next_due_date_str=(
-                            next_due.due_date.strftime("%Y-%m-%d %H:%M")
-                            if next_due and next_due.due_date else ""
+                            next_due.deadline.strftime("%Y-%m-%d %H:%M")
+                            if next_due and next_due.deadline else ""
                         ),
-                        has_due_date=bool(next_due and next_due.due_date),
-                        status=sc.status,
+                        has_due_date=bool(
+                            next_due and next_due.deadline
+                        ),
+                        status=display_status,
                         progress_percentage=progress_pct,
                     )
                     courses_data.append(course_progress)

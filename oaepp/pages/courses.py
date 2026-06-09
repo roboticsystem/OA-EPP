@@ -9,11 +9,15 @@ except Exception:
     rx = None
 
 # 仅在 Reflex 可用时导入 State
+# 优先使用相对导入（运行在 oaepp/ 目录内），fallback 绝对导入（运行在仓库根目录）
 if rx is not None:
-    from oaepp.states.course_state import CourseState
+    try:
+        from states.course_state import CourseState, CourseProgress
+    except ImportError:
+        from oaepp.states.course_state import CourseState, CourseProgress
 
 
-def course_card(course) -> "rx.Component":
+def course_card(course: "CourseProgress") -> "rx.Component":
     """
     单门课程卡片组件
     展示课程名称、章节数、完成进度、截止提醒
@@ -26,14 +30,14 @@ def course_card(course) -> "rx.Component":
             # 课程标题和代码
             rx.hstack(
                 rx.heading(
-                    course["course_name"],
-                    size="md",
+                    course.course_name,
+                    size="4",
                     color_scheme="blue",
                 ),
                 rx.badge(
-                    course["course_code"],
+                    course.course_code,
                     color_scheme="gray",
-                    variant="subtle",
+                    variant="soft",
                 ),
                 justify="between",
                 width="100%",
@@ -44,30 +48,30 @@ def course_card(course) -> "rx.Component":
             rx.grid(
                 # 章节数
                 rx.vstack(
-                    rx.text("章节数", color="gray", size="sm"),
+                    rx.text("章节数", color="gray", size="2"),
                     rx.heading(
-                        course["total_chapters"],
-                        size="lg",
+                        course.total_chapters,
+                        size="6",
                         color_scheme="blue",
                     ),
                     align="center",
                 ),
                 # 已完成任务
                 rx.vstack(
-                    rx.text("已完成任务", color="gray", size="sm"),
+                    rx.text("已完成任务", color="gray", size="2"),
                     rx.heading(
-                        f"{course['completed_tasks']}/{course['total_tasks']}",
-                        size="lg",
+                        f"{course.completed_tasks}/{course.total_tasks}",
+                        size="6",
                         color_scheme="green",
                     ),
                     align="center",
                 ),
                 # 进度百分比
                 rx.vstack(
-                    rx.text("完成度", color="gray", size="sm"),
+                    rx.text("完成度", color="gray", size="2"),
                     rx.heading(
-                        f"{course['progress_percentage']:.0f}%",
-                        size="lg",
+                        f"{course.progress_percentage:.0f}%",
+                        size="6",
                         color_scheme="purple",
                     ),
                     align="center",
@@ -79,20 +83,20 @@ def course_card(course) -> "rx.Component":
 
             # 进度条
             rx.progress(
-                value=course["progress_percentage"] / 100,
+                value=course.progress_percentage,
                 width="100%",
             ),
 
             # 截止提醒
             rx.cond(
-                course["has_due_date"],
+                course.has_due_date,
                 rx.vstack(
                     rx.hstack(
-                        rx.icon(tag="clock"),
+                        rx.icon(tag="timer"),
                         rx.text(
-                            f"下一截止: {course['next_due_date_str']}",
+                            f"下一截止: {course.next_due_date_str}",
                             color="orange",
-                            size="sm",
+                            size="2",
                         ),
                         spacing="2",
                     ),
@@ -106,7 +110,7 @@ def course_card(course) -> "rx.Component":
                 rx.button(
                     "查看详情",
                     color_scheme="blue",
-                    on_click=lambda: CourseState.select_course(course["course_id"]),
+                    on_click=lambda: CourseState.select_course(course.course_id),
                 ),
                 rx.button(
                     "继续学习",
@@ -121,7 +125,7 @@ def course_card(course) -> "rx.Component":
             width="100%",
         ),
         width="100%",
-        variant="elevated",
+        variant="classic",
     )
 
 
@@ -138,13 +142,13 @@ def courses_page_content() -> "rx.Component":
             # 页面标题
             rx.heading(
                 "我的课程",
-                size="xl",
+                size="8",
                 color_scheme="blue",
             ),
             rx.text(
                 "查看您已选课程的学习进度和截止提醒",
                 color="gray",
-                size="md",
+                size="4",
             ),
 
             # 刷新按钮
@@ -153,7 +157,7 @@ def courses_page_content() -> "rx.Component":
                 on_click=CourseState.refresh_courses,
                 color_scheme="gray",
                 variant="outline",
-                size="sm",
+                size="2",
             ),
 
             # 加载状态
@@ -171,8 +175,8 @@ def courses_page_content() -> "rx.Component":
             rx.cond(
                 CourseState.error_message != "",
                 rx.callout(
-                    rx.text(CourseState.error_message),
-                    icon="alert_circle",
+                    CourseState.error_message,
+                    icon="file_warning",
                     color_scheme="red",
                 ),
                 rx.box(),
@@ -190,9 +194,9 @@ def courses_page_content() -> "rx.Component":
                     width="100%",
                 ),
                 rx.callout(
-                    rx.text("暂无已选课程"),
-                    icon="info",
-                    color_scheme="gray",
+                    "暂无已选课程，请先选择课程或联系管理员",
+                    icon="circle_help",
+                    color_scheme="blue",
                 ),
             ),
 
