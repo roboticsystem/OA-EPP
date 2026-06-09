@@ -17,6 +17,7 @@ import socket
 import subprocess
 import sys
 import time
+import shutil
 from pathlib import Path
 
 # ── 项目根目录 ─────────────────────────────────────────────────────────────────
@@ -33,6 +34,7 @@ if str(BACKEND_DIR) not in sys.path:
 HOST        = "127.0.0.1"
 MKDOCS_PORT = 8008
 API_PORT    = 8009
+REFLEX_PORT = 8003
 
 # ── Coolify 配置（从 .env 读取敏感数据）─────────────────────────────────────────
 _env_file = REPO_ROOT / ".env"
@@ -45,11 +47,11 @@ if _env_file.exists():
 
 COOLIFY_BASE = "https://coolify.uwis.cn/api/v1"
 COOLIFY_API_KEY = os.environ.get("COOLIFY_API_KEY", "")
-PROJECT_NAME = "Robotics_Systems_Course"
-APP_NAME     = "robotics_systems_course"
-GIT_REPO     = "https://github.com/uwislab/robotics-systems-course.git"
+PROJECT_NAME = "OAEPP"
+APP_NAME     = "oa-epp"
+GIT_REPO     = "https://github.com/roboticsystem/OA-EPP.git"
 GIT_BRANCH   = "main"
-DOMAIN       = "https://robotic.uwis.cn"
+DOMAIN       = "https://oaepp.uwis.cn"
 ENVIRONMENT  = "production"
 COMPOSE_SERVICE = "oaepp_web"
 API_ENV_VARS    = ["TEACHER_PASSWORD", "JWT_SECRET"]
@@ -67,10 +69,10 @@ CONTAINER_FIXED_ENV = {
 def show_menu() -> str:
     print()
     print("╔" + "═" * 53 + "╗")
-    print("║    🤖  研究生《机器人系统》课程新教材 — 管理工具    ║")
+    print("║    🤖  本科生《工程实践1-4》在线平台 — 管理工具    ║")
     print("╠" + "═" * 53 + "╣")
     print("║  [1]  本地预览   MkDocs + API（热重载）             ║")
-    print("║  [2]  远程部署   触发 Coolify 重建                  ║")
+    print("║  [2]  Reflex 本地开发（Reflex 热启动）             ║")
     print("║  [Q]  退出                                          ║")
     print("╚" + "═" * 53 + "╝")
     while True:
@@ -606,10 +608,69 @@ def deploy_coolify(sync_summary: dict):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  主入口
+#  Reflex 本地开发入口
+
+
+def run_reflex_dev(sync_summary: dict = None, port: int = REFLEX_PORT):
+    """Start local Reflex development server for the /oaepp prototype.
+
+    Installs oaepp/requirements.txt if present, ensures port availability,
+    then runs `reflex run` from the oaepp/ directory.
+    """
+    print("\n🔧 启动 Reflex 本地开发（热重载）...")
+
+    # Install oaepp requirements if present
+    oaepp_reqs = REPO_ROOT / "oaepp" / "requirements.txt"
+    if oaepp_reqs.exists():
+        print(f"⚙️  安装 oaepp 依赖: {oaepp_reqs.relative_to(REPO_ROOT)}")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "-r", str(oaepp_reqs)])
+        except subprocess.CalledProcessError:
+            print("⚠️  安装 oaepp 依赖失败，继续尝试启动（若缺少 reflex 运行时将报错）")
+
+    ensure_port_available(HOST, port)
+
+    oaepp_dir = REPO_ROOT / "oaepp"
+    if not oaepp_dir.exists():
+        print("❌ oaepp 目录不存在，无法启动 Reflex")
+        return
+
+    # 定位 reflex 命令
+    binpath = shutil.which("reflex")
+    reflex_cmd = [binpath] if binpath else [sys.executable, "-m", "reflex"]
+
+    # 从 oaepp/ 目录启动 reflex run
+    try:
+        print(f"✅ 在 {oaepp_dir.relative_to(REPO_ROOT)} 目录下启动 Reflex（端口 {port}）")
+        subprocess.check_call(
+            reflex_cmd + ["run", "--backend-port", str(port)],
+            cwd=str(oaepp_dir),
+        )
+        return
+    except subprocess.CalledProcessError:
+        print("⚠️  带 --backend-port 参数启动失败，尝试默认端口启动...")
+
+    try:
+        subprocess.check_call(
+            reflex_cmd + ["run"],
+            cwd=str(oaepp_dir),
+        )
+        return
+    except subprocess.CalledProcessError as exc:
+        print(f"❌ Reflex 启动失败: {exc}")
+        print("   请确认 oaepp/ 目录下存在 rxconfig.py，且 reflex 已正确安装。")
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 
 def main():
+    # 支持通过命令行快速启动 Reflex 本地开发：
+    if "--reflex-dev" in sys.argv:
+        print("⚙️  使用命令行参数 --reflex-dev 启动 Reflex 本地开发")
+        # 跳过数据库同步，直接启动 Reflex 本地开发
+        run_reflex_dev(None)
+        return
+
     choice = show_menu()
 
     if choice == "Q":
@@ -622,7 +683,7 @@ def main():
     if choice == "1":
         serve_local()
     elif choice == "2":
-        deploy_coolify(sync_summary)
+        run_reflex_dev(sync_summary)
 
 
 if __name__ == "__main__":
