@@ -7,7 +7,7 @@ echo "[start.sh] 初始化数据库..."
 python scripts/init_db_and_seed.py || echo "[start.sh] 数据库初始化失败（可能已存在），继续启动..."
 
 echo "[start.sh] 启动 Reflex (生产模式)..."
-reflex run --env prod --single-port &
+reflex run --env prod --single-port --frontend-port 8000 --backend-port 8000 &
 REFLEX_PID=$!
 
 echo "[start.sh] 启动 Nginx..."
