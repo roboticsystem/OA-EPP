@@ -1,10 +1,15 @@
 """
 OA-EPP Reflex app — 路由注册 & 启动入口
-路由映射表：oaepp/routes.json
+
+路由规则：
+  - 学生功能：pages/xxx.py → xxx_page() → 自动注册到 /xxx
+  - 特殊路由：显式声明（如 login → /）
+  - 管理员页面：由负责人显式注册
 """
 import importlib
 import shutil
 import sys
+from pathlib import Path
 
 try:
     import reflex as rx
@@ -36,6 +41,35 @@ def _register_page(app, route: str, module_name: str, attr_name: str):
             app.add_page(page_fn, route=route)
         except Exception:
             pass
+
+
+def _auto_discover(app):
+    """自动发现 pages/ 目录下的页面模块。
+
+    约定：
+      pages/xxx.py 中定义 xxx_page() → 自动注册路由 /xxx
+
+    跳过：
+      - __init__.py, __pycache__
+      - 已在显式路由中特殊处理过的模块（login → /）
+    """
+    if app is None:
+        return
+
+    # 已由显式路由特殊处理的模块（不需要自动发现）
+    _skip_modules = {"login", "__init__"}
+
+    pages_dir = Path(__file__).resolve().parent / "pages"
+    if not pages_dir.is_dir():
+        return
+
+    for py_file in sorted(pages_dir.glob("*.py")):
+        module_name = py_file.stem
+        if module_name in _skip_modules or module_name.startswith("_"):
+            continue
+        route = f"/{module_name}"
+        attr = f"{module_name}_page"
+        _register_page(app, route, module_name, attr)
 
 
 # ── 导入 AuthState（Reflex 需要注册为全局 State） ─────────────────────────
@@ -77,22 +111,24 @@ if app is not None and hasattr(app, "_api") and app._api is not None:
     app._api.routes.append(Route("/api/hello", _api_hello, methods=["GET"]))
     app._api.routes.append(Route("/api/status", _api_status, methods=["GET"]))
 
-# ── 注册所有路由（routes.json 映射表） ─────────────────────────────────────
-# 学生端页面
-_register_page(app, "/",              "login",       "login_page")
-_register_page(app, "/dashboard",     "dashboard",   "dashboard_page")
-_register_page(app, "/courses",       "courses",     "courses_page")
-_register_page(app, "/assignments",   "assignments", "assignments_page")
-_register_page(app, "/attendance",    "attendance",  "attendance_page")
-_register_page(app, "/exam",          "exam",        "exam_page")
-_register_page(app, "/grades",        "grades",      "grades_page")
-_register_page(app, "/profile",       "profile",     "profile_page")
+# ── 显式路由（特殊路由，如首页 /） ────────────────────────────────────────
+_register_page(app, "/", "login", "login_page")
 
-# 管理员/教师端页面（由负责人维护）
+# ═══════════════════════════════════════════════════════════════════════════
+#  管理员/教师端页面（由负责人维护）
+#  学生禁止修改，新增管理端页面请在这里显式注册
+# ═══════════════════════════════════════════════════════════════════════════
 _register_page(app, "/admin_students",  "admin_students",  "admin_students_page")
 _register_page(app, "/admin_grades",    "admin_grades",    "admin_grades_page")
 _register_page(app, "/admin_settings",  "admin_settings",  "admin_settings_page")
 _register_page(app, "/admin_devops",    "admin_devops",    "admin_devops_page")
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  学生功能页面 — 自动发现
+#  规则：pages/xxx.py → xxx_page() → /xxx
+#  学生创建 pages/grades.py 后直接访问 /grades，无需改 app.py
+# ═══════════════════════════════════════════════════════════════════════════
+_auto_discover(app)
 
 
 def run(port: int = 3000):

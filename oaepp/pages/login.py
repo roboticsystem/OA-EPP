@@ -71,44 +71,71 @@ if rx is not None:
         )
 
     def login_page():
-        """A Reflex login page with real authentication."""
-        return rx.cond(
-            AuthState.is_authenticated,
-            rx.center(
+        """A Reflex login page with real authentication.
+
+        默认已登录，学生可直接访问功能页面；登录表单保留，可切换账号。
+        """
+        return rx.center(
+            rx.box(
                 rx.vstack(
-                    rx.text("登录成功！"),
-                    rx.link("进入学生端", href="/dashboard"),
-                ),
-                min_height="100vh",
-            ),
-            rx.center(
-                rx.box(
-                    rx.vstack(
-                        rx.heading("工程实践管理平台", size="6"),
-                        rx.text("OA-EPP · 登录", color="gray"),
-                        _login_form(),
-                        rx.hstack(
-                            rx.link("学生端", href="/dashboard"),
-                            rx.link("教师端", href="/admin_students.html"),
-                            spacing="5",
-                            justify="center",
+                    rx.heading("工程实践管理平台", size="6"),
+                    rx.text("OA-EPP · 登录", color="gray"),
+                    # 开发模式提示
+                    rx.cond(
+                        AuthState.is_authenticated,
+                        rx.box(
+                            rx.vstack(
+                                rx.text(
+                                    f"当前用户: {AuthState.current_full_name} ({AuthState.current_student_no})",
+                                    color="green",
+                                    weight="medium",
+                                ),
+                                rx.text(
+                                    "开发模式 — 可直接访问功能页面",
+                                    color="gray",
+                                    size="1",
+                                ),
+                                rx.hstack(
+                                    rx.link("Dashboard", href="/dashboard"),
+                                    rx.link("成绩", href="/grades"),
+                                    rx.link("作业", href="/assignments"),
+                                    rx.link("考勤", href="/attendance"),
+                                    rx.link("资料", href="/profile"),
+                                    spacing="2",
+                                    justify="center",
+                                ),
+                                spacing="1",
+                                align="center",
+                            ),
+                            padding="10px 14px",
+                            background="#f0fdf4",
+                            border_radius="8px",
+                            border="1px solid #bbf7d0",
                         ),
-                        spacing="4",
-                        width="100%",
-                        align="stretch",
                     ),
-                    max_width="460px",
+                    # 登录表单（始终显示，方便切换账号）
+                    _login_form(),
+                    rx.hstack(
+                        rx.link("学生端", href="/dashboard"),
+                        rx.link("教师端", href="/admin_students.html"),
+                        spacing="5",
+                        justify="center",
+                    ),
+                    spacing="4",
                     width="100%",
-                    padding="28px",
-                    border_radius="12px",
-                    box_shadow="0 10px 30px rgba(0,0,0,0.08)",
-                    background="white",
+                    align="stretch",
                 ),
-                min_height="100vh",
+                max_width="460px",
                 width="100%",
-                background="linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)",
-                padding="20px",
+                padding="28px",
+                border_radius="12px",
+                box_shadow="0 10px 30px rgba(0,0,0,0.08)",
+                background="white",
             ),
+            min_height="100vh",
+            width="100%",
+            background="linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)",
+            padding="20px",
         )
 
 def render():

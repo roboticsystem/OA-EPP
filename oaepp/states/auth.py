@@ -55,11 +55,11 @@ if rx is not None:
     class AuthState(rx.State):
         """登录/退出状态管理"""
 
-        is_authenticated: bool = False
-        current_user_id: Optional[int] = None
-        current_student_no: str = ""
-        current_full_name: str = ""
-        current_role: str = ""
+        is_authenticated: bool = True
+        current_user_id: Optional[int] = 1
+        current_student_no: str = "2024000001"
+        current_full_name: str = "张三"
+        current_role: str = "student"
         error_message: str = ""
         is_locked: bool = False
 
