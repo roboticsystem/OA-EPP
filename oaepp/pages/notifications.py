@@ -45,7 +45,7 @@ def category_badge(cat: str) -> rx.Component:
 
 
 def notification_card(n: dict) -> rx.Component:
-    """通知卡片 — 未读带蓝色左边框，布局匹配截图"""
+    """通知卡片 — 未读带蓝色左边框，匹配截图布局（无内容摘要）"""
     nid = n.get("id", 0)
     cat = n.get("category", "")
     cat_label, cat_color = CATEGORY_MAP.get(cat, ("通知", "gray"))
@@ -60,42 +60,32 @@ def notification_card(n: dict) -> rx.Component:
             border_radius="2px",
             flex_shrink=0,
         ),
-        # 左侧：标题 + 内容摘要
-        rx.vstack(
-            rx.text(
-                n.get("title", ""),
-                font_weight=rx.cond(is_read, "normal", "bold"),
-                color=rx.cond(is_read, "gray.500", "gray.900"),
-                font_size="md",
-            ),
-            rx.text(
-                n.get("content", ""),
-                font_size="sm", color="gray.500",
-                no_of_lines=2,
-            ),
-            spacing="1", align="start", width="100%",
+        # 左侧：标题（截图中只显示标题）
+        rx.text(
+            n.get("title", ""),
+            font_weight=rx.cond(is_read, "normal", "bold"),
+            color=rx.cond(is_read, "gray.500", "gray.900"),
+            font_size="md",
+            flex_grow=1,
         ),
         rx.spacer(),
         # 右侧：分类标签 + 时间 + 未读标记
-        rx.vstack(
-            rx.hstack(
-                rx.badge(cat_label, color_scheme=cat_color, size="1", variant="soft"),
-                rx.text(
-                    n.get("created_at", ""),
-                    font_size="xs", color="gray.400",
-                ),
-                rx.cond(
-                    is_read,
-                    rx.fragment(),
-                    rx.hstack(
-                        rx.icon("circle", size=8, color="blue.500"),
-                        rx.text("未读", font_size="xs", color="blue.500"),
-                        spacing="1",
-                    ),
-                ),
-                spacing="2", align="center",
+        rx.hstack(
+            rx.badge(cat_label, color_scheme=cat_color, size="1", variant="soft"),
+            rx.text(
+                n.get("created_at", ""),
+                font_size="xs", color="gray.400",
             ),
-            spacing="1", align="end",
+            rx.cond(
+                is_read,
+                rx.fragment(),
+                rx.hstack(
+                    rx.icon("circle", size=8, color="blue.500"),
+                    rx.text("未读", font_size="xs", color="blue.500"),
+                    spacing="1",
+                ),
+            ),
+            spacing="2", align="center",
         ),
         width="100%",
         padding="12px 16px",
@@ -151,7 +141,7 @@ def pagination_controls() -> rx.Component:
 def notifications_page() -> rx.Component:
     """学生端 — 公告与通知页面（由 app.py 自动发现注册为 /notifications）"""
     return rx.vstack(
-        # 标题栏 + 未读徽章
+        # 标题栏 + 未读徽章（浅黄色背景，匹配截图）
         rx.hstack(
             rx.heading("📢 公告与通知", size="6"),
             rx.spacer(),
@@ -162,10 +152,14 @@ def notifications_page() -> rx.Component:
                     color_scheme="red",
                     variant="solid",
                     size="2",
+                    border_radius="full",
                 ),
                 rx.fragment(),
             ),
             width="100%", align="center",
+            padding="12px 16px",
+            bg="#FFF8E1",  # 浅黄色背景
+            border_radius="8px",
         ),
 
         # 分类标签

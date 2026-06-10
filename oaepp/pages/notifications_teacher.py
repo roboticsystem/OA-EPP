@@ -68,46 +68,64 @@ def tab_button(tab: str, label: str, icon_name: str) -> rx.Component:
 
 
 def create_form() -> rx.Component:
-    """发送新通知表单"""
+    """发送新通知表单 — 直接显示，无折叠"""
     return rx.vstack(
         rx.hstack(
             rx.icon("send", size=18, color="blue.500"),
             rx.heading("发送新通知", size="4"),
             spacing="2", align="center",
         ),
+        # 标题 + 分类 + 发送按钮 同行
         rx.hstack(
-            rx.input(
-                placeholder="通知标题",
-                value=NoticeState.create_title,
-                on_change=NoticeState.set_create_title,
-                width="60%",
-            ),
-            rx.select.root(
-                rx.select.trigger(placeholder="选择分类"),
-                rx.select.content(
-                    rx.select.group(
-                        *[rx.select.item(label, value=v) for v, label in CATEGORY_OPTIONS]
-                    ),
+            rx.vstack(
+                rx.text("标题 *", font_size="sm", color="gray.600"),
+                rx.input(
+                    placeholder="如：期末考试成绩已公布",
+                    value=NoticeState.create_title,
+                    on_change=NoticeState.set_create_title,
+                    width="100%",
                 ),
-                value=NoticeState.create_category,
-                on_change=NoticeState.set_create_category,
-                width="25%",
+                spacing="1", align="start", width="60%",
             ),
-            rx.button(
-                rx.icon("send", size=14), "发送通知",
-                color_scheme="blue",
-                on_click=NoticeState.create_notification,
-                loading=NoticeState.creating,
-                width="15%",
+            rx.vstack(
+                rx.text("分类", font_size="sm", color="gray.600"),
+                rx.select.root(
+                    rx.select.trigger(placeholder="选择分类"),
+                    rx.select.content(
+                        rx.select.group(
+                            *[rx.select.item(label, value=v) for v, label in CATEGORY_OPTIONS]
+                        ),
+                    ),
+                    value=NoticeState.create_category,
+                    on_change=NoticeState.set_create_category,
+                    width="100%",
+                ),
+                spacing="1", align="start", width="25%",
             ),
-            width="100%", spacing="2", align="center",
+            rx.vstack(
+                rx.text("", font_size="sm"),  # 占位对齐
+                rx.button(
+                    rx.icon("send", size=14), "发送通知",
+                    color_scheme="blue",
+                    variant="solid",
+                    on_click=NoticeState.create_notification,
+                    loading=NoticeState.creating,
+                    width="100%",
+                ),
+                spacing="1", align="start", width="15%",
+            ),
+            width="100%", spacing="2", align="end",
         ),
-        rx.text_area(
-            placeholder="通知内容（可选）",
-            value=NoticeState.create_content,
-            on_change=NoticeState.set_create_content,
-            width="100%",
-            rows="3",
+        rx.vstack(
+            rx.text("通知内容 *", font_size="sm", color="gray.600"),
+            rx.text_area(
+                placeholder="输入通知正文…",
+                value=NoticeState.create_content,
+                on_change=NoticeState.set_create_content,
+                width="100%",
+                rows="3",
+            ),
+            spacing="1", align="start", width="100%",
         ),
         rx.text(
             "通知将发送给所有已注册的学生",
@@ -116,6 +134,7 @@ def create_form() -> rx.Component:
         rx.cond(
             NoticeState.create_error,
             rx.text(NoticeState.create_error, color="red.500", font_size="sm"),
+            rx.fragment(),
         ),
         width="100%",
         padding="16px",
@@ -181,7 +200,7 @@ def edit_form() -> rx.Component:
 
 
 def sent_notification_row(n: dict) -> rx.Component:
-    """已发送通知行 — 可展开/折叠"""
+    """已发送通知行 — 可展开/折叠，匹配截图布局"""
     cat = n.get("category", "announcement")
     nid = n.get("id", 0)
     total_students = n.get("total_students", 0)
@@ -193,26 +212,24 @@ def sent_notification_row(n: dict) -> rx.Component:
     return rx.accordion.root(
         rx.accordion.item(
             rx.accordion.trigger(
-                rx.hstack(
-                    rx.vstack(
-                        rx.hstack(
-                            category_badge(cat),
-                            rx.text(
-                                " · 共 ", total_students,
-                                " 人 · 已读 ", read_count,
-                                " 人 · ", created_at,
-                                font_size="xs", color="gray.400",
-                            ),
-                            spacing="1",
-                        ),
-                        rx.text(
-                            title,
-                            font_weight="bold", font_size="md", color="gray.800",
-                        ),
-                        spacing="1", align="start",
+                rx.vstack(
+                    # 第一行：标题（粗体）
+                    rx.text(
+                        title,
+                        font_weight="bold", font_size="md", color="gray.800",
                     ),
-                    rx.spacer(),
-                    width="100%", align="center",
+                    # 第二行：分类标签 + 统计信息 + 时间
+                    rx.hstack(
+                        category_badge(cat),
+                        rx.text(
+                            "· 共 ", total_students,
+                            " 人 · 已读 ", read_count,
+                            " 人 · ", created_at,
+                            font_size="xs", color="gray.400",
+                        ),
+                        spacing="2", align="center",
+                    ),
+                    spacing="1", align="start", width="100%",
                 ),
                 padding="12px 16px",
                 _hover={"bg": "var(--gray-50)"},
@@ -223,7 +240,7 @@ def sent_notification_row(n: dict) -> rx.Component:
                     rx.hstack(
                         rx.button(
                             rx.icon("pencil", size=14), "修改重发",
-                            size="1", color_scheme="blue", variant="outline",
+                            size="1", color_scheme="blue", variant="solid",
                             on_click=NoticeState.start_edit(nid),
                         ),
                         rx.button(
@@ -300,20 +317,11 @@ def notifications_teacher_page() -> rx.Component:
         # 标题栏
         rx.heading("📢 公告与通知管理", size="6"),
 
-        # 创建/编辑表单切换
+        # 创建/编辑表单切换（直接显示发送表单，无折叠按钮）
         rx.cond(
             NoticeState.is_editing,
             edit_form(),
-            rx.cond(
-                NoticeState.show_create,
-                create_form(),
-                rx.button(
-                    rx.icon("plus", size=14), "发送新通知",
-                    color_scheme="blue",
-                    on_click=NoticeState.toggle_create,
-                    width="100%",
-                ),
-            ),
+            create_form(),
         ),
 
         # 分类筛选
