@@ -81,6 +81,15 @@ except Exception:
     except Exception:
         AuthState = None
 
+# ── 导入 RepoPermState（F-T-009 仓库权限配置） ─────────────────────────
+try:
+    from states.teacher_repo_perm import RepoPermState
+except Exception:
+    try:
+        from oaepp.states.teacher_repo_perm import RepoPermState
+    except Exception:
+        RepoPermState = None
+
 # ── 创建 App ─────────────────────────────────────────────────────────────
 app = None
 if rx is not None:
@@ -118,10 +127,11 @@ _register_page(app, "/", "login", "login_page")
 #  管理员/教师端页面（由负责人维护）
 #  学生禁止修改，新增管理端页面请在这里显式注册
 # ═══════════════════════════════════════════════════════════════════════════
-_register_page(app, "/admin_students",  "admin_students",  "admin_students_page")
-_register_page(app, "/admin_grades",    "admin_grades",    "admin_grades_page")
-_register_page(app, "/admin_settings",  "admin_settings",  "admin_settings_page")
-_register_page(app, "/admin_devops",    "admin_devops",    "admin_devops_page")
+_register_page(app, "/admin_students",           "admin_students",           "admin_students_page")
+_register_page(app, "/admin_grades",             "admin_grades",             "admin_grades_page")
+_register_page(app, "/admin_settings",           "admin_settings",           "admin_settings_page")
+_register_page(app, "/admin_devops",             "admin_devops",             "admin_devops_page")
+_register_page(app, "/admin_repo_permissions",   "admin_repo_permissions",   "admin_repo_permissions_page")
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  学生功能页面 — 自动发现
