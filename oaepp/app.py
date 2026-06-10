@@ -57,7 +57,7 @@ def _auto_discover(app):
         return
 
     # 已由显式路由特殊处理的模块（不需要自动发现）
-    _skip_modules = {"login", "__init__"}
+    _skip_modules = {"login", "__init__", "notifications", "notifications_teacher"}
 
     pages_dir = Path(__file__).resolve().parent / "pages"
     if not pages_dir.is_dir():
@@ -114,7 +114,8 @@ if app is not None and hasattr(app, "_api") and app._api is not None:
 # ── 显式路由（特殊路由，如首页 /） ────────────────────────────────────────
 _register_page(app, "/", "login", "login_page")
 
-    # ── 挂载通知公告路由 ──
+# ── 挂载通知公告路由 ──
+if app is not None and hasattr(app, "_api") and app._api is not None:
     try:
         from oaepp.routers.notice import router as notice_router
     except ModuleNotFoundError:
