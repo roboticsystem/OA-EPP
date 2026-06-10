@@ -70,4 +70,4 @@ try:
 except Exception:
     GlobalState = None
 
-__all__ = ["AuthState", "DeadlineState"]
+__all__ = ["AuthState", "DeadlineState", "CommitlintState"]
