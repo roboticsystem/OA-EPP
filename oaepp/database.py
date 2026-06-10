@@ -8,10 +8,10 @@ OA-EPP 公共数据库访问层 — oaepp/database.py
 - 同步回退接口（db_sync / transaction_sync — 兼容非 async State）
 
 配置优先级：环境变量 > 默认值
-  DB_HOST      — MySQL 主机（默认 127.0.0.1）
-  DB_PORT      — MySQL 端口（默认 3306）
-  DB_USER      — 用户名（默认 root）
-  DB_PASSWORD  — 密码（默认空）
+  DB_HOST      — MySQL 主机（默认 156.239.252.40）
+  DB_PORT      — MySQL 端口（默认 13306）
+  DB_USER      — 用户名（默认 student_dev）
+  DB_PASSWORD  — 密码（默认 OaEpp@Dev2026）
   DB_NAME      — 数据库名（默认 oaepp_dev）
   DB_POOL_MIN  — 最小连接数（默认 2）
   DB_POOL_MAX  — 最大连接数（默认 10）
@@ -43,10 +43,10 @@ logger = logging.getLogger("oaepp.database")
 
 # ── 配置 ──────────────────────────────────────────────────────
 DB_CONFIG = {
-    "host": os.environ.get("DB_HOST", "127.0.0.1"),
-    "port": int(os.environ.get("DB_PORT", "3306")),
-    "user": os.environ.get("DB_USER", "root"),
-    "password": os.environ.get("DB_PASSWORD", ""),
+    "host": os.environ.get("DB_HOST", "156.239.252.40"),
+    "port": int(os.environ.get("DB_PORT", "13306")),
+    "user": os.environ.get("DB_USER", "student_dev"),
+    "password": os.environ.get("DB_PASSWORD", "OaEpp@Dev2026"),
     "db": os.environ.get("DB_NAME", "oaepp_dev"),
     "charset": "utf8mb4",
     "autocommit": True,  # db() 默认自动提交，transaction() 手动控制

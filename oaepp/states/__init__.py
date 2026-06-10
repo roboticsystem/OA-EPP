@@ -14,6 +14,11 @@ try:
 except Exception:
     DeadlineState = None
 
+try:
+    from .auth import AuthState
+except Exception:
+    AuthState = None
+
 # ── 全局状态基类（学生功能继承此类） ──
 try:
     import reflex as rx
@@ -71,4 +76,4 @@ try:
 except Exception:
     NoticeState = None
 
-__all__ = ["DeadlineState", "NoticeState"]
+__all__ = ["AuthState", "DeadlineState", "NoticeState"]
