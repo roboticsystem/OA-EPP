@@ -70,4 +70,10 @@ try:
 except Exception:
     GlobalState = None
 
-__all__ = ["AuthState", "DeadlineState"]
+# ── 通知公告状态（F-S-012） ──
+try:
+    from .notice import NoticeState
+except Exception:
+    NoticeState = None
+
+__all__ = ["AuthState", "DeadlineState", "NoticeState"]

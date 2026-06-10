@@ -26,12 +26,12 @@ def test_F_S_012_TC01_state_attrs_exist():
         assert hasattr(NoticeState, attr), f"缺少 {attr} 状态变量"
 
 
-async def test_F_S_012_TC02_notices_sorted_desc(mem_db):
+def test_F_S_012_TC02_notices_sorted_desc():
     """notices 应按发布时间降序排列"""
     _guard()
     state = NoticeState()
-    await state.load_notices()
-    # 内存库为空列表，验证不抛异常且为列表
+    state.load_notices()
+    # 数据库为空列表，验证不抛异常且为列表
     assert isinstance(state.notices, list), "notices 应为列表类型"
 
 
