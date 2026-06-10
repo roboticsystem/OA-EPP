@@ -200,6 +200,17 @@ if rx is not None:
             elif tab == "audit":
                 self.load_audit_log()
 
+        def reset_to_default(self):
+            """一键重置四维度权重为默认值 25/25/25/25"""
+            self.attendance_pct = 25
+            self.exam_pct = 25
+            self.code_pct = 25
+            self.pr_pct = 25
+            self._sync_weights_from_pct()
+            self._refresh_heatmap()
+            self.status_message = "已重置为默认权重 25/25/25/25"
+            self.status_type = "success"
+
         def set_selected_course(self, course_id: int):
             """选择课程后加载该课程的权重方案"""
             self.selected_course_id = course_id

@@ -296,6 +296,13 @@ if rx is not None:
                                         ),
                                         rx.spacer(),
                                         rx.button(
+                                            "重置默认",
+                                            on_click=GradeWeightState.reset_to_default,
+                                            color_scheme="gray",
+                                            variant="outline",
+                                            size="2",
+                                        ),
+                                        rx.button(
                                             "保存权重方案",
                                             on_click=GradeWeightState.save_weights,
                                             color_scheme="blue",
