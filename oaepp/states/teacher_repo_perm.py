@@ -31,10 +31,15 @@ import os
 import subprocess
 from typing import Any, Dict, List, Optional
 
+try:
+    import reflex as rx
+except Exception:
+    rx = None
+
 logger = logging.getLogger("oaepp.repo_perm")
 
 
-class RepoPermState:
+class RepoPermState(rx.State if rx is not None else object):
     """仓库权限配置状态管理
 
     通过 GitHub Organization + Team 模式管理班级仓库访问权限。
@@ -59,20 +64,24 @@ class RepoPermState:
     invite_result: dict = {}
     revoke_result: dict = {}
 
-    # ── 内部属性 ──
-    _gh_token: Optional[str] = None
+    # ── UI 状态变量 ──
+    filter_status: str = "all"
+    selected_usernames: List[str] = []
+    status_message: str = ""
+    is_loading: bool = False
+    page_ready: bool = False
+    total_members: int = 0
+    accepted_count: int = 0
+    pending_count: int = 0
+    left_count: int = 0
 
-    def __init__(self):
-        self.org_name = ""
-        self.team_name = ""
-        self.members = []
-        self.repo_name = ""
-        self.permission_level = "write"
-        self.course_id = None
-        self.teacher_user_id = None
-        self.invite_result = {}
-        self.revoke_result = {}
-        self._gh_token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    # ── 内部辅助 ──
+
+    def _update_counts(self):
+        self.total_members = len(self.members)
+        self.accepted_count = sum(1 for m in self.members if m.get("invite_status") == "accepted")
+        self.pending_count = sum(1 for m in self.members if m.get("invite_status") == "pending")
+        self.left_count = sum(1 for m in self.members if m.get("invite_status") in ("left", ""))
 
     # ── 配置方法 ──
 
@@ -172,10 +181,12 @@ class RepoPermState:
             # 如果已配置 org/team，尝试通过 GitHub API 刷新成员状态
             if self.org_name and self.team_name:
                 await self._refresh_member_status_from_github()
+            self._update_counts()
 
         except Exception as e:
             logger.error(f"加载班级成员失败: {e}")
             self.members = []
+            self._update_counts()
 
     # ── 批量邀请 ──
 
@@ -302,6 +313,7 @@ class RepoPermState:
                 "action_at": now.isoformat(),
             },
         )
+        self._update_counts()
 
         return self.invite_result
 
@@ -424,6 +436,7 @@ class RepoPermState:
                 "action_at": now.isoformat(),
             },
         )
+        self._update_counts()
 
         return self.revoke_result
 
@@ -451,6 +464,76 @@ class RepoPermState:
             if status in counts:
                 counts[status] += 1
         return counts
+
+    # ── UI 绑定方法 ──
+
+    def set_org_name(self, val: str):
+        self.org_name = val
+
+    def set_team_name(self, val: str):
+        self.team_name = val
+
+    def set_repo_name(self, val: str):
+        self.repo_name = val
+
+    def set_permission_level(self, val: str):
+        self.permission_level = val
+
+    def set_filter_status(self, val: str):
+        self.filter_status = val
+
+    def toggle_select(self, username: str):
+        if username in self.selected_usernames:
+            self.selected_usernames = [u for u in self.selected_usernames if u != username]
+        else:
+            self.selected_usernames = self.selected_usernames + [username]
+
+    def select_all_pending(self):
+        self.selected_usernames = [
+            m.get("github_username", "") for m in self.members
+            if m.get("invite_status") == "pending" and m.get("github_username")
+        ]
+
+    def clear_selection(self):
+        self.selected_usernames = []
+
+    async def handle_invite_all(self):
+        self.is_loading = True
+        self.status_message = ""
+        try:
+            result = await self.invite_all_students()
+            self.status_message = result.get("message", "")
+        except Exception as e:
+            self.status_message = f"邀请失败: {e}"
+        self.is_loading = False
+
+    async def handle_revoke(self):
+        self.is_loading = True
+        self.status_message = ""
+        try:
+            result = await self.revoke_team_access()
+            self.status_message = result.get("message", "")
+        except Exception as e:
+            self.status_message = f"撤销失败: {e}"
+        self.is_loading = False
+
+    async def handle_resend(self, github_username: str):
+        self.status_message = ""
+        result = await self.resend_invite(github_username)
+        self.status_message = result.get("message", "")
+
+    async def handle_load_members(self):
+        self.is_loading = True
+        self.status_message = ""
+        try:
+            await self.load_members(self.course_id)
+            self.page_ready = True
+        except Exception as e:
+            self.status_message = f"加载失败: {e}"
+        self.is_loading = False
+
+    def _get_token(self) -> Optional[str]:
+        return os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
 
     # ── 内部方法 ──
 
@@ -517,12 +600,13 @@ class RepoPermState:
         except ImportError:
             return False, "gh CLI 和 requests 库均不可用"
 
-        if not self._gh_token:
+        token = self._get_token()
+        if not token:
             return False, "未配置 GITHUB_TOKEN 环境变量"
 
         url = f"https://api.github.com{endpoint}"
         headers = {
-            "Authorization": f"Bearer {self._gh_token}",
+            "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.github+json",
         }
         try:
@@ -541,12 +625,13 @@ class RepoPermState:
         except ImportError:
             return False, "gh CLI 和 requests 库均不可用"
 
-        if not self._gh_token:
+        token = self._get_token()
+        if not token:
             return False, "未配置 GITHUB_TOKEN 环境变量"
 
         url = f"https://api.github.com{endpoint}"
         headers = {
-            "Authorization": f"Bearer {self._gh_token}",
+            "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.github+json",
         }
         try:
