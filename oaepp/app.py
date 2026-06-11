@@ -72,15 +72,6 @@ def _auto_discover(app):
         _register_page(app, route, module_name, attr)
 
 
-# ── 导入 AuthState（Reflex 需要注册为全局 State） ─────────────────────────
-try:
-    from states.auth import AuthState
-except Exception:
-    try:
-        from oaepp.states.auth import AuthState
-    except Exception:
-        AuthState = None
-
 # ── 创建 App ─────────────────────────────────────────────────────────────
 app = None
 if rx is not None:
