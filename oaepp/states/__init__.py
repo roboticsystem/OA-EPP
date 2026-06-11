@@ -36,10 +36,6 @@ try:
         # ── 全局加载状态 ──
         is_loading: bool = False
 
-        # ── 全局消息提示 ──
-        toast_message: str = ""
-        toast_type: str = "info"  # info | success | warning | error
-
         # ── 全局通知未读数 ──
         unread_notifications: int = 0
 
@@ -54,18 +50,6 @@ try:
             """清除当前登录用户"""
             self.current_user = {}
             self.unread_notifications = 0
-
-        # ── 方法：显示全局提示 ──
-        def show_toast(self, message: str, type: str = "info"):
-            """显示全局消息提示"""
-            self.toast_message = message
-            self.toast_type = type
-
-        # ── 方法：清除提示 ──
-        def clear_toast(self):
-            """清除全局消息提示"""
-            self.toast_message = ""
-            self.toast_type = "info"
 
 except Exception:
     GlobalState = None
