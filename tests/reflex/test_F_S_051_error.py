@@ -39,7 +39,7 @@ def _guard_handler():
 #  ErrorState 测试
 # ══════════════════════════════════════════════════════════
 
-def test_TC01_state_attrs_exist():
+def test_F_S_051_TC01_state_attrs_exist():
     """ErrorState 必须声明 current_code, current_message, current_severity, current_visible, retry_label"""
     _guard_err()
     for attr in ("current_code", "current_message", "current_severity",
@@ -47,7 +47,7 @@ def test_TC01_state_attrs_exist():
         assert hasattr(ErrorState, attr), f"缺少 {attr} 状态变量"
 
 
-async def test_TC02_show_sets_state(mem_db):
+async def test_F_S_051_TC02_show_sets_state(mem_db):
     """show() 设置错误信息并显示 Toast"""
     _guard_err()
     state = ErrorState()
@@ -57,7 +57,7 @@ async def test_TC02_show_sets_state(mem_db):
     assert state.current_code == ErrorCode.UNKNOWN
 
 
-async def test_TC03_dismiss_hides_toast(mem_db):
+async def test_F_S_051_TC03_dismiss_hides_toast(mem_db):
     """dismiss() 隐藏 Toast 并展示队列中下一个错误"""
     _guard_err()
     state = ErrorState()
@@ -70,17 +70,18 @@ async def test_TC03_dismiss_hides_toast(mem_db):
     assert state.current_visible is False
 
 
-async def test_TC04_show_stores_retry_info(mem_db):
+async def test_F_S_051_TC04_show_stores_retry_info(mem_db):
     """show() 存储重试标签和回调事件名"""
     _guard_err()
     state = ErrorState()
     await state.show(ErrorCode.NETWORK_ERROR, "网络异常", ErrorSeverity.ERROR,
                      retry="重试", retry_event="submit_assignment")
     assert state.retry_label == "重试"
+    assert state.retry_event == "submit_assignment"
 
 
-async def test_TC05_clear_error_resets_state(mem_db):
-    """手动重置所有状态变量"""
+async def test_F_S_051_TC05_dismiss_queue_cleared(mem_db):
+    """dismiss() 两次后队列清空，状态重置"""
     _guard_err()
     state = ErrorState()
     state.current_message = "some error"
@@ -96,21 +97,21 @@ async def test_TC05_clear_error_resets_state(mem_db):
 #  handle_error() 测试
 # ══════════════════════════════════════════════════════════
 
-def test_TC06_error_messages_complete():
+def test_F_S_051_TC06_error_messages_complete():
     """ERROR_MESSAGES 覆盖所有 ErrorCode"""
     _guard_handler()
     for code in ErrorCode:
         assert code in ERROR_MESSAGES, f"缺少 {code} 的文案映射"
 
 
-def test_TC07_error_policy_complete():
+def test_F_S_051_TC07_error_policy_complete():
     """ERROR_POLICY 覆盖所有 ErrorCode"""
     _guard_handler()
     for code in ErrorCode:
         assert code in ERROR_POLICY, f"缺少 {code} 的策略映射"
 
 
-def test_TC08_handle_unknown_error():
+def test_F_S_051_TC08_handle_unknown_error():
     """未知异常映射为 UNKNOWN"""
     _guard_handler()
     code, msg, severity, retry = handle_error(Exception("未知错误"))
@@ -119,35 +120,37 @@ def test_TC08_handle_unknown_error():
     assert severity == ErrorSeverity.ERROR
 
 
-def test_TC09_handle_timeout_error():
+def test_F_S_051_TC09_handle_timeout_error():
     """TimeoutError 映射为 NETWORK_TIMEOUT"""
     _guard_handler()
-    code, msg, severity, retry = handle_error(TimeoutError("连接超时"))
+    code, *_ = handle_error(TimeoutError("连接超时"))
     assert code == ErrorCode.NETWORK_TIMEOUT
 
 
-def test_TC10_handle_connection_error():
+def test_F_S_051_TC10_handle_connection_error():
     """ConnectionError 映射为 NETWORK_ERROR"""
     _guard_handler()
-    code, msg, severity, retry = handle_error(ConnectionError("连接被拒绝"))
+    code, *_ = handle_error(ConnectionError("连接被拒绝"))
     assert code == ErrorCode.NETWORK_ERROR
 
 
-def test_TC11_handle_permission_error():
+def test_F_S_051_TC11_handle_permission_error():
     """PermissionError 映射为 PERMISSION_DENIED"""
     _guard_handler()
-    code, msg, severity, retry = handle_error(PermissionError("权限不足"))
+    code, *_ = handle_error(PermissionError("权限不足"))
     assert code == ErrorCode.PERMISSION_DENIED
 
 
-def test_TC12_retry_label_for_retryable_errors():
+def test_F_S_051_TC12_retry_label_for_retryable_errors():
     """网络类错误应返回重试标签"""
     _guard_handler()
     _, _, _, retry = handle_error(TimeoutError())
-    assert retry != "", "可重试错误应有 retry_label"
+    assert retry != "", "TimeoutError 可重试错误应有 retry_label"
+    _, _, _, retry = handle_error(ConnectionError())
+    assert retry != "", "ConnectionError 可重试错误应有 retry_label"
 
 
-def test_TC13_no_retry_for_permission_errors():
+def test_F_S_051_TC13_no_retry_for_permission_errors():
     """权限错误不应返回重试标签"""
     _guard_handler()
     _, _, _, retry = handle_error(PermissionError())
