@@ -2,9 +2,8 @@
 OA-EPP Reflex app — 路由注册 & 启动入口
 
 路由规则：
-  - 学生功能：pages/xxx.py → xxx_page() → 自动注册到 /xxx
-  - 特殊路由：显式声明（如 login → /）
-  - 管理员页面：由负责人显式注册
+  - 所有页面：pages/xxx.py → xxx_page() → 自动注册到 /xxx
+  - 特殊路由：login → /（首页，显式注册）
 """
 import importlib
 import shutil
@@ -51,7 +50,7 @@ def _auto_discover(app):
 
     跳过：
       - __init__.py, __pycache__
-      - 已在显式路由中特殊处理过的模块（login → /）
+      - login（特殊路由 /，已由显式注册处理）
     """
     if app is None:
         return
@@ -106,18 +105,9 @@ if app is not None and hasattr(app, "_api") and app._api is not None:
 _register_page(app, "/", "login", "login_page")
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  管理员/教师端页面（由负责人维护）
-#  学生禁止修改，新增管理端页面请在这里显式注册
-# ═══════════════════════════════════════════════════════════════════════════
-_register_page(app, "/admin_students",  "admin_students",  "admin_students_page")
-_register_page(app, "/admin_grades",    "admin_grades",    "admin_grades_page")
-_register_page(app, "/admin_settings",  "admin_settings",  "admin_settings_page")
-_register_page(app, "/admin_devops",    "admin_devops",    "admin_devops_page")
-
-# ═══════════════════════════════════════════════════════════════════════════
-#  学生功能页面 — 自动发现
+#  所有页面 — 自动发现
 #  规则：pages/xxx.py → xxx_page() → /xxx
-#  学生创建 pages/grades.py 后直接访问 /grades，无需改 app.py
+#  学生页面、管理员页面均自动注册，无需修改此文件
 # ═══════════════════════════════════════════════════════════════════════════
 _auto_discover(app)
 
