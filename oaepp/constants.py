@@ -6,6 +6,8 @@ OA-EPP 全局常量
 需求编号：F-S-001 ~ F-S-053（全局共享）
 """
 
+from enum import Enum
+
 # ── 分页配置 ──
 PAGE_SIZE = 10
 """默认分页大小"""
@@ -57,3 +59,27 @@ GITHUB_BIND_STATUS = ["pending", "approved", "rejected"]
 # ── 课程状态 ──
 COURSE_STATUS = ["draft", "open", "closed"]
 """课程状态：草稿 / 开放 / 已关闭"""
+
+
+# ── 错误严重程度 ──
+class ErrorSeverity(str, Enum):
+    """错误严重程度，驱动 Toast 颜色和自动消失策略。"""
+    INFO = "info"
+    SUCCESS = "success"
+    WARNING = "warning"
+    ERROR = "error"
+
+
+# ── 错误码 ──
+class ErrorCode(str, Enum):
+    """全局错误码，handle_error() 按异常类型映射。"""
+    FILE_TOO_LARGE = "FILE_TOO_LARGE"
+    UNSUPPORTED_FORMAT = "UNSUPPORTED_FORMAT"
+    NETWORK_TIMEOUT = "NETWORK_TIMEOUT"
+    NETWORK_ERROR = "NETWORK_ERROR"
+    PERMISSION_DENIED = "PERMISSION_DENIED"
+    EXAM_ALREADY_SUBMITTED = "EXAM_ALREADY_SUBMITTED"
+    DEADLINE_PASSED = "DEADLINE_PASSED"
+    AUTH_FAILED = "AUTH_FAILED"
+    ACCOUNT_LOCKED = "ACCOUNT_LOCKED"
+    UNKNOWN = "UNKNOWN"

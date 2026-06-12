@@ -81,6 +81,15 @@ except Exception:
     except Exception:
         AuthState = None
 
+# ── 导入 ErrorState（Reflex 需要注册为全局 State） ─────────────────────────────
+try:
+    from oaepp.states.error import ErrorState
+except Exception:
+    try:
+        from states.error import ErrorState
+    except Exception:
+        ErrorState = None
+
 # ── 创建 App ─────────────────────────────────────────────────────────────
 app = None
 if rx is not None:
