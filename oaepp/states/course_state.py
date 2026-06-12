@@ -191,3 +191,14 @@ class CourseState(rx.State):
     async def refresh_courses(self):
         """刷新课程数据"""
         await self.load_student_courses()
+
+    # ── TDD 兼容层：对齐 tests/reflex/test_F_S_010_course_home.py ─────
+
+    @property
+    def is_loading(self) -> bool:
+        """TDD 兼容别名 → self.loading"""
+        return self.loading
+
+    async def load_courses(self):
+        """TDD 兼容方法 → self.load_student_courses()"""
+        await self.load_student_courses()
