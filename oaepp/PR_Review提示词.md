@@ -98,5 +98,5 @@
 ---
 
 ## 你的任务
-1、学生的PR是：https://github.com/roboticsystem/OA-EPP/pull/118 ，请你**逐行审查**，并按上面的规范给出审查结论：通过 / 警告 / 拒绝，并列出原因。
-2、根据PR中的代码涉及的代码或者路由的修改，在最后给出这个PR的PR Preview功能的URL，例如这样：https://115.oaepp-reflex.uwis.cn/admin_grades 
+1、学生的 PR 是：`{{PR_URL}}`，请你**逐行审查**，并按上面的规范给出审查结论：通过 / 警告 / 拒绝，并列出原因。
+2、根据 PR 中涉及的代码或路由修改，在最后给出这个 PR 的 PR Preview 功能的 URL，例如：`https://{PR编号}.oaepp-reflex.uwis.cn/{路由}`
