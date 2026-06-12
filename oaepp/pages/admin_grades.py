@@ -213,8 +213,8 @@ if rx is not None:
                         rx.select(
                             GradeWeightState.course_options,
                             placeholder="请选择课程",
-                            value=str(GradeWeightState.selected_course_id),
-                            on_change=lambda v: GradeWeightState.set_selected_course(int(v or 0)),
+                            value=GradeWeightState.selected_course_label,
+                            on_change=GradeWeightState.set_selected_course_by_label,
                             width="400px",
                         ),
                         rx.button("刷新课程", on_click=GradeWeightState.load_courses, size="2", variant="outline"),

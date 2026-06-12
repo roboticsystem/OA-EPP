@@ -76,15 +76,22 @@ if rx is not None:
             return self.total_pct == 100
 
         @rx.var
-        def course_options(self) -> List[Dict[str, str]]:
+        def course_options(self) -> List[str]:
             """课程下拉选项列表（响应式）"""
             return [
-                {
-                    "label": f"{c.get('code', '')} {c.get('name', '')} ({c.get('term', '')})",
-                    "value": str(c.get("id", 0)),
-                }
+                f"{c.get('code', '')} {c.get('name', '')} ({c.get('term', '')})"
                 for c in (self.courses or [])
             ]
+
+        @rx.var
+        def selected_course_label(self) -> str:
+            """当前选中课程的显示标签"""
+            if self.selected_course_id == 0:
+                return ""
+            for c in (self.courses or []):
+                if c.get("id") == self.selected_course_id:
+                    return f"{c.get('code', '')} {c.get('name', '')} ({c.get('term', '')})"
+            return ""
 
         @rx.var
         def heatmap_up_count(self) -> int:
@@ -219,6 +226,15 @@ if rx is not None:
                     self.selected_course_name = c.get("name", "")
                     break
             self._load_current_weights()
+
+        def set_selected_course_by_label(self, label: str):
+            """通过课程显示标签选择课程（Reflex 0.9.4 rx.select 兼容接口）"""
+            if not label:
+                return
+            for c in (self.courses or []):
+                if f"{c.get('code', '')} {c.get('name', '')} ({c.get('term', '')})" == label:
+                    self.set_selected_course(c.get("id", 0))
+                    return
 
         # ── 核心操作 ──
 
