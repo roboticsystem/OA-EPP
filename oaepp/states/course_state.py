@@ -63,9 +63,9 @@ class CourseState(rx.State):
             # 如果没有传入 student_id，使用 AuthState 中的值
             if student_id == 0:
                 try:
-                    from auth_state import AuthState
+                    from states.auth_state import AuthState  # 本地运行
                 except ImportError:
-                    from oaepp.states.auth_state import AuthState
+                    from oaepp.states.auth_state import AuthState  # 容器运行
                 student_id = AuthState.current_student_id
 
             if not student_id:
