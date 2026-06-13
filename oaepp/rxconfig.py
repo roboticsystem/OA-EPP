@@ -2,12 +2,20 @@ import os
 
 import reflex as rx
 
+# 数据库连接（Reflex ORM 使用，通过 rx.session() 访问）
+# 本地开发：默认连接远程 MySQL，学生无需任何配置
+# 容器部署：Dockerfile 中设置 DATABASE_URL=sqlite:///oaepp.db，启动不依赖外部数据库
+# 生产环境：Coolify 环境变量 DATABASE_URL 覆盖为实际 MySQL 地址
+_db_url = os.environ.get("DATABASE_URL") or \
+    "mysql+pymysql://student_dev:OaEpp%40Dev2026@156.239.252.40:13306/oaepp_dev"
+
 # Allow running `reflex run` directly inside /oaepp.
 config = rx.Config(
     app_name="oaepp",
     app_module_import="app",
+    db_url=_db_url,
     frontend_port=int(os.environ.get("REFLEX_FRONTEND_PORT", "8000")),
-    backend_port=int(os.environ.get("REFLEX_FRONTEND_PORT", "8000")),
+    backend_port=int(os.environ.get("REFLEX_BACKEND_PORT", "8000")),
     backend_host=os.environ.get("REFLEX_BACKEND_HOST", "0.0.0.0"),
     api_url=os.environ.get("REFLEX_API_URL")
     or os.environ.get("REFLEX_DEPLOY_URL")
