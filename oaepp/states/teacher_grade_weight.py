@@ -199,6 +199,20 @@ if rx is not None:
             self._sync_weights_from_pct()
             self._refresh_heatmap()
 
+        # ── Slider 事件处理器（Reflex 0.9.4: rx.slider on_change 传递 List[int]） ──
+
+        def set_attendance_pct_from_slider(self, val: List[int]):
+            self.set_attendance_pct(val[0] if val else 0)
+
+        def set_exam_pct_from_slider(self, val: List[int]):
+            self.set_exam_pct(val[0] if val else 0)
+
+        def set_code_pct_from_slider(self, val: List[int]):
+            self.set_code_pct(val[0] if val else 0)
+
+        def set_pr_pct_from_slider(self, val: List[int]):
+            self.set_pr_pct(val[0] if val else 0)
+
         def set_active_tab(self, tab: str):
             """切换标签页"""
             self.active_tab = tab

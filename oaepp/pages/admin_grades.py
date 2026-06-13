@@ -54,8 +54,8 @@ if rx is not None:
             rx.slider(
                 min_=0,
                 max_=100,
-                value=getattr(GradeWeightState, pct_field),
-                on_change=getattr(GradeWeightState, f"set_{pct_field}"),
+                value=[getattr(GradeWeightState, pct_field)],
+                on_change=getattr(GradeWeightState, f"set_{pct_field}_from_slider"),
                 color_scheme=color,
                 width="280px",
             ),
@@ -248,19 +248,19 @@ if rx is not None:
                         rx.button(
                             "权重调整",
                             on_click=lambda: GradeWeightState.set_active_tab("weights"),
-                            variant="solid" if GradeWeightState.active_tab == "weights" else "outline",
+                            variant=rx.cond(GradeWeightState.active_tab == "weights", "solid", "outline"),
                             size="2",
                         ),
                         rx.button(
                             "历史方案",
                             on_click=lambda: GradeWeightState.set_active_tab("history"),
-                            variant="solid" if GradeWeightState.active_tab == "history" else "outline",
+                            variant=rx.cond(GradeWeightState.active_tab == "history", "solid", "outline"),
                             size="2",
                         ),
                         rx.button(
                             "审计日志",
                             on_click=lambda: GradeWeightState.set_active_tab("audit"),
-                            variant="solid" if GradeWeightState.active_tab == "audit" else "outline",
+                            variant=rx.cond(GradeWeightState.active_tab == "audit", "solid", "outline"),
                             size="2",
                         ),
                         spacing="2",
@@ -285,11 +285,11 @@ if rx is not None:
                                     rx.divider(),
                                     rx.hstack(
                                         rx.text(
-                                            f"合计: {GradeWeightState.attendance_pct + GradeWeightState.exam_pct + GradeWeightState.code_pct + GradeWeightState.pr_pct}%",
+                                            f"合计: {GradeWeightState.total_pct}%",
                                             font_weight="bold",
                                             font_size="16px",
                                             color=rx.cond(
-                                                (GradeWeightState.attendance_pct + GradeWeightState.exam_pct + GradeWeightState.code_pct + GradeWeightState.pr_pct) == 100,
+                                                GradeWeightState.is_balanced,
                                                 "#16a34a",
                                                 "#dc2626",
                                             ),
