@@ -27,60 +27,57 @@ OA-EPP/
 
 ---
 
-## 二、标准路由添加方式
+## 二、路由注册方式 — 自动发现（无需修改 app.py）
 
-### 涉及两个文件
+### 只需一个文件
 
 | Step | 文件 | 操作 |
 |---|---|---|
-| 1 | **[`oaepp/pages/`](oaepp/pages/)** 下新建 `.py` 文件 | 编写页面组件（遵循 `login.py` 的模式） |
-| 2 | **[`oaepp/app.py`](oaepp/app.py)** | 用 `app.add_page()` 注册路由 |
+| 1 | **[`oaepp/pages/`](oaepp/pages/)** 下新建 `.py` 文件 | 编写页面组件，**函数名遵循 `{模块名}_page()` 约定** |
+
+**`app.py` 已实现自动发现机制**——扫描 `pages/` 目录，找到 `xxx_page()` 函数后自动注册路由 `/xxx`。**学生无需再修改 `app.py`。**
 
 ### 文件命名规范（重要）
 
 **功能文件命名必须与 `/prototype` 目录下的快速原型文件命名一致。**
 
 例如：
-- 原型文件为 `editor.html` → 功能文件命名为 `editor.py`
-- 原型文件为 `grades.html` → 功能文件命名为 `grades.py`
-- 原型文件为 `attendance.html` → 功能文件命名为 `attendance.py`
+- 原型文件为 `editor.html` → 功能文件命名为 `editor.py`，定义 `editor_page()`
+- 原型文件为 `grades.html` → 功能文件命名为 `grades.py`，定义 `grades_page()`
+- 原型文件为 `attendance.html` → 功能文件命名为 `attendance.py`，定义 `attendance_page()`
 
 **禁止**在 `backend/` 目录下创建或修改任何文件（包括 API 路由、静态页面等），这些均由负责人统一维护。
 
 ### 具体步骤
 
-**Step 1 — 新建页面文件** `oaepp/pages/dashboard.py`：
+**新建页面文件** `oaepp/pages/dashboard.py`：
 
 ```python
-try:
-    import reflex as rx
-except Exception:
-    rx = None
-dashboard_page = None
-if rx is not None:
-    def dashboard_page():
-        return rx.container(
-            rx.heading("仪表盘"),
-            rx.text("内容"),
-        )
+"""课程主页 (F-S-010)"""
+import reflex as rx
+from oaepp.components.layout import page_layout
+from oaepp.states import GlobalState
+
+
+def dashboard_page():
+    """仪表盘页面 — 函数名必须是 dashboard_page，路由自动注册为 /dashboard"""
+    return page_layout(
+        title="仪表盘",
+        content=rx.vstack(
+            rx.heading(f"欢迎, {GlobalState.current_user.get('full_name', '同学')}"),
+            rx.text("课程概览内容..."),
+            spacing="4",
+            width="100%",
+        ),
+    )
 ```
 
-**Step 2 — 在 `app.py` 中注册路由**：
+**自动发现规则：**
+- `pages/xxx.py` + 定义 `xxx_page()` → 自动注册路由 `/xxx`
+- 特殊路由 `/`（首页）由 `login_page()` 在 `app.py` 中显式注册
+- `pages/__init__.py`、以下划线开头的文件不会被自动注册
 
-```python
-try:
-    from pages import dashboard as dashboard_mod
-except Exception:
-    try:
-        from oaepp.pages import dashboard as dashboard_mod
-    except Exception:
-        dashboard_mod = None
-if app is not None and dashboard_mod is not None:
-    if hasattr(dashboard_mod, "dashboard_page") and callable(getattr(dashboard_mod, "dashboard_page")):
-        app.add_page(dashboard_mod.dashboard_page, route="/dashboard")
-```
-
-这就是目前项目中**唯一的标准路由添加方式**——Reflex 页面组件放在 `pages/`，路由注册集中在 `app.py`。
+**你不需要也不应该修改 `app.py`！** 文件放入 `pages/` 后路由自动生效。
 
 ---
 
@@ -95,14 +92,15 @@ cd oaepp/
 reflex run
 ```
 
-Reflex 自带热重载——修改 `pages/` 下的文件或 `app.py` 后，保存文件即自动刷新，无需手动重启。
+Reflex 自带热重载——修改 `pages/` 下的文件后，保存即自动刷新，无需手动重启。
 
 ### 常见问题
 
 | 现象 | 原因 | 解决 |
 |---|---|---|
-| 页面空白或 404 | 路由注册时 `route` 参数拼写错误 | 检查 `app.add_page(..., route="/dashboard")` 中的路径 |
-| 模块导入错误 | `app.py` 中 `from pages import dashboard` 失败 | 确认 `oaepp/pages/dashboard.py` 文件存在且语法正确 |
+| 页面空白或 404 | 函数命名不符合 `{模块名}_page()` 约定 | 检查函数名，如 `dashboard.py` → 函数必须命名为 `dashboard_page` |
+| 页面空白或 404 | 文件命名与原型不一致 | 确认 `pages/xxx.py` 文件名与 prototype 目录下的 `.html` 文件一致 |
+| 模块导入错误 | 导入的组件或 State 不存在 | 确认 `oaepp/components/` 或 `oaepp/states/` 下目标文件存在 |
 | 浏览器访问 localhost:3000 失败 | Reflex 端口被占用或未启动成功 | 检查终端日志，尝试 `reflex run --backend-port 8002 --frontend-port 3001` |
 | 页面渲染但样式错乱 | Reflex 版本兼容问题 | 确认 `requirements.txt` 中 `reflex==0.9.4` 已安装 |
 
