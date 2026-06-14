@@ -9,10 +9,14 @@
 2. 功能文件命名必须与 `/prototype` 目录下的快速原型文件命名一致（例如：原型文件为 `editor.html`，则功能页面文件命名为 `editor.py`，对应的状态文件在 `/oaepp/states/editor.py`）
 3. `/oaepp/states/` 目录用于存放各功能的 State 类，文件命名必须与 `/oaepp/pages/` 下的功能页面文件命名一致（例如：页面为 `dashboard.py`，则状态文件为 `states/dashboard.py`）
 4. 禁止修改以下全局目录与文件（出现即打回）：
-   - constants.py
-   - utils/
-   - db.py
-   - rxconfig.py
+   - **`oaepp/models/`** — ORM 模型层，负责人维护
+   - **`oaepp/components/`** — 共享 UI 组件，负责人维护
+   - **`oaepp/states/__init__.py`** — State 注册文件
+   - `oaepp/rxconfig.py`
+   - `oaepp/database.py`
+   - `oaepp/constants.py`
+   - `oaepp/utils/`
+   - `oaepp/app.py`
    - **`backend/` 目录下的所有文件**（包括 `backend/app/main.py`、`backend/app/routers/`、`backend/app/static/` 等）
    - 根目录文件
 5. 禁止创建无关文件、禁止跨目录修改他人代码
@@ -94,5 +98,5 @@
 ---
 
 ## 你的任务
-1、学生的PR是：https://github.com/roboticsystem/OA-EPP/pull/118 ，请你**逐行审查**，并按上面的规范给出审查结论：通过 / 警告 / 拒绝，并列出原因。
-2、根据PR中的代码涉及的代码或者路由的修改，在最后给出这个PR的PR Preview功能的URL，例如这样：https://115.oaepp-reflex.uwis.cn/admin_grades 
+1、学生的 PR 是：`{{PR_URL}}`，请你**逐行审查**，并按上面的规范给出审查结论：通过 / 警告 / 拒绝，并列出原因。
+2、根据 PR 中涉及的代码或路由修改，在最后给出这个 PR 的 PR Preview 功能的 URL，例如：`https://{PR编号}.oaepp-reflex.uwis.cn/{路由}`
