@@ -221,6 +221,18 @@ if rx is not None:
             elif tab == "audit":
                 self.load_audit_log()
 
+        def set_attendance_pct_raw(self, val: str):
+            self.set_attendance_pct(int(float(val or 0)))
+
+        def set_exam_pct_raw(self, val: str):
+            self.set_exam_pct(int(float(val or 0)))
+
+        def set_code_pct_raw(self, val: str):
+            self.set_code_pct(int(float(val or 0)))
+
+        def set_pr_pct_raw(self, val: str):
+            self.set_pr_pct(int(float(val or 0)))
+
         def reset_to_default(self):
             """一键重置四维度权重为默认值 25/25/25/25"""
             self.attendance_pct = 25

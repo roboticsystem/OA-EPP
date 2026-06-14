@@ -46,22 +46,23 @@ if rx is not None:
 
     def _weight_slider_row(label: str, pct_field: str, raw_field: str, color: str):
         """单个维度的滑块 + 数字输入行"""
+        pct_var = getattr(GradeWeightState, pct_field)
         return rx.hstack(
             rx.box(
                 rx.text(label, **LABEL_STYLE),
                 width="100px",
             ),
-            rx.slider(
-                min_=0,
-                max_=100,
-                value=[getattr(GradeWeightState, pct_field)],
-                on_change=getattr(GradeWeightState, f"set_{pct_field}_from_slider"),
-                color_scheme=color,
-                width="280px",
+            rx.el.input(
+                type="range",
+                min=0,
+                max=100,
+                value=pct_var,
+                on_change=getattr(GradeWeightState, f"set_{pct_field}_raw"),
+                style={"width": "280px", "accent_color": color},
             ),
             rx.input(
-                value=getattr(GradeWeightState, pct_field),
-                on_change=getattr(GradeWeightState, f"set_{pct_field}"),
+                value=pct_var,
+                on_change=getattr(GradeWeightState, f"set_{pct_field}_raw"),
                 type_="number",
                 min_=0,
                 max_=100,
@@ -74,107 +75,91 @@ if rx is not None:
             width="100%",
         )
 
-    def _heatmap_cell(student: dict):
+    def _heatmap_cell(student):
         """单个学生的热力图单元格"""
-        direction = student.get("direction", "unchanged")
-        bg_color = COLOR_MAP.get(direction, "#9ca3af")
-        arrow = {"up": "▲", "down": "▼", "unchanged": "—"}.get(direction, "—")
-        diff_val = student.get("diff", 0)
-        diff_sign = "+" if diff_val > 0 else ""
         return rx.hstack(
-            rx.text(student.get("student_no", ""), font_size="12px", width="90px", color="#6b7280"),
-            rx.text(student.get("full_name", ""), font_size="13px", width="80px"),
-            rx.text(f"{student.get('old_total', 0):.1f}", font_size="12px", width="55px", color="#9ca3af"),
+            rx.text(student["student_no"], font_size="12px", width="90px", color="#6b7280"),
+            rx.text(student["full_name"], font_size="13px", width="80px"),
+            rx.text(student["old_total"].to(str), font_size="12px", width="55px", color="#9ca3af"),
             rx.text("→", font_size="12px", color="#9ca3af"),
             rx.text(
-                f"{student.get('new_total', 0):.1f}",
-                font_size="12px",
-                width="55px",
-                font_weight="600",
+                student["new_total"].to(str),
+                font_size="12px", width="55px", font_weight="600",
             ),
             rx.text(
-                f"{arrow} {diff_sign}{diff_val:.1f}",
-                font_size="12px",
-                color=bg_color,
-                font_weight="bold",
-                width="80px",
+                rx.cond(
+                    student["direction"] == "up", "▲ +",
+                    rx.cond(student["direction"] == "down", "▼ ", "— "),
+                ),
+                student["diff"].to(str),
+                font_size="12px", font_weight="bold", width="80px",
+                color=rx.cond(
+                    student["direction"] == "up", "#22c55e",
+                    rx.cond(student["direction"] == "down", "#ef4444", "#9ca3af"),
+                ),
             ),
-            spacing="2",
-            align="center",
-            padding="4px 8px",
-            border_radius="6px",
-            background=f"{bg_color}10",
-            width="100%",
+            spacing="2", align="center", padding="4px 8px",
+            border_radius="6px", width="100%",
         )
 
-    def _history_card(item: dict):
+    def _history_card(item):
         """单个历史方案卡片"""
         return rx.hstack(
             rx.vstack(
+                rx.text(item["modified_at"].to(str), font_size="13px", font_weight="500"),
                 rx.text(
-                    f"{item.get('modified_at', '')}",
-                    font_size="13px",
-                    font_weight="500",
+                    "出勤:", item["attendance"].to(str), "% 考试:", item["exam"].to(str),
+                    "% 代码:", item["code"].to(str), "% PR:", item["pr"].to(str), "%",
+                    font_size="12px", color="#6b7280",
                 ),
-                rx.text(
-                    f"出勤:{item.get('attendance', 25)}% 考试:{item.get('exam', 25)}% "
-                    f"代码:{item.get('code', 25)}% PR:{item.get('pr', 25)}%",
-                    font_size="12px",
-                    color="#6b7280",
-                ),
-                rx.text(f"修改人: {item.get('modified_by', '')}", font_size="11px", color="#9ca3af"),
-                spacing="1",
-                align="start",
+                rx.text("修改人: ", item["modified_by"].to(str), font_size="11px", color="#9ca3af"),
+                spacing="1", align="start",
             ),
             rx.spacer(),
             rx.button(
-                "回滚",
-                size="2",
-                color_scheme="orange",
-                on_click=lambda hid=item.get("id", 0): GradeWeightState.rollback_to(hid),
+                "回滚", size="2", color_scheme="orange",
+                on_click=lambda: GradeWeightState.rollback_to(item["id"]),
             ),
-            spacing="3",
-            align="center",
-            padding="12px 16px",
-            border_radius="8px",
-            background="#f9fafb",
-            border="1px solid #e5e7eb",
-            width="100%",
+            spacing="3", align="center", padding="12px 16px",
+            border_radius="8px", background="#f9fafb",
+            border="1px solid #e5e7eb", width="100%",
         )
 
-    def _audit_log_row(log: dict):
+    def _audit_log_row(log):
         """单条审计日志行"""
-        old_w = log.get("old_weights", {})
-        new_w = log.get("new_weights", {})
         return rx.box(
             rx.vstack(
                 rx.hstack(
-                    rx.text(log.get("course_name", ""), font_weight="600", font_size="13px"),
+                    rx.text(log["course_name"].to(str), font_weight="600", font_size="13px"),
                     rx.text("·", color="gray"),
-                    rx.text(log.get("modified_by", ""), font_size="12px", color="#6b7280"),
+                    rx.text(log["modified_by"].to(str), font_size="12px", color="#6b7280"),
                     rx.text("·", color="gray"),
-                    rx.text(log.get("modified_at", ""), font_size="12px", color="#9ca3af"),
+                    rx.text(log["modified_at"].to(str), font_size="12px", color="#9ca3af"),
                     spacing="1",
                 ),
                 rx.hstack(
                     rx.text("出勤:", font_size="12px", color="gray"),
                     rx.text(
-                        f"{old_w.get('attendance', 0)}% → {new_w.get('attendance', 0)}%",
+                        log["old_weights"]["attendance"].to(str), "% → ",
+                        log["new_weights"]["attendance"].to(str), "%",
                         font_size="12px",
                     ),
                     rx.text("考试:", font_size="12px", color="gray"),
                     rx.text(
-                        f"{old_w.get('exam', 0)}% → {new_w.get('exam', 0)}%",
+                        log["old_weights"]["exam"].to(str), "% → ",
+                        log["new_weights"]["exam"].to(str), "%",
                         font_size="12px",
                     ),
                     rx.text("代码:", font_size="12px", color="gray"),
                     rx.text(
-                        f"{old_w.get('code', 0)}% → {new_w.get('code', 0)}%",
+                        log["old_weights"]["code"].to(str), "% → ",
+                        log["new_weights"]["code"].to(str), "%",
                         font_size="12px",
                     ),
                     rx.text("PR:", font_size="12px", color="gray"),
                     rx.text(
-                        f"{old_w.get('pr', 0)}% → {new_w.get('pr', 0)}%",
+                        log["old_weights"]["pr"].to(str), "% → ",
+                        log["new_weights"]["pr"].to(str), "%",
                         font_size="12px",
                     ),
                     spacing="1",
@@ -285,7 +270,7 @@ if rx is not None:
                                     rx.divider(),
                                     rx.hstack(
                                         rx.text(
-                                            f"合计: {GradeWeightState.total_pct}%",
+                                            "合计: ", GradeWeightState.total_pct, "%",
                                             font_weight="bold",
                                             font_size="16px",
                                             color=rx.cond(
@@ -327,17 +312,17 @@ if rx is not None:
                                             GradeWeightState.show_heatmap,
                                             rx.hstack(
                                                 rx.text(
-                                                    f"▲ {GradeWeightState.heatmap_up_count}人涨分",
+                                                    "▲ ", GradeWeightState.heatmap_up_count, "人涨分",
                                                     color="#22c55e",
                                                     font_size="12px",
                                                 ),
                                                 rx.text(
-                                                    f"▼ {GradeWeightState.heatmap_down_count}人降分",
+                                                    "▼ ", GradeWeightState.heatmap_down_count, "人降分",
                                                     color="#ef4444",
                                                     font_size="12px",
                                                 ),
                                                 rx.text(
-                                                    f"— {GradeWeightState.heatmap_unchanged_count}人不变",
+                                                    "— ", GradeWeightState.heatmap_unchanged_count, "人不变",
                                                     color="#9ca3af",
                                                     font_size="12px",
                                                 ),
