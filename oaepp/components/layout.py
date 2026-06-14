@@ -66,6 +66,7 @@ def _sidebar() -> rx.Component:
     """侧边栏导航"""
     return rx.box(
         rx.vstack(
+            # Logo / 系统名称
             rx.vstack(
                 rx.heading("OA-EPP", size="5", color_scheme="blue"),
                 rx.text("工程实践管理平台", size="1", color="gray"),
@@ -74,12 +75,14 @@ def _sidebar() -> rx.Component:
                 width="100%",
             ),
             rx.divider(),
+            # 导航列表
             rx.vstack(
                 *[_nav_item(label, route, icon) for label, route, icon in _NAV_ITEMS],
                 spacing="1",
                 width="100%",
                 padding="8px 12px",
             ),
+            # 底部占位
             rx.box(flex="1"),
             spacing="0",
             width="100%",
@@ -113,12 +116,35 @@ def _topbar(title: str) -> rx.Component:
 
 
 def page_layout(title: str, content: rx.Component) -> rx.Component:
-    """统一页面布局：侧边栏 + 顶栏 + 内容区"""
+    """统一页面布局：侧边栏 + 顶栏 + 内容区
+
+    Args:
+        title: 页面标题（显示在顶栏）
+        content: 页面主体内容（学生传入自己的组件）
+
+    Returns:
+        完整的页面布局组件
+
+    用法示例：
+        def dashboard_page():
+            return page_layout(
+                title="仪表盘",
+                content=rx.vstack(
+                    stat_card("已提交作业", 3),
+                    stat_card("待批改", 1),
+                ),
+            )
+    """
     return rx.box(
         _sidebar(),
+        # 主内容区（左侧留出侧边栏宽度）
         rx.box(
             _topbar(title),
-            rx.box(content, padding="24px", width="100%"),
+            rx.box(
+                content,
+                padding="24px",
+                width="100%",
+            ),
             margin_left="240px",
             min_height="100vh",
             background_color="var(--gray-1)",

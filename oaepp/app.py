@@ -30,7 +30,7 @@ def _import_page(module_name: str):
     return None
 
 
-def _register_page(app, route: str, module_name: str, attr_name: str):
+def _register_page(app, route: str, module_name: str, attr_name: str, on_load=None):
     """安全地导入页面模块并注册路由，失败时静默跳过。"""
     if app is None:
         return
@@ -39,8 +39,11 @@ def _register_page(app, route: str, module_name: str, attr_name: str):
         return
     page_fn = getattr(mod, attr_name, None)
     if page_fn is not None and callable(page_fn):
+        kwargs = {"route": route}
+        if on_load is not None:
+            kwargs["on_load"] = on_load
         try:
-            app.add_page(page_fn, route=route)
+            app.add_page(page_fn, **kwargs)
         except Exception:
             pass
 
@@ -49,7 +52,7 @@ def _auto_discover(app):
     """自动发现 pages/ 目录下的页面模块。"""
     if app is None:
         return
-    _skip_modules = {"login", "__init__"}
+    _skip_modules = {"login", "__init__", "courses"}
     pages_dir = Path(__file__).resolve().parent / "pages"
     if not pages_dir.is_dir():
         return
@@ -116,6 +119,10 @@ if app is not None and chapter_mod is not None:
 
 # ── 显式路由 ──────────────────────────────────────────────────────────
 _register_page(app, "/", "login", "login_page")
+
+# courses：手动注册以支持 on_load
+from oaepp.states.courses import CoursesState as _CoursesState  # noqa: E402
+_register_page(app, "/courses", "courses", "courses_page", on_load=_CoursesState.load_courses)
 
 # ── 自动发现（其余页面） ─────────────────────────────────────────────
 _auto_discover(app)
