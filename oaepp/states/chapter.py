@@ -152,7 +152,6 @@ class ChapterState(rx.State):
 
         try:
             with db() as conn:
-                # 章节基本信息
                 ch = conn.execute(
                     "SELECT id, course_id, chapter_no, title, filename, file_path, "
                     "chapter_type, deadline, status, grading_criteria "
@@ -166,7 +165,6 @@ class ChapterState(rx.State):
 
                 self.current_chapter = dict(ch)
 
-                # 导航（上一章/下一章）
                 course_chapters = conn.execute(
                     "SELECT id, chapter_no, title FROM chapters "
                     "WHERE course_id=? ORDER BY chapter_no",
@@ -180,13 +178,18 @@ class ChapterState(rx.State):
                             self.next_chapter = dict(course_chapters[i + 1])
                         break
 
-            # 渲染 Markdown 内容
             self._render_chapter_content()
 
         except Exception as e:
             self.error_message = f"加载章节失败: {e}"
         finally:
             self.chapter_loading = False
+
+    async def go_to_chapter(self, chapter_id: int):
+        """加载章节并导航到详情页"""
+        await self.load_chapter(chapter_id)
+        # 触发前端导航
+        return rx.call_script(f"window.location.href='/chapter'")
 
     def _render_chapter_content(self):
         """读取并渲染章节 Markdown 内容"""
