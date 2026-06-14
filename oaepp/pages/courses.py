@@ -6,7 +6,7 @@ try:
 except Exception:
     rx = None
 
-from oaepp.components.layout import page_wrapper
+from oaepp.components.layout import page_layout
 from oaepp.states.chapter import ChapterState
 
 courses_page_component = None
@@ -115,47 +115,37 @@ if rx is not None:
 
     def courses_page() -> rx.Component:
         """课程学习页面"""
-        return page_wrapper(
-            rx.box(
-                rx.hstack(
-                    rx.box(
-                        rx.html(
-                            '<svg class="w-6 h-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>'
+        return page_layout(
+            title="课程学习",
+            content=rx.vstack(
+                # 课程卡片网格
+                rx.cond(
+                    ChapterState.courses_loading,
+                    rx.text("加载中...", class_name="text-gray-400 text-sm mb-4"),
+                    rx.cond(
+                        ChapterState.courses.length() > 0,
+                        rx.grid(
+                            rx.foreach(ChapterState.courses, lambda c: _course_card(c)),
+                            columns="2",
+                            spacing="4",
+                            width="100%",
                         ),
                     ),
-                    rx.heading("课程学习", class_name="text-xl font-bold text-gray-800"),
-                    spacing="3",
-                    align="center",
-                    class_name="mb-6",
                 ),
-                rx.cond(ChapterState.courses_loading, rx.text("加载中...", class_name="text-gray-400 text-sm mb-4")),
-                rx.cond(
-                    ChapterState.courses.length() > 0,
-                    rx.grid(
-                        rx.foreach(ChapterState.courses, lambda c: _course_card(c)),
-                        columns="2",
-                        spacing="4",
-                        width="100%",
-                        class_name="mb-8",
-                    ),
-                ),
+                # 当前课程章节明细
                 rx.cond(
                     ChapterState.current_course,
                     rx.vstack(
-                        rx.hstack(
-                            rx.heading(
-                                f"{ChapterState.current_course['title']} — 章节明细",
-                                class_name="text-lg font-bold text-gray-800",
-                            ),
-                            spacing="3",
-                            align="center",
-                            class_name="mb-4",
+                        rx.heading(
+                            f"{ChapterState.current_course['title']} — 章节明细",
+                            class_name="text-lg font-bold text-gray-800",
                         ),
                         _chapter_table(),
-                        spacing="2",
+                        spacing="4",
                         width="100%",
                     ),
                 ),
+                # 错误提示
                 rx.cond(
                     ChapterState.error_message != "",
                     rx.box(
@@ -163,9 +153,9 @@ if rx is not None:
                         class_name="bg-red-50 border border-red-200 text-red-600 rounded-lg p-4 mt-4",
                     ),
                 ),
+                spacing="4",
                 width="100%",
             ),
-            current_page="/courses",
         )
 
     courses_page_component = courses_page
