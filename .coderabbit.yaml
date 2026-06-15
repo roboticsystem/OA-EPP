@@ -1,4 +1,0 @@
-# CodeRabbit 已通过脚本禁用（若需启用，删除此文件或将 enabled 改为 true）
-reviews:
-  auto_review:
-    enabled: false

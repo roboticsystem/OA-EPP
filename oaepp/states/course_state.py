@@ -60,19 +60,12 @@ class CourseState(rx.State):
             self.loading = True
             self.error_message = ""
 
-            # 如果没有传入 student_id，使用 AuthState 中的值
+            # 如果没有传入 student_id，使用环境变量中的测试学生 ID
             if student_id == 0:
-                try:
-                    from states.auth_state import AuthState  # 本地运行
-                except ImportError:
-                    from oaepp.states.auth_state import AuthState  # 容器运行
-                student_id = AuthState.current_student_id
-
-            if not student_id:
-                # 测试环境：从环境变量获取默认测试学生 ID
                 student_id = int(_os.environ.get(
-                    "OAEPP_TEST_STUDENT_ID", "0"
+                    "OAEPP_TEST_STUDENT_ID", "57"
                 ))
+
             if not student_id:
                 self.error_message = "未找到学生信息"
                 return
