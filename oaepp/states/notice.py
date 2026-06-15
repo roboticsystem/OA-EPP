@@ -1,7 +1,7 @@
 """F-S-012 公告通知 — NoticeState
 
 提供公告通知的完整状态管理（学生端 + 教师端），所有数据操作通过
-oaepp.database 的 db_sync / transaction_sync 同步接口直连 MySQL。
+Reflex ORM（rx.session() + SQLModel）直连 MySQL。
 
 学生端功能：
   - 分类标签页筛选、分页加载
@@ -15,36 +15,30 @@ oaepp.database 的 db_sync / transaction_sync 同步接口直连 MySQL。
   - 删除通知（单条 + 同组批量）
 
 依赖：
-  - oaepp.database: db_sync / transaction_sync
-  - states: GlobalState（继承基类）
+  - oaepp.models: Notification, User（ORM 模型）
+  - oaepp.states: GlobalState（继承基类）
 """
 
 from __future__ import annotations
 from typing import Optional
 import reflex as rx
+from sqlmodel import select, func
 
 try:
-    from oaepp.database import db_sync, transaction_sync
+    from oaepp.models import Notification, User
 except ModuleNotFoundError:
-    from database import db_sync, transaction_sync
+    from models import Notification, User
 
 try:
-    from states import GlobalState
+    from oaepp.states import GlobalState
 except ModuleNotFoundError:
     try:
-        from . import GlobalState
+        from states import GlobalState
     except ModuleNotFoundError:
         GlobalState = rx.State
 
 # ── 分类常量 ──
-# 与 models/notice.py 保持一致
-try:
-    from oaepp.models.notice import VALID_CATEGORIES
-except ModuleNotFoundError:
-    try:
-        from models.notice import VALID_CATEGORIES
-    except ModuleNotFoundError:
-        VALID_CATEGORIES = ("announcement", "deadline", "grade", "system")
+VALID_CATEGORIES = ("announcement", "deadline", "grade", "system", "graded")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -93,6 +87,32 @@ class NoticeState(GlobalState):
     delete_target: dict = {}
     deleting: bool = False
     delete_error: str = ""
+
+    # ═══════════════════════════════════════════════════════════
+    # 辅助方法
+    # ═══════════════════════════════════════════════════════════
+
+    def _get_user_id(self) -> int:
+        """从 current_user 获取用户 ID"""
+        user_id = 0
+        if self.current_user:
+            user_id = self.current_user.get("id", 0)
+            if not user_id:
+                user_id = self.current_user.get("user_id", 0)
+        return user_id
+
+    @staticmethod
+    def _notif_to_dict(n: Notification) -> dict:
+        """将 ORM 对象转为前端 dict"""
+        return {
+            "id": n.id,
+            "user_id": n.user_id,
+            "title": n.title,
+            "content": n.body or "",
+            "category": n.category,
+            "is_read": bool(n.is_read),
+            "created_at": str(n.created_at) if n.created_at else "",
+        }
 
     # ═══════════════════════════════════════════════════════════
     # 计算属性
@@ -165,80 +185,51 @@ class NoticeState(GlobalState):
         self.loading = True
         self.error = ""
         try:
-            # 获取当前登录用户 ID
-            user_id = 0
-            if self.current_user:
-                user_id = self.current_user.get("id", 0)
-                if not user_id:
-                    user_id = self.current_user.get("user_id", 0)
+            user_id = self._get_user_id()
 
-            with db_sync() as cur:
+            with rx.session() as session:
                 # 构建查询
-                conditions = []
-                params = []
-
-                # 学生端只查自己的通知
+                stmt = select(Notification)
                 if user_id:
-                    conditions.append("user_id = %s")
-                    params.append(user_id)
-
+                    stmt = stmt.where(Notification.user_id == user_id)
                 if self.current_tab == "unread":
-                    conditions.append("is_read = 0")
+                    stmt = stmt.where(Notification.is_read == False)  # noqa: E712
                 elif self.current_tab != "all":
-                    conditions.append("category = %s")
-                    params.append(self.current_tab)
-
-                where_clause = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+                    stmt = stmt.where(Notification.category == self.current_tab)
 
                 # 查询总数
-                cur.execute(
-                    f"SELECT COUNT(*) AS cnt FROM notifications {where_clause}",
-                    tuple(params),
-                )
-                self.total = cur.fetchone()["cnt"]
+                count_stmt = select(func.count()).select_from(stmt.subquery())
+                self.total = session.exec(count_stmt).one()
 
                 # 查询分页数据
                 offset = (self.current_page - 1) * self.page_size
-                cur.execute(
-                    f"SELECT * FROM notifications {where_clause} "
-                    f"ORDER BY created_at DESC LIMIT %s OFFSET %s",
-                    tuple(params + [self.page_size, offset]),
-                )
-                rows = cur.fetchall()
+                stmt = stmt.order_by(Notification.created_at.desc()).offset(offset).limit(self.page_size)
+                rows = session.exec(stmt).all()
 
-                # 查询未读计数（始终按 user_id 过滤）
+                # 查询未读计数
                 if user_id:
-                    cur.execute(
-                        "SELECT COUNT(*) AS cnt FROM notifications WHERE user_id = %s AND is_read = 0",
-                        (user_id,),
+                    unread_stmt = (
+                        select(func.count())
+                        .where(Notification.user_id == user_id)
+                        .where(Notification.is_read == False)  # noqa: E712
                     )
-                    self.unread_count = cur.fetchone()["cnt"]
+                    self.unread_count = session.exec(unread_stmt).one()
                 else:
                     self.unread_count = 0
 
                 # 查询各分类计数
                 if user_id:
-                    cur.execute(
-                        "SELECT category, COUNT(*) AS cnt FROM notifications "
-                        "WHERE user_id = %s GROUP BY category",
-                        (user_id,),
-                    )
-                    cat_rows = cur.fetchall()
-                    self.category_counts = {r["category"]: r["cnt"] for r in cat_rows}
+                    cat_rows = session.exec(
+                        select(Notification.category, func.count())
+                        .where(Notification.user_id == user_id)
+                        .group_by(Notification.category)
+                    ).all()
+                    self.category_counts = {cat: cnt for cat, cnt in cat_rows}
                 else:
                     self.category_counts = {}
 
             # 格式化数据
-            self.notices = []
-            for row in rows:
-                n = dict(row)
-                n["is_read"] = bool(n.get("is_read", 0))
-                if n.get("created_at"):
-                    n["created_at"] = str(n["created_at"])
-                # 将 body 映射为 content，方便前端统一使用
-                n["content"] = n.pop("body", "") or ""
-                self.notices.append(n)
-
+            self.notices = [self._notif_to_dict(n) for n in rows]
             self.total_pages = max(1, (self.total + self.page_size - 1) // self.page_size)
 
         except Exception as e:
@@ -254,26 +245,27 @@ class NoticeState(GlobalState):
     def mark_as_read(self, nid: int):
         """标记单条通知已读（仅标记当前用户自己的通知）"""
         try:
-            user_id = 0
-            if self.current_user:
-                user_id = self.current_user.get("id", 0)
-                if not user_id:
-                    user_id = self.current_user.get("user_id", 0)
-
+            user_id = self._get_user_id()
             if not user_id:
                 return rx.toast.error("请先登录")
 
-            with transaction_sync() as cur:
-                cur.execute(
-                    "UPDATE notifications SET is_read = 1 WHERE id = %s AND user_id = %s",
-                    (nid, user_id),
-                )
-            # 更新本地状态
-            for n in self.notices:
-                if n.get("id") == nid:
-                    n["is_read"] = True
-                    break
-            self.unread_count = max(0, self.unread_count - 1)
+            with rx.session() as session:
+                notif = session.exec(
+                    select(Notification).where(
+                        Notification.id == nid,
+                        Notification.user_id == user_id,
+                    )
+                ).first()
+                if notif and not notif.is_read:
+                    notif.is_read = True
+                    session.add(notif)
+                    session.commit()
+                    # 更新本地状态
+                    for n in self.notices:
+                        if n.get("id") == nid:
+                            n["is_read"] = True
+                            break
+                    self.unread_count = max(0, self.unread_count - 1)
             return rx.toast.success("已标记为已读")
         except Exception:
             return rx.toast.error("操作失败，请重试")
@@ -281,20 +273,22 @@ class NoticeState(GlobalState):
     def mark_all_read(self):
         """一键全部已读"""
         try:
-            user_id = 0
-            if self.current_user:
-                user_id = self.current_user.get("id", 0)
-                if not user_id:
-                    user_id = self.current_user.get("user_id", 0)
-
+            user_id = self._get_user_id()
             if not user_id:
                 return rx.toast.error("请先登录")
 
-            with transaction_sync() as cur:
-                cur.execute(
-                    "UPDATE notifications SET is_read = 1 WHERE user_id = %s AND is_read = 0",
-                    (user_id,),
-                )
+            with rx.session() as session:
+                unread = session.exec(
+                    select(Notification).where(
+                        Notification.user_id == user_id,
+                        Notification.is_read == False,  # noqa: E712
+                    )
+                ).all()
+                for n in unread:
+                    n.is_read = True
+                    session.add(n)
+                session.commit()
+
             for n in self.notices:
                 n["is_read"] = True
             self.unread_count = 0
@@ -327,51 +321,49 @@ class NoticeState(GlobalState):
         self.loading = True
         self.error = ""
         try:
-            with db_sync() as cur:
-                # 构建筛选条件
-                where_clause = ""
-                params = []
-                if self.current_tab != "all":
-                    where_clause = "WHERE category = %s"
-                    params.append(self.current_tab)
-
-                # 按 title + category 分组，聚合统计
-                group_query = (
-                    "SELECT title, category, "
-                    "MIN(id) AS id, "
-                    "MIN(body) AS body, "
-                    "MIN(created_at) AS created_at, "
-                    "COUNT(*) AS sent_count, "
-                    "SUM(CASE WHEN is_read = 1 THEN 1 ELSE 0 END) AS read_count "
-                    f"FROM notifications {where_clause} "
-                    "GROUP BY title, category "
-                    "ORDER BY MAX(created_at) DESC"
+            with rx.session() as session:
+                # 构建分组查询
+                stmt = (
+                    select(
+                        Notification.title,
+                        Notification.category,
+                        func.min(Notification.id).label("id"),
+                        func.min(Notification.body).label("body"),
+                        func.min(Notification.created_at).label("created_at"),
+                        func.count().label("sent_count"),
+                        func.sum(
+                            func.case((Notification.is_read == True, 1), else_=0)  # noqa: E712
+                        ).label("read_count"),
+                    )
                 )
+                if self.current_tab != "all":
+                    stmt = stmt.where(Notification.category == self.current_tab)
+
+                stmt = stmt.group_by(Notification.title, Notification.category)
+                stmt = stmt.order_by(func.max(Notification.created_at).desc())
 
                 # 先查总数
-                cur.execute(
-                    f"SELECT COUNT(*) AS cnt FROM ({group_query}) AS g",
-                    tuple(params),
-                )
-                self.total = cur.fetchone()["cnt"]
+                count_stmt = select(func.count()).select_from(stmt.subquery())
+                self.total = session.exec(count_stmt).one()
 
                 # 分页
                 offset = (self.current_page - 1) * self.page_size
-                cur.execute(
-                    f"{group_query} LIMIT %s OFFSET %s",
-                    tuple(params + [self.page_size, offset]),
-                )
-                rows = cur.fetchall()
+                rows = session.exec(stmt.offset(offset).limit(self.page_size)).all()
 
             self.notices = []
             for row in rows:
-                n = dict(row)
-                if n.get("created_at"):
-                    n["created_at"] = str(n["created_at"])
-                # 将 body 映射为 content，方便前端统一使用
-                n["content"] = n.pop("body", "") or ""
-                n["total_students"] = n.get("sent_count", 0)
-                self.notices.append(n)
+                created_at = ""
+                if row.created_at:
+                    created_at = str(row.created_at)
+                self.notices.append({
+                    "id": row.id,
+                    "title": row.title,
+                    "category": row.category,
+                    "content": row.body or "",
+                    "created_at": created_at,
+                    "total_students": row.sent_count or 0,
+                    "read_count": row.read_count or 0,
+                })
 
             self.total_pages = max(1, (self.total + self.page_size - 1) // self.page_size)
 
@@ -411,7 +403,7 @@ class NoticeState(GlobalState):
             self.create_course_id = 0
 
     def create_notification(self):
-        """创建通知 — 为所有学生各写入一条 notifications 记录"""
+        """创建通知 — 为所有学生各写入一条 Notification 记录"""
         self.create_error = ""
         self.create_success = ""
         title = self.create_title.strip()
@@ -421,33 +413,38 @@ class NoticeState(GlobalState):
 
         self.creating = True
         try:
-            with transaction_sync() as cur:
+            with rx.session() as session:
                 # 获取所有学生 user_id
-                cur.execute("SELECT id FROM users WHERE role = %s", ("student",))
-                students = cur.fetchall()
+                students = session.exec(
+                    select(User.id).where(User.role == "student")
+                ).all()
                 if not students:
                     self.create_error = "没有可发送的学生"
                     self.creating = False
                     return
 
-                student_ids = [s["id"] for s in students]
                 body = self.create_content.strip()
                 category = self.create_category
 
-                for uid in student_ids:
-                    cur.execute(
-                        "INSERT INTO notifications "
-                        "(title, body, category, user_id, is_read, created_at) "
-                        "VALUES (%s, %s, %s, %s, 0, NOW())",
-                        (title, body, category, uid),
+                notifs = [
+                    Notification(
+                        title=title,
+                        body=body,
+                        category=category,
+                        user_id=uid,
+                        is_read=False,
                     )
+                    for uid in students
+                ]
+                session.add_all(notifs)
+                session.commit()
 
-            self.create_success = f"通知已发布，已发送给 {len(student_ids)} 名学生"
+            self.create_success = f"通知已发布，已发送给 {len(students)} 名学生"
             self._reset_create_form()
             self.show_create = False
             self.current_page = 1
             self.load_teacher_notices()
-            return rx.toast.success(f"通知「{title}」已发布给 {len(student_ids)} 名学生")
+            return rx.toast.success(f"通知「{title}」已发布给 {len(students)} 名学生")
 
         except Exception as e:
             self.create_error = f"创建失败: {e}"
@@ -463,21 +460,22 @@ class NoticeState(GlobalState):
             if n.get("id") == nid:
                 self.edit_id = nid
                 self.edit_title = n.get("title", "")
-                self.edit_content = n.get("content", "") or n.get("body", "")
+                self.edit_content = n.get("content", "")
                 self.edit_category = n.get("category", "announcement")
                 self.edit_error = ""
                 self.show_create = False
                 return
         # 如果列表中没有，从数据库加载
         try:
-            with db_sync() as cur:
-                cur.execute("SELECT * FROM notifications WHERE id = %s", (nid,))
-                row = cur.fetchone()
-                if row:
+            with rx.session() as session:
+                notif = session.exec(
+                    select(Notification).where(Notification.id == nid)
+                ).first()
+                if notif:
                     self.edit_id = nid
-                    self.edit_title = row.get("title", "")
-                    self.edit_content = row.get("body", "")
-                    self.edit_category = row.get("category", "announcement")
+                    self.edit_title = notif.title
+                    self.edit_content = notif.body or ""
+                    self.edit_category = notif.category
                     self.edit_error = ""
                     self.show_create = False
         except Exception:
@@ -501,33 +499,32 @@ class NoticeState(GlobalState):
 
         self.editing = True
         try:
-            # 先获取原始 title 和 category
-            with db_sync() as cur:
-                cur.execute(
-                    "SELECT title, category FROM notifications WHERE id = %s",
-                    (self.edit_id,),
-                )
-                row = cur.fetchone()
-                if not row:
+            with rx.session() as session:
+                # 先获取原始 title 和 category
+                notif = session.exec(
+                    select(Notification).where(Notification.id == self.edit_id)
+                ).first()
+                if not notif:
                     self.edit_error = "通知不存在"
                     self.editing = False
                     return
-                old_title = row["title"]
-                old_category = row["category"]
+                old_title = notif.title
+                old_category = notif.category
 
-            with transaction_sync() as cur:
-                cur.execute(
-                    "UPDATE notifications SET title = %s, body = %s, category = %s "
-                    "WHERE title = %s AND category = %s",
-                    (
-                        new_title,
-                        self.edit_content.strip(),
-                        self.edit_category,
-                        old_title,
-                        old_category,
-                    ),
-                )
-                updated_count = cur.rowcount
+                # 按 title+category 批量更新同组
+                group = session.exec(
+                    select(Notification).where(
+                        Notification.title == old_title,
+                        Notification.category == old_category,
+                    )
+                ).all()
+                for n in group:
+                    n.title = new_title
+                    n.body = self.edit_content.strip()
+                    n.category = self.edit_category
+                    session.add(n)
+                session.commit()
+                updated_count = len(group)
 
             self.edit_id = 0
             self.load_teacher_notices()
@@ -561,12 +558,17 @@ class NoticeState(GlobalState):
         self.deleting = True
         self.delete_error = ""
         try:
-            with transaction_sync() as cur:
-                cur.execute(
-                    "DELETE FROM notifications WHERE title = %s AND category = %s",
-                    (title, category),
-                )
-                deleted_count = cur.rowcount
+            with rx.session() as session:
+                group = session.exec(
+                    select(Notification).where(
+                        Notification.title == title,
+                        Notification.category == category,
+                    )
+                ).all()
+                deleted_count = len(group)
+                for n in group:
+                    session.delete(n)
+                session.commit()
 
             self.delete_target = {}
             self.load_teacher_notices()

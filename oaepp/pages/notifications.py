@@ -5,7 +5,7 @@
 状态类: 使用 states.notice.NoticeState
 
 截图匹配要素：
-- 标题"📢 公告与通知" + 右上角红色未读数字徽章
+- 标题"📢 公告与通知" + 右上角红色未读数字徽章 + 浅黄色背景
 - 分类标签：全部 / 公告 / 截止提醒 / 成绩通知
 - 未读项：蓝色竖线左边框 + 粗体标题 + "● 未读"标记
 - 已读项：灰色标题
@@ -14,13 +14,13 @@
 
 import reflex as rx
 
+from oaepp.components.layout import page_layout
+from oaepp.components.common import empty_state, loading_spinner
+
 try:
     from oaepp.states.notice import NoticeState
 except ModuleNotFoundError:
     from states.notice import NoticeState
-
-# app.py 需要导入这些名称
-NotificationsState = NoticeState
 
 
 # ── 分类配置 ──
@@ -60,7 +60,7 @@ def notification_card(n: dict) -> rx.Component:
             border_radius="2px",
             flex_shrink=0,
         ),
-        # 左侧：标题（截图中只显示标题）
+        # 左侧：标题
         rx.text(
             n.get("title", ""),
             font_weight=rx.cond(is_read, "normal", "bold"),
@@ -140,8 +140,8 @@ def pagination_controls() -> rx.Component:
 
 def notifications_page() -> rx.Component:
     """学生端 — 公告与通知页面（由 app.py 自动发现注册为 /notifications）"""
-    return rx.vstack(
-        # 标题栏 + 未读徽章（浅黄色背景，匹配截图）
+    content = rx.vstack(
+        # 标题栏 + 未读徽章（浅黄色背景）
         rx.hstack(
             rx.heading("📢 公告与通知", size="6"),
             rx.spacer(),
@@ -158,7 +158,7 @@ def notifications_page() -> rx.Component:
             ),
             width="100%", align="center",
             padding="12px 16px",
-            bg="#FFF8E1",  # 浅黄色背景
+            bg="#FFF8E1",
             border_radius="8px",
         ),
 
@@ -172,12 +172,7 @@ def notifications_page() -> rx.Component:
         # 内容区域
         rx.cond(
             NoticeState.loading,
-            rx.vstack(
-                rx.skeleton(height="80px", width="100%"),
-                rx.skeleton(height="80px", width="100%"),
-                rx.skeleton(height="80px", width="100%"),
-                spacing="2", width="100%",
-            ),
+            loading_spinner("加载通知中..."),
             rx.cond(
                 NoticeState.error,
                 rx.vstack(
@@ -197,11 +192,7 @@ def notifications_page() -> rx.Component:
                         ),
                         width="100%", spacing="0",
                     ),
-                    rx.vstack(
-                        rx.icon("inbox", size=48, color="gray.300"),
-                        rx.text("暂无通知", color="gray.400"),
-                        spacing="2", align="center", padding="40px",
-                    ),
+                    empty_state("暂无通知", icon="inbox"),
                 ),
             ),
         ),
@@ -226,7 +217,8 @@ def notifications_page() -> rx.Component:
         width="100%",
         max_width="800px",
         margin="0 auto",
-        padding="16px",
         spacing="4",
         on_mount=NoticeState.load_notices,
     )
+
+    return page_layout(title="公告与通知", content=content)

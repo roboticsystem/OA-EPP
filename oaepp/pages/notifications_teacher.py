@@ -9,19 +9,19 @@
 - 发送新通知区域：标题输入框 + 分类下拉 + 发送按钮（同行）
 - 提示"通知将发送给所有已注册的学生"
 - 已发送的通知列表（分类筛选 + 展开/折叠）
-- 列表项：分类标签 + "共 X 人 · 已读 X 人 (X%) · 时间"
+- 列表项：分类标签 + "共 X 人 · 已读 X 人 · 时间"
 - 展开后显示内容和"修改重发""删除"按钮
 """
 
 import reflex as rx
 
+from oaepp.components.layout import page_layout
+from oaepp.components.common import empty_state, loading_spinner
+
 try:
     from oaepp.states.notice import NoticeState
 except ModuleNotFoundError:
     from states.notice import NoticeState
-
-# app.py 需要导入这些名称
-TeacherNotificationsState = NoticeState
 
 
 # ── 分类配置 ──
@@ -190,6 +190,7 @@ def edit_form() -> rx.Component:
         rx.cond(
             NoticeState.edit_error,
             rx.text(NoticeState.edit_error, color="red.500", font_size="sm"),
+            rx.fragment(),
         ),
         width="100%",
         padding="16px",
@@ -313,10 +314,7 @@ def pagination_controls() -> rx.Component:
 
 def notifications_teacher_page() -> rx.Component:
     """教师端 — 公告与通知管理页面（由 app.py 自动发现注册为 /notifications/teacher）"""
-    return rx.vstack(
-        # 标题栏
-        rx.heading("📢 公告与通知管理", size="6"),
-
+    content = rx.vstack(
         # 创建/编辑表单切换（直接显示发送表单，无折叠按钮）
         rx.cond(
             NoticeState.is_editing,
@@ -336,12 +334,7 @@ def notifications_teacher_page() -> rx.Component:
         # 内容区域
         rx.cond(
             NoticeState.loading,
-            rx.vstack(
-                rx.skeleton(height="80px", width="100%"),
-                rx.skeleton(height="80px", width="100%"),
-                rx.skeleton(height="80px", width="100%"),
-                spacing="2", width="100%",
-            ),
+            loading_spinner("加载通知中..."),
             rx.cond(
                 NoticeState.error,
                 rx.vstack(
@@ -361,11 +354,7 @@ def notifications_teacher_page() -> rx.Component:
                         ),
                         width="100%", spacing="0",
                     ),
-                    rx.vstack(
-                        rx.icon("inbox", size=48, color="gray.300"),
-                        rx.text("暂无已发送的通知", color="gray.400"),
-                        spacing="2", align="center", padding="40px",
-                    ),
+                    empty_state("暂无已发送的通知", icon="inbox"),
                 ),
             ),
         ),
@@ -379,7 +368,8 @@ def notifications_teacher_page() -> rx.Component:
         width="100%",
         max_width="900px",
         margin="0 auto",
-        padding="16px",
         spacing="4",
         on_mount=NoticeState.load_teacher_notices,
     )
+
+    return page_layout(title="公告与通知管理", content=content)
