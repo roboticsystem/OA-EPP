@@ -93,13 +93,32 @@ class NoticeState(GlobalState):
     # ═══════════════════════════════════════════════════════════
 
     def _get_user_id(self) -> int:
-        """从 current_user 获取用户 ID"""
-        user_id = 0
-        if self.current_user:
-            user_id = self.current_user.get("id", 0)
-            if not user_id:
-                user_id = self.current_user.get("user_id", 0)
-        return user_id
+        """从 current_user 获取用户 ID
+
+        GlobalState.current_user 格式：{"student_no": "2024000001",
+        "full_name": "张三", "role": "student"} — 不含 id 字段。
+        因此通过 student_no 从 users 表反查真实 user_id。
+        """
+        if not self.current_user:
+            return 0
+        # 直接取 id / user_id（若未来 GlobalState 扩展）
+        user_id = self.current_user.get("id", 0) or self.current_user.get("user_id", 0)
+        if user_id:
+            return user_id
+        # 回退：通过 student_no 查 User 表
+        student_no = self.current_user.get("student_no", "")
+        if not student_no:
+            return 0
+        try:
+            with rx.session() as session:
+                u = session.exec(
+                    select(User.id).where(User.student_no == student_no)
+                ).first()
+                if u:
+                    return u
+        except Exception:
+            pass
+        return 0
 
     @staticmethod
     def _notif_to_dict(n: Notification) -> dict:
