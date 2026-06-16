@@ -127,39 +127,39 @@ if rx is not None:
                                     rx.foreach(
                                         RepoPermState.members,
                                         lambda m: rx.table.row(
-                                            rx.table.cell(m.student_no, font_family="monospace", font_size="xs"),
-                                            rx.table.cell(m.full_name, font_size="xs"),
+                                            rx.table.cell(m["student_no"], font_family="monospace", font_size="xs"),
+                                            rx.table.cell(m["full_name"], font_size="xs"),
                                             rx.cond(
-                                                m.github_username,
-                                                rx.table.cell(m.github_username, font_size="xs", color="#4b5563"),
+                                                m["github_username"],
+                                                rx.table.cell(m["github_username"], font_size="xs", color="#4b5563"),
                                                 rx.table.cell("未绑定", font_size="xs", color="#ef4444"),
                                             ),
                                             rx.cond(
-                                                m.is_bound,
+                                                m["is_bound"],
                                                 rx.table.cell("Write", font_size="xs"),
                                                 rx.table.cell("—", font_size="xs", color="gray"),
                                             ),
                                             rx.table.cell(rx.cond(
-                                                m.invite_status == "accepted",
+                                                m["invite_status"] == "accepted",
                                                 rx.badge("已接受", color_scheme="green", variant="soft", size="1"),
                                                 rx.cond(
-                                                    m.invite_status == "pending",
+                                                    m["invite_status"] == "pending",
                                                     rx.badge("待接受", color_scheme="yellow", variant="soft",
                                                              size="1"),
                                                     rx.badge("无法邀请", color_scheme="red", variant="soft", size="1"),
                                                 ),
                                             )),
                                             rx.table.cell(rx.cond(
-                                                m.is_bound,
+                                                m["is_bound"],
                                                 rx.cond(
-                                                    m.invite_status == "pending",
+                                                    m["invite_status"] == "pending",
                                                     rx.button(
                                                         "重新发送",
                                                         size="1",
                                                         variant="ghost",
                                                         color_scheme="indigo",
-                                                        on_click=RepoPermState.handle_resend(
-                                                            m.github_username),
+                                                        on_click=lambda m=m: RepoPermState.handle_resend(
+                                                            m["github_username"]),
                                                     ),
                                                     rx.text("—", color="gray", font_size="xs"),
                                                 ),

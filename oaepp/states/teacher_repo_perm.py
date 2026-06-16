@@ -28,6 +28,7 @@ import datetime
 import json
 import logging
 import os
+import re
 import subprocess
 from typing import Any, Dict, List, Optional
 
@@ -238,6 +239,9 @@ class RepoPermState(rx.State if rx is not None else object):
             }
             return self.invite_result
 
+        self._validate_github_param(self.org_name, "org_name")
+        self._validate_github_param(self.team_name, "team_name")
+
         bound = [m for m in self.members if m["is_bound"]]
         unbound = [m for m in self.members if not m["is_bound"]]
 
@@ -251,6 +255,7 @@ class RepoPermState(rx.State if rx is not None else object):
         for member in bound:
             github_username = member["github_username"]
             try:
+                self._validate_github_param(github_username, "github_username")
                 # 1) 邀请加入 Organization
                 org_ok, org_msg = self._gh_api_put(
                     f"/orgs/{self.org_name}/memberships/{github_username}",
@@ -331,6 +336,10 @@ class RepoPermState(rx.State if rx is not None else object):
         if not self.org_name or not self.team_name:
             return {"success": False, "message": "请先配置 Organization 和 Team 信息"}
 
+        self._validate_github_param(self.org_name, "org_name")
+        self._validate_github_param(self.team_name, "team_name")
+        self._validate_github_param(github_username, "github_username")
+
         try:
             org_ok, org_msg = self._gh_api_put(
                 f"/orgs/{self.org_name}/memberships/{github_username}",
@@ -407,6 +416,10 @@ class RepoPermState(rx.State if rx is not None else object):
                 "message": "请先配置仓库名称（repo_name）",
             }
             return self.revoke_result
+
+        self._validate_github_param(self.org_name, "org_name")
+        self._validate_github_param(self.team_name, "team_name")
+        self._validate_github_param(repo, "repo_name")
 
         try:
             ok, message = self._gh_api_delete(
@@ -535,6 +548,16 @@ class RepoPermState(rx.State if rx is not None else object):
     def _get_token(self) -> Optional[str]:
         return os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
 
+    @staticmethod
+    def _validate_github_param(value: str, name: str) -> str:
+        """校验 GitHub 参数（组织名/团队名/用户名），防止命令注入。
+
+        GitHub 命名规则：仅允许英文字母、数字、连字符、下划线。
+        """
+        if not re.fullmatch(r'[a-zA-Z0-9_-]+', value):
+            raise ValueError(f"{name} 包含非法字符: {value}")
+        return value
+
     # ── 内部方法 ──
 
     def _gh_api_put(self, endpoint: str, json_body: Optional[dict] = None) -> tuple:
@@ -645,11 +668,14 @@ class RepoPermState(rx.State if rx is not None else object):
 
     async def _refresh_member_status_from_github(self) -> None:
         """通过 GitHub API 查询团队中成员的实际加入状态，刷新本地 members 列表。"""
+        self._validate_github_param(self.org_name, "org_name")
+        self._validate_github_param(self.team_name, "team_name")
         for member in self.members:
             github_username = member.get("github_username")
             if not github_username:
                 continue
 
+            self._validate_github_param(github_username, "github_username")
             try:
                 cmd = [
                     "gh", "api",
@@ -715,13 +741,7 @@ class RepoPermState(rx.State if rx is not None else object):
                 charset="utf8mb4",
                 cursorclass=pymysql.cursors.DictCursor,
             )
-        else:
-            return pymysql.connect(
-                host=os.environ.get("DB_HOST", "156.239.252.40"),
-                port=int(os.environ.get("DB_PORT", "13306")),
-                user=os.environ.get("DB_USER", "student_dev"),
-                password=os.environ.get("DB_PASSWORD", "OaEpp@Dev2026"),
-                database=os.environ.get("DB_NAME", "oaepp_dev"),
-                charset="utf8mb4",
-                cursorclass=pymysql.cursors.DictCursor,
-            )
+        raise RuntimeError(
+            "DATABASE_URL 环境变量未设置，无法连接数据库。"
+            "请在 .env 或环境变量中配置 DATABASE_URL。"
+        )

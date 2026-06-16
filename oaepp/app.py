@@ -81,15 +81,6 @@ except Exception:
     except Exception:
         AuthState = None
 
-# ── 导入 RepoPermState（F-T-009 仓库权限配置） ─────────────────────────
-try:
-    from states.teacher_repo_perm import RepoPermState
-except Exception:
-    try:
-        from oaepp.states.teacher_repo_perm import RepoPermState
-    except Exception:
-        RepoPermState = None
-
 # ── 创建 App ─────────────────────────────────────────────────────────────
 app = None
 if rx is not None:

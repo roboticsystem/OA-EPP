@@ -19,11 +19,6 @@ try:
 except Exception:
     AuthState = None
 
-try:
-    from .teacher_repo_perm import RepoPermState
-except Exception:
-    RepoPermState = None
-
 # ── 全局状态基类（学生功能继承此类） ──
 try:
     import reflex as rx
@@ -75,4 +70,4 @@ try:
 except Exception:
     GlobalState = None
 
-__all__ = ["AuthState", "DeadlineState", "RepoPermState"]
+__all__ = ["AuthState", "DeadlineState"]
