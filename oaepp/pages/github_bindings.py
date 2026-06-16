@@ -461,7 +461,7 @@ def _import_section() -> rx.Component:
                         rx.text("开始导入"),
                         spacing="2",
                     ),
-                    on_click=StudentGitHubState.import_csv,
+                    on_click=lambda: StudentGitHubState.import_csv(),
                     loading=StudentGitHubState.import_loading,
                     color_scheme="blue",
                 ),

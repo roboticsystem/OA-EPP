@@ -494,13 +494,13 @@ class StudentGitHubState(rx.State):
         except Exception as e:
             self.error_message = f"文件读取失败: {str(e)}"
     
-    async def import_csv(self, csv_content: str = ""):
+    async def import_csv(self, csv_content: Optional[str] = None):
         """导入CSV文件
         
         Args:
-            csv_content: CSV文件内容，如果为空则使用 self.csv_content
+            csv_content: CSV文件内容，如果为None则使用 self.csv_content
         """
-        content = csv_content if csv_content else self.csv_content
+        content = csv_content if csv_content is not None else self.csv_content
         if not content:
             self.error_message = "请选择CSV文件"
             self.import_error = "请选择CSV文件"
