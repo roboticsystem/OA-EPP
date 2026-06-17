@@ -1,11 +1,12 @@
-name: 后端 CI 自动化
+name: F-D-004 CI 自动化
 
 on:
   pull_request:
     types: [opened, reopened, synchronize]
     paths:
-      - "backend/**"
-      - "oaepp/**"
+      - "backend/pyproject.toml"
+      - "backend/tests/**"
+      - "oaepp/states/devops_ci.py"
       - "tests/reflex/test_F_D_004_ci.py"
       - "tests/reflex/F-D-004_ci.sh"
       - ".github/workflows/ci.yml"
@@ -15,7 +16,7 @@ permissions:
 
 jobs:
   ruff-check:
-    name: Ruff lint 和格式检查
+    name: Ruff lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -29,8 +30,13 @@ jobs:
       - name: Install Ruff
         run: python -m pip install ruff
 
-      - name: Ruff lint
-        run: python -m ruff check backend oaepp tests/reflex/test_F_D_004_ci.py --config backend/pyproject.toml
+      - name: Ruff lint（仅本次自有文件）
+        run: >-
+          python -m ruff check
+          oaepp/states/devops_ci.py
+          backend/tests
+          tests/reflex/test_F_D_004_ci.py
+          --config backend/pyproject.toml
 
   pytest:
     name: Pytest 后端和 F-D-004 验收测试

@@ -1,0 +1,27 @@
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    REFLEX_FRONTEND_PORT=8000 \
+    REFLEX_BACKEND_PORT=8000 \
+    REFLEX_BACKEND_HOST=0.0.0.0 \
+    DATABASE_URL=sqlite:///oaepp.db
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nginx ca-certificates unzip curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt /app/requirements.txt
+RUN pip install -r /app/requirements.txt
+
+COPY . /app
+RUN rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/oaepp_reflex.conf
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
+EXPOSE 80 8000
+
+CMD ["/start.sh"]
