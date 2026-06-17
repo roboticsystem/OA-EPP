@@ -34,6 +34,7 @@ OA-EPP 公共数据库访问层 — oaepp/database.py
 
 from __future__ import annotations
 
+import asyncio
 import os
 import logging
 from contextlib import asynccontextmanager, contextmanager
@@ -61,20 +62,41 @@ _async_pool: Optional[Any] = None
 
 
 async def _get_async_pool():
-    """获取或初始化 aiomysql 异步连接池。"""
+    """获取或初始化 aiomysql 异步连接池（支持自动重连+指数退避重试）。
+
+    重试策略: 最多 3 次，指数退避 0.5s → 1.0s → 2.0s。
+    """
     global _async_pool
-    if _async_pool is None:
-        import aiomysql
-        _async_pool = await aiomysql.create_pool(**DB_CONFIG)
-        logger.info(
-            "MySQL 异步连接池已创建: %s:%s/%s (pool=%s-%s)",
-            DB_CONFIG["host"],
-            DB_CONFIG["port"],
-            DB_CONFIG["db"],
-            DB_CONFIG["minsize"],
-            DB_CONFIG["maxsize"],
-        )
-    return _async_pool
+    if _async_pool is not None and not getattr(_async_pool, "_closed", False):
+        return _async_pool
+
+    import aiomysql
+    last_exc = None
+    max_retries = 3
+    for attempt in range(max_retries + 1):
+        try:
+            _async_pool = await aiomysql.create_pool(**DB_CONFIG)
+            logger.info(
+                "MySQL 异步连接池已创建: %s:%s/%s (pool=%s-%s)",
+                DB_CONFIG["host"],
+                DB_CONFIG["port"],
+                DB_CONFIG["db"],
+                DB_CONFIG["minsize"],
+                DB_CONFIG["maxsize"],
+            )
+            return _async_pool
+        except Exception as e:
+            last_exc = e
+            _async_pool = None
+            if attempt < max_retries:
+                delay = 0.5 * (2 ** attempt)
+                logger.warning(
+                    "连接池创建失败（尝试 %d/%d），%0.1f秒后重试: %s",
+                    attempt + 1, max_retries, delay, e,
+                )
+                await asyncio.sleep(delay)
+    logger.error("连接池创建失败，已达最大重试次数: %s", last_exc)
+    raise last_exc
 
 
 async def close_async_pool():
@@ -85,6 +107,33 @@ async def close_async_pool():
         await _async_pool.wait_closed()
         _async_pool = None
         logger.info("MySQL 异步连接池已关闭")
+
+
+async def check_connection() -> bool:
+    """检查数据库连接是否健康。
+
+    通过执行 SELECT 1 探活。连接池未初始化时尝试创建。
+
+    Returns:
+        True 表示连接正常，False 表示连接不可用。
+    """
+    global _async_pool
+    try:
+        pool = await _get_async_pool()
+    except Exception:
+        return False
+
+    if pool is None:
+        return False
+
+    try:
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("SELECT 1")
+                await cur.fetchone()
+        return True
+    except Exception:
+        return False
 
 
 @asynccontextmanager

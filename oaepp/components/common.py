@@ -1,12 +1,16 @@
 """常用 UI 组件
 
 学生用法：
-    from oaepp.components.common import stat_card, empty_state, loading_spinner
+    from oaepp.components.common import (
+        stat_card, empty_state, loading_spinner,
+        connection_banner, network_status_icon,
+    )
 
     def dashboard_page():
         return page_layout(
             title="仪表盘",
             content=rx.vstack(
+                connection_banner(),
                 rx.grid(
                     stat_card("已选课程", 4, icon="book_open"),
                     stat_card("待提交作业", 2, icon="file_text"),
@@ -18,6 +22,8 @@
         )
 """
 import reflex as rx
+
+from oaepp.states.error import ErrorState
 
 
 def stat_card(
@@ -142,4 +148,58 @@ def data_table(
         ),
         width="100%",
         overflow_x="auto",
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  网络状态组件（F-S-050 网络韧性）
+# ═══════════════════════════════════════════════════════════════════════════
+
+def connection_banner() -> rx.Component:
+    """网络连接状态横幅 — 离线时显示红色提示条
+
+    监听 ErrorState.network_online，离线时自动显示重连提示。
+
+    用法：
+        在 page_layout 的 content 顶部放置：
+        rx.vstack(
+            connection_banner(),
+            ... 其他内容 ...
+        )
+    """
+    return rx.cond(
+        ErrorState.network_online == False,  # noqa: E712
+        rx.box(
+            rx.hstack(
+                rx.icon(tag="wifi_off", size=16, color="white"),
+                rx.text("网络已断开，正在尝试重连...", color="white", size="2"),
+                rx.spinner(color="white", size="1"),
+                spacing="2",
+                align="center",
+                justify="center",
+            ),
+            padding="8px 16px",
+            background_color="var(--red-9)",
+            width="100%",
+            class_name="oaepp-connection-banner",
+        ),
+    )
+
+
+def network_status_icon() -> rx.Component:
+    """网络状态指示器小图标 — 可放入顶栏或页脚
+
+    在线时显示绿色 WiFi 图标，离线时显示红色断开图标。
+
+    用法：
+        rx.hstack(
+            rx.heading("仪表盘"),
+            rx.spacer(),
+            network_status_icon(),
+        )
+    """
+    return rx.cond(
+        ErrorState.network_online,
+        rx.icon(tag="wifi", size=16, color="var(--green-9)"),
+        rx.icon(tag="wifi_off", size=16, color="var(--red-9)"),
     )
