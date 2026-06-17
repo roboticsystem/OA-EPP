@@ -3,13 +3,6 @@ name: F-D-004 CI 自动化
 on:
   pull_request:
     types: [opened, reopened, synchronize]
-    paths:
-      - "backend/pyproject.toml"
-      - "backend/tests/**"
-      - "oaepp/states/devops_ci.py"
-      - "tests/reflex/test_F_D_004_ci.py"
-      - "tests/reflex/F-D-004_ci.sh"
-      - ".github/workflows/ci.yml"
 
 permissions:
   contents: read
@@ -21,6 +14,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -30,13 +25,14 @@ jobs:
       - name: Install Ruff
         run: python -m pip install ruff
 
-      - name: Ruff lint（仅本次自有文件）
-        run: >-
-          python -m ruff check
-          oaepp/states/devops_ci.py
-          backend/tests
-          tests/reflex/test_F_D_004_ci.py
-          --config backend/pyproject.toml
+      - name: Ruff lint（本 PR 变更 Python 文件）
+        run: |
+          changed_files=$(git diff --name-only --diff-filter=ACMRT origin/${{ github.base_ref }}...HEAD -- '*.py')
+          if [ -z "$changed_files" ]; then
+            echo "No Python files changed."
+            exit 0
+          fi
+          python -m ruff check $changed_files --config backend/pyproject.toml
 
   pytest:
     name: Pytest 后端和 F-D-004 验收测试
