@@ -13,15 +13,16 @@ try:
     import reflex as rx
     import httpx
     from database import db, transaction
-    from states import GlobalState
-    from constants import GITHUB_BIND_STATUS
 except Exception:
     rx = None
-    GlobalState = None
 
 
-class GitHubBindState(GlobalState if GlobalState else rx.State):
-    """GitHub 账号绑定状态管理"""
+class GitHubBindState(rx.State):
+    """GitHub 账号绑定状态管理（独立状态，不继承全局 State）"""
+
+    # ── 用户信息 ──
+    current_user: dict = {}
+    """当前登录用户信息：{"student_no": "", "name": ""}"""
 
     # ── 表单数据 ──
     github_username: str = ""
@@ -135,11 +136,7 @@ class GitHubBindState(GlobalState if GlobalState else rx.State):
 
         try:
             # 调用 GitHub API 检查用户是否存在
-            # 注意：在 Windows 上可能需要禁用 SSL 验证
-            import ssl
-            ssl_context = ssl.create_default_context()
-            
-            async with httpx.AsyncClient(verify=False) as client:
+            async with httpx.AsyncClient() as client:
                 response = await client.get(
                     f"https://api.github.com/users/{username}",
                     headers={"Accept": "application/vnd.github.v3+json"},
@@ -166,36 +163,8 @@ class GitHubBindState(GlobalState if GlobalState else rx.State):
             self.validation_message = "⚠️ GitHub API 请求超时，请检查网络连接"
             self.github_info = {"exists": False}
         except Exception as e:
-            # 如果是 SSL 错误，给出更友好的提示
-            error_msg = str(e)
-            if "SSL" in error_msg or "certificate" in error_msg.lower():
-                self.validation_message = "⚠️ SSL 证书验证失败。已尝试跳过验证，请检查网络连接"
-                # 重试一次，完全禁用 SSL
-                try:
-                    async with httpx.AsyncClient(verify=False) as client:
-                        response = await client.get(
-                            f"https://api.github.com/users/{username}",
-                            headers={"Accept": "application/vnd.github.v3+json"},
-                            timeout=10.0,
-                        )
-                        if response.status_code == 200:
-                            data = response.json()
-                            self.github_info = {
-                                "username": data.get("login", username),
-                                "name": data.get("name", ""),
-                                "avatar_url": data.get("avatar_url", ""),
-                                "exists": True,
-                            }
-                            self.validation_message = f"✅ GitHub 账号存在：{data.get('login', username)}"
-                        else:
-                            self.validation_message = f"❌ GitHub API 请求失败（状态码：{response.status_code}）"
-                            self.github_info = {"exists": False}
-                except Exception as e2:
-                    self.validation_message = f"⚠️ 验证失败：{str(e2)}"
-                    self.github_info = {"exists": False}
-            else:
-                self.validation_message = f"⚠️ 验证失败：{error_msg}"
-                self.github_info = {"exists": False}
+            self.validation_message = f"⚠️ 验证失败：{str(e)}"
+            self.github_info = {"exists": False}
         finally:
             self.is_validating = False
 

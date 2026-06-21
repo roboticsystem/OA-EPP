@@ -29,36 +29,36 @@ if rx is not None:
                         size="2",
                     ),
                     rx.divider(),
-                    # 自动刷新触发器（隐藏）
-                    rx.button(
-                        "自动刷新",
-                        on_click=GitHubBindState.show_current_status,
-                        style={"display": "none"},
-                        id="auto-refresh-trigger"
-                    ),
-                    rx.script("""
-                        setTimeout(() => {
-                            const btn = document.getElementById('auto-refresh-trigger');
-                            if (btn) btn.click();
-                        }, 500);
-                    """),
 
                     # 绑定状态显示
-                    rx.cond(
-                        GitHubBindState.bind_status == "unbound",
-                        rx.badge("未绑定", color_scheme="gray"),
+                    rx.hstack(
+                        rx.text("当前状态：", size="2", weight="medium"),
+                        rx.cond(
+                            GitHubBindState.bind_status == "unbound",
+                            rx.badge("未绑定", color_scheme="gray"),
+                        ),
+                        rx.cond(
+                            GitHubBindState.bind_status == "pending",
+                            rx.badge("待审核", color_scheme="orange"),
+                        ),
+                        rx.cond(
+                            GitHubBindState.bind_status == "approved",
+                            rx.badge("已绑定", color_scheme="green"),
+                        ),
+                        rx.cond(
+                            GitHubBindState.bind_status == "rejected",
+                            rx.badge("已拒绝", color_scheme="red"),
+                        ),
+                        spacing="2",
+                        align="center",
                     ),
-                    rx.cond(
-                        GitHubBindState.bind_status == "pending",
-                        rx.badge("待审核", color_scheme="orange"),
-                    ),
-                    rx.cond(
-                        GitHubBindState.bind_status == "approved",
-                        rx.badge("已绑定", color_scheme="green"),
-                    ),
-                    rx.cond(
-                        GitHubBindState.bind_status == "rejected",
-                        rx.badge("已拒绝", color_scheme="red"),
+
+                    # 手动刷新按钮
+                    rx.button(
+                        "刷新绑定状态",
+                        on_click=GitHubBindState.load_bind_status,
+                        size="1",
+                        variant="soft",
                     ),
 
                     # 未绑定或已拒绝状态：显示输入框
