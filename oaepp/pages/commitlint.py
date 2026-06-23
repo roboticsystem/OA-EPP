@@ -156,15 +156,34 @@ def _config_form() -> rx.Component:
                 ),
                 width="100%",
             ),
-            # Type 枚举输入（简化版，实际用 tag 列表）
+            # Type 枚举输入
             rx.hstack(
                 rx.text("Type 枚举：", width="120px", font_weight="medium"),
                 rx.input(
                     placeholder="输入 type 后按 Enter",
+                    value=CommitlintState.new_type_input,
+                    on_change=CommitlintState.set_new_type_input,
                     on_key_down=CommitlintState.add_type,
                     width="100%",
                 ),
-                rx.button("+ 添加", size="sm"),
+                rx.button(
+                    "+ 添加",
+                    on_click=CommitlintState.add_type_by_button,
+                    size="sm",
+                ),
+                width="100%",
+            ),
+            # 当前 Type 列表
+            rx.hstack(
+                rx.text("当前 Type 列表：", width="120px", font_weight="medium"),
+                rx.flex(
+                    rx.foreach(
+                        CommitlintState.type_enum,
+                        lambda t: rx.badge(t, margin="2px", variant="subtle"),
+                    ),
+                    flex_wrap="wrap",
+                    width="100%",
+                ),
                 width="100%",
             ),
             # Header 最大长度
