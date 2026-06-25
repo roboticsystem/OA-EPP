@@ -98,46 +98,8 @@ if app is not None and hasattr(app, "_api") and app._api is not None:
             "app": "OA-EPP",
         })
 
-    async def _api_grade_export(request):
-        """F-S-032：学生一键下载本人全期成绩单（.xlsx）"""
-        from starlette.responses import Response
-        from urllib.parse import quote
-
-        student_no = request.query_params.get("student_no", "")
-        if not student_no:
-            return JSONResponse({"error": "缺少 student_no 参数"}, status_code=400)
-
-        try:
-            from states.grade_export import GradeExportState
-        except Exception:
-            try:
-                from oaepp.states.grade_export import GradeExportState
-            except Exception:
-                return JSONResponse({"error": "GradeExportState 加载失败"}, status_code=500)
-
-        state = GradeExportState()
-        file_bytes = state.export_my_grades(student_no)
-
-        if file_bytes is None:
-            return JSONResponse(
-                {"error": state.export_error or "导出失败"}, status_code=500
-            )
-
-        filename = state.get_export_filename(student_no)
-        # RFC 5987: filename*=UTF-8''percent-encoded-filename
-        encoded_filename = quote(filename, safe="")
-
-        return Response(
-            content=file_bytes,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={
-                "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}",
-            },
-        )
-
     app._api.routes.append(Route("/api/hello", _api_hello, methods=["GET"]))
     app._api.routes.append(Route("/api/status", _api_status, methods=["GET"]))
-    app._api.routes.append(Route("/api/grade-export", _api_grade_export, methods=["POST"]))
 
 # ── 显式路由（特殊路由，如首页 /） ────────────────────────────────────────
 _register_page(app, "/", "login", "login_page")
