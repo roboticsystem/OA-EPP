@@ -15,14 +15,19 @@ from typing import Any, Dict, List, Optional
 
 try:
     import reflex as rx
+    from states import GlobalState
 except Exception:
     rx = None
+    try:
+        from oaepp.states import GlobalState
+    except Exception:
+        GlobalState = None
 
 GradeWeightState = None
 
-if rx is not None:
+if rx is not None and GlobalState is not None:
 
-    class GradeWeightState(rx.State):
+    class GradeWeightState(GlobalState):
         """教师权重调整状态管理
 
         对齐原型 prototype/admin_grades.html 中的权重调整区域。
@@ -107,31 +112,31 @@ if rx is not None:
 
         # ── 权重编辑处理器 ──
 
-        def set_attendance_weight(self, val: int):
+        async def set_attendance_weight(self, val: int):
             """设置出勤权重，触发自动归一化"""
             self.attendance_weight = self._clamp(val)
             self._normalize_from("attendance")
-            self._refresh_heatmap()
+            await self._refresh_heatmap()
 
-        def set_exam_weight(self, val: int):
+        async def set_exam_weight(self, val: int):
             """设置考试权重，触发自动归一化"""
             self.exam_weight = self._clamp(val)
             self._normalize_from("exam")
-            self._refresh_heatmap()
+            await self._refresh_heatmap()
 
-        def set_code_weight(self, val: int):
+        async def set_code_weight(self, val: int):
             """设置代码提交权重，触发自动归一化"""
             self.code_weight = self._clamp(val)
             self._normalize_from("code")
-            self._refresh_heatmap()
+            await self._refresh_heatmap()
 
-        def set_pr_weight(self, val: int):
+        async def set_pr_weight(self, val: int):
             """设置 PR 贡献权重，触发自动归一化"""
             self.pr_weight = self._clamp(val)
             self._normalize_from("pr")
-            self._refresh_heatmap()
+            await self._refresh_heatmap()
 
-        def set_attendance_pct(self, pct: int):
+        async def set_attendance_pct(self, pct: int):
             """直接设置出勤百分比滑块"""
             pct = self._clamp(pct)
             old_total_others = self.exam_pct + self.code_pct + self.pr_pct
@@ -146,9 +151,9 @@ if rx is not None:
                 self.code_pct = remaining // 3
                 self.pr_pct = remaining - self.exam_pct - self.code_pct
             self._sync_weights_from_pct()
-            self._refresh_heatmap()
+            await self._refresh_heatmap()
 
-        def set_exam_pct(self, pct: int):
+        async def set_exam_pct(self, pct: int):
             """直接设置考试百分比滑块"""
             pct = self._clamp(pct)
             old_total_others = self.attendance_pct + self.code_pct + self.pr_pct
@@ -163,9 +168,9 @@ if rx is not None:
                 self.code_pct = remaining // 3
                 self.pr_pct = remaining - self.attendance_pct - self.code_pct
             self._sync_weights_from_pct()
-            self._refresh_heatmap()
+            await self._refresh_heatmap()
 
-        def set_code_pct(self, pct: int):
+        async def set_code_pct(self, pct: int):
             """直接设置代码百分比滑块"""
             pct = self._clamp(pct)
             old_total_others = self.attendance_pct + self.exam_pct + self.pr_pct
@@ -180,9 +185,9 @@ if rx is not None:
                 self.exam_pct = remaining // 3
                 self.pr_pct = remaining - self.attendance_pct - self.exam_pct
             self._sync_weights_from_pct()
-            self._refresh_heatmap()
+            await self._refresh_heatmap()
 
-        def set_pr_pct(self, pct: int):
+        async def set_pr_pct(self, pct: int):
             """直接设置 PR 百分比滑块"""
             pct = self._clamp(pct)
             old_total_others = self.attendance_pct + self.exam_pct + self.code_pct
@@ -197,86 +202,86 @@ if rx is not None:
                 self.exam_pct = remaining // 3
                 self.code_pct = remaining - self.attendance_pct - self.exam_pct
             self._sync_weights_from_pct()
-            self._refresh_heatmap()
+            await self._refresh_heatmap()
 
         # ── Slider 事件处理器（Reflex 0.9.4: rx.slider on_change 传递 List[int]） ──
 
-        def set_attendance_pct_from_slider(self, val: List[int]):
-            self.set_attendance_pct(val[0] if val else 0)
+        async def set_attendance_pct_from_slider(self, val: List[int]):
+            await self.set_attendance_pct(val[0] if val else 0)
 
-        def set_exam_pct_from_slider(self, val: List[int]):
-            self.set_exam_pct(val[0] if val else 0)
+        async def set_exam_pct_from_slider(self, val: List[int]):
+            await self.set_exam_pct(val[0] if val else 0)
 
-        def set_code_pct_from_slider(self, val: List[int]):
-            self.set_code_pct(val[0] if val else 0)
+        async def set_code_pct_from_slider(self, val: List[int]):
+            await self.set_code_pct(val[0] if val else 0)
 
-        def set_pr_pct_from_slider(self, val: List[int]):
-            self.set_pr_pct(val[0] if val else 0)
+        async def set_pr_pct_from_slider(self, val: List[int]):
+            await self.set_pr_pct(val[0] if val else 0)
 
-        def set_active_tab(self, tab: str):
+        async def set_active_tab(self, tab: str):
             """切换标签页"""
             self.active_tab = tab
             if tab == "history":
-                self.load_history()
+                await self.load_history()
             elif tab == "audit":
-                self.load_audit_log()
+                await self.load_audit_log()
 
-        def set_attendance_pct_raw(self, val: str):
-            self.set_attendance_pct(int(float(val or 0)))
+        async def set_attendance_pct_raw(self, val: str):
+            await self.set_attendance_pct(int(float(val or 0)))
 
-        def set_exam_pct_raw(self, val: str):
-            self.set_exam_pct(int(float(val or 0)))
+        async def set_exam_pct_raw(self, val: str):
+            await self.set_exam_pct(int(float(val or 0)))
 
-        def set_code_pct_raw(self, val: str):
-            self.set_code_pct(int(float(val or 0)))
+        async def set_code_pct_raw(self, val: str):
+            await self.set_code_pct(int(float(val or 0)))
 
-        def set_pr_pct_raw(self, val: str):
-            self.set_pr_pct(int(float(val or 0)))
+        async def set_pr_pct_raw(self, val: str):
+            await self.set_pr_pct(int(float(val or 0)))
 
-        def reset_to_default(self):
+        async def reset_to_default(self):
             """一键重置四维度权重为默认值 25/25/25/25"""
             self.attendance_pct = 25
             self.exam_pct = 25
             self.code_pct = 25
             self.pr_pct = 25
             self._sync_weights_from_pct()
-            self._refresh_heatmap()
+            await self._refresh_heatmap()
             self.status_message = "已重置为默认权重 25/25/25/25"
             self.status_type = "success"
 
-        def set_selected_course(self, course_id: int):
+        async def set_selected_course(self, course_id: int):
             """选择课程后加载该课程的权重方案"""
             self.selected_course_id = course_id
             for c in self.courses:
                 if c.get("id") == course_id:
                     self.selected_course_name = c.get("name", "")
                     break
-            self._load_current_weights()
+            await self._load_current_weights()
 
-        def set_selected_course_by_label(self, label: str):
+        async def set_selected_course_by_label(self, label: str):
             """通过课程显示标签选择课程（Reflex 0.9.4 rx.select 兼容接口）"""
             if not label:
                 return
             for c in (self.courses or []):
                 if f"{c.get('code', '')} {c.get('name', '')} ({c.get('term', '')})" == label:
-                    self.set_selected_course(c.get("id", 0))
+                    await self.set_selected_course(c.get("id", 0))
                     return
 
         # ── 核心操作 ──
 
-        def load_courses(self):
+        async def load_courses(self):
             """加载教师可管理的课程列表"""
             try:
-                from database import db_sync
+                from database import db as async_db
             except ImportError:
-                from oaepp.database import db_sync
+                from oaepp.database import db as async_db
 
             try:
-                with db_sync() as cur:
-                    cur.execute(
+                async with async_db() as cur:
+                    await cur.execute(
                         "SELECT id, code, name, term FROM courses ORDER BY term DESC, code ASC"
                     )
-                    rows = cur.fetchall()
+                    rows = await cur.fetchall()
                 self.courses = [
                     {
                         "id": r["id"],
@@ -303,7 +308,7 @@ if rx is not None:
                 self.is_saving = False
                 return
 
-            old_weights = self._get_current_db_weights()
+            old_weights = await self._get_current_db_weights()
             new_weights = {
                 "attendance": self.attendance_pct,
                 "exam": self.exam_pct,
@@ -372,20 +377,20 @@ if rx is not None:
 
             self.is_saving = False
 
-        def load_history(self):
+        async def load_history(self):
             """加载当前课程的历史权重方案列表"""
             if self.selected_course_id == 0:
                 self.weight_history = []
                 return
 
             try:
-                from database import db_sync
+                from database import db as async_db
             except ImportError:
-                from oaepp.database import db_sync
+                from oaepp.database import db as async_db
 
             try:
-                with db_sync() as cur:
-                    cur.execute(
+                async with async_db() as cur:
+                    await cur.execute(
                         """SELECT id, weights_json, modified_by, modified_at
                            FROM grade_weight_history
                            WHERE course_id = %s
@@ -393,7 +398,7 @@ if rx is not None:
                            LIMIT 50""",
                         (self.selected_course_id,),
                     )
-                    rows = cur.fetchall()
+                    rows = await cur.fetchall()
                 self.weight_history = []
                 for r in rows:
                     weights = json.loads(r["weights_json"]) if isinstance(r["weights_json"], str) else r["weights_json"]
@@ -426,17 +431,17 @@ if rx is not None:
             self.code_pct = target["code"]
             self.pr_pct = target["pr"]
             self._sync_weights_from_pct()
-            self._refresh_heatmap()
+            await self._refresh_heatmap()
             await self.save_weights()
             self.status_message = f"已回滚至 {target['modified_at']} 的方案"
             self.status_type = "success"
 
-        def load_audit_log(self):
+        async def load_audit_log(self):
             """加载审计日志"""
             try:
-                from database import db_sync
+                from database import db as async_db
             except ImportError:
-                from oaepp.database import db_sync
+                from oaepp.database import db as async_db
 
             course_filter = ""
             params = []
@@ -445,8 +450,8 @@ if rx is not None:
                 params.append(self.selected_course_id)
 
             try:
-                with db_sync() as cur:
-                    cur.execute(
+                async with async_db() as cur:
+                    await cur.execute(
                         f"""SELECT id, course_id, log_json, created_at
                            FROM grade_weight_audit_log
                            {course_filter}
@@ -454,7 +459,7 @@ if rx is not None:
                            LIMIT 100""",
                         tuple(params),
                     )
-                    rows = cur.fetchall()
+                    rows = await cur.fetchall()
                 self.audit_log = []
                 for r in rows:
                     log_data = json.loads(r["log_json"]) if isinstance(r["log_json"], str) else r["log_json"]
@@ -496,7 +501,7 @@ if rx is not None:
             self.code_weight = self.code_pct
             self.pr_weight = self.pr_pct
 
-        def _refresh_heatmap(self):
+        async def _refresh_heatmap(self):
             """根据当前权重与数据库中学生各维度得分，计算热力图差异数据。
 
             从 student_scores 表加载学生四维度得分，用新旧权重分别计算总评分，
@@ -508,16 +513,16 @@ if rx is not None:
                 return
 
             # 获取数据库中的当前权重作为"旧权重"
-            old = self._get_current_db_weights()
+            old = await self._get_current_db_weights()
 
             try:
-                from database import db_sync
+                from database import db as async_db
             except ImportError:
-                from oaepp.database import db_sync
+                from oaepp.database import db as async_db
 
             try:
-                with db_sync() as cur:
-                    cur.execute(
+                async with async_db() as cur:
+                    await cur.execute(
                         """SELECT student_no, full_name, attendance_score, exam_score,
                                   code_score, pr_score
                            FROM student_scores
@@ -525,7 +530,7 @@ if rx is not None:
                            ORDER BY student_no""",
                         (self.selected_course_id,),
                     )
-                    rows = cur.fetchall()
+                    rows = await cur.fetchall()
             except Exception:
                 self.heatmap_data = []
                 self.show_heatmap = False
@@ -575,25 +580,25 @@ if rx is not None:
             self.heatmap_summary = {"up": up_count, "down": down_count, "unchanged": unchanged_count}
             self.show_heatmap = True
 
-        def _get_current_db_weights(self) -> Dict[str, int]:
+        async def _get_current_db_weights(self) -> Dict[str, int]:
             """从数据库获取当前课程的权重，若无记录则返回默认 25/25/25/25"""
             if self.selected_course_id == 0:
                 return {"attendance": 25, "exam": 25, "code": 25, "pr": 25}
 
             try:
-                from database import db_sync
+                from database import db as async_db
             except ImportError:
-                from oaepp.database import db_sync
+                from oaepp.database import db as async_db
 
             try:
-                with db_sync() as cur:
-                    cur.execute(
+                async with async_db() as cur:
+                    await cur.execute(
                         """SELECT attendance_weight, exam_weight, code_weight, pr_weight
                            FROM grade_weight_configs
                            WHERE course_id = %s""",
                         (self.selected_course_id,),
                     )
-                    row = cur.fetchone()
+                    row = await cur.fetchone()
                 if row:
                     return {
                         "attendance": int(row.get("attendance_weight", 25)),
@@ -605,28 +610,31 @@ if rx is not None:
                 pass
             return {"attendance": 25, "exam": 25, "code": 25, "pr": 25}
 
-        def _load_current_weights(self):
+        async def _load_current_weights(self):
             """从数据库加载当前课程的权重，更新 UI 状态"""
-            w = self._get_current_db_weights()
+            w = await self._get_current_db_weights()
             self.attendance_pct = w["attendance"]
             self.exam_pct = w["exam"]
             self.code_pct = w["code"]
             self.pr_pct = w["pr"]
             self._sync_weights_from_pct()
-            self._refresh_heatmap()
+            await self._refresh_heatmap()
 
         @staticmethod
         def _get_current_user() -> str:
             """获取当前操作用户标识"""
             try:
-                from states.auth import AuthState
+                from states import GlobalState
             except ImportError:
                 try:
-                    from oaepp.states.auth import AuthState
+                    from oaepp.states import GlobalState
                 except ImportError:
                     return "unknown"
             try:
-                return f"{AuthState.current_full_name}({AuthState.current_student_no})"
+                user = GlobalState.current_user  # type: ignore
+                if isinstance(user, dict) and user:
+                    return f"{user.get('full_name', '')}({user.get('student_no', '')})"
+                return "unknown"
             except Exception:
                 return "unknown"
 

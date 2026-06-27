@@ -52,9 +52,65 @@ def main():
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 """)
                 print("[init] users 表已就绪")
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS grade_weight_configs (
+                        id                BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        course_id         BIGINT       NOT NULL UNIQUE,
+                        attendance_weight INT          NOT NULL DEFAULT 25,
+                        exam_weight       INT          NOT NULL DEFAULT 25,
+                        code_weight       INT          NOT NULL DEFAULT 25,
+                        pr_weight         INT          NOT NULL DEFAULT 25,
+                        updated_by        VARCHAR(255) NOT NULL DEFAULT '',
+                        updated_at        DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        INDEX idx_course (course_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """)
+                print("[init] grade_weight_configs 表已就绪")
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS grade_weight_history (
+                        id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        course_id     BIGINT       NOT NULL,
+                        weights_json  JSON         NOT NULL,
+                        modified_by   VARCHAR(255) NOT NULL DEFAULT '',
+                        modified_at   DATETIME     DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_history_course (course_id),
+                        INDEX idx_history_time (modified_at)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """)
+                print("[init] grade_weight_history 表已就绪")
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS grade_weight_audit_log (
+                        id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        course_id   BIGINT       NOT NULL,
+                        log_json    JSON         NOT NULL,
+                        created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_audit_course (course_id),
+                        INDEX idx_audit_time (created_at)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """)
+                print("[init] grade_weight_audit_log 表已就绪")
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS student_scores (
+                        id               BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        course_id        BIGINT        NOT NULL,
+                        student_no       VARCHAR(32)   NOT NULL,
+                        full_name        VARCHAR(100)  NOT NULL DEFAULT '',
+                        attendance_score DECIMAL(5,2)  NOT NULL DEFAULT 0.00,
+                        exam_score       DECIMAL(5,2)  NOT NULL DEFAULT 0.00,
+                        code_score       DECIMAL(5,2)  NOT NULL DEFAULT 0.00,
+                        pr_score         DECIMAL(5,2)  NOT NULL DEFAULT 0.00,
+                        UNIQUE KEY uk_course_student (course_id, student_no),
+                        INDEX idx_scores_course (course_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """)
+                print("[init] student_scores 表已就绪")
             except (pymysql.ProgrammingError, pymysql.OperationalError) as e:
                 if "command denied" in str(e).lower():
-                    print(f"[init] 跳过建表（权限不足），users 表应已存在")
+                    print(f"[init] 跳过建表（权限不足），表应已存在")
                 else:
                     raise
 
