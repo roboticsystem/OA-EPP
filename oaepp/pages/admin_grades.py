@@ -16,10 +16,10 @@ admin_grades_page = None
 
 if rx is not None:
     try:
-        from states.teacher_grade_weight import GradeWeightState
+        from states.admin_grades import GradeWeightState
     except ImportError:
         try:
-            from oaepp.states.teacher_grade_weight import GradeWeightState
+            from oaepp.states.admin_grades import GradeWeightState
         except ImportError:
             GradeWeightState = None
 

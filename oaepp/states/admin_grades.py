@@ -27,7 +27,7 @@ GradeWeightState = None
 
 if rx is not None and GlobalState is not None:
 
-    class GradeWeightState(GlobalState):
+    class GradeWeightState(rx.State):
         """教师权重调整状态管理
 
         对齐原型 prototype/admin_grades.html 中的权重调整区域。
@@ -316,7 +316,7 @@ if rx is not None and GlobalState is not None:
                 "pr": self.pr_pct,
             }
 
-            current_user = self._get_current_user()
+            current_user = await self._get_current_user()
             now = datetime.datetime.now().isoformat()
 
             try:
@@ -620,18 +620,18 @@ if rx is not None and GlobalState is not None:
             self._sync_weights_from_pct()
             await self._refresh_heatmap()
 
-        @staticmethod
-        def _get_current_user() -> str:
+        async def _get_current_user(self) -> str:
             """获取当前操作用户标识"""
             try:
-                from states import GlobalState
+                from states import GlobalState as GS
             except ImportError:
                 try:
-                    from oaepp.states import GlobalState
+                    from oaepp.states import GlobalState as GS
                 except ImportError:
                     return "unknown"
             try:
-                user = GlobalState.current_user  # type: ignore
+                global_state = await self.get_state(GS)
+                user = global_state.current_user
                 if isinstance(user, dict) and user:
                     return f"{user.get('full_name', '')}({user.get('student_no', '')})"
                 return "unknown"
