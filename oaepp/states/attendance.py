@@ -35,25 +35,6 @@ class AttendanceState(rx.State if rx is not None else object):
     courses: List[Dict[str, Any]] = []
     rollcall_active: bool = False
 
-    def __init__(self):
-        self.session_id = 0
-        self.confirm_deadline = None
-        self.attendance_status = "pending"
-        self.current_user_id = 0
-        self.current_role = ""
-        self.current_course_id = 0
-        self.current_course_name = ""
-        self.current_student_no = ""
-        self.selected_student_no = ""
-        self.enable_geofence = False
-        self.geo_hash = ""
-        self.attendance_message = ""
-        self.student_list = []
-        self.attendance_history = []
-        self.history_date = ""
-        self.courses = []
-        self.rollcall_active = False
-
     # ── 数据与 UI 绑定方法 ────────────────────────────────────────
 
     async def load_attendance(self, user_id: int = 0) -> None:
@@ -61,16 +42,16 @@ class AttendanceState(rx.State if rx is not None else object):
         if user_id:
             self.current_user_id = user_id
 
-        if not self.current_user_id or not self.current_role:
-            try:
-                from oaepp.states.auth import AuthState
-            except Exception:
-                from states.auth import AuthState
-            self.current_user_id = getattr(AuthState, "current_user_id", 0) or 0
-            self.current_role = getattr(AuthState, "current_role", "") or ""
+        current_user_id = self._resolve_rx_var(self.current_user_id, 0)
+        current_role = self._resolve_rx_var(self.current_role, "")
 
-        if self.current_user_id and not self.current_student_no:
-            self.current_student_no = self._load_student_no(self.current_user_id) or ""
+        if current_user_id == 0 or current_role == "":
+            current_user_id, current_role = self._get_auth_user_context()
+            self.current_user_id = current_user_id
+            self.current_role = current_role
+
+        if current_user_id != 0 and self._resolve_rx_var(self.current_student_no, "") == "":
+            self.current_student_no = self._load_student_no(current_user_id) or ""
 
         self._load_courses()
         self._ensure_current_course()
@@ -99,6 +80,45 @@ class AttendanceState(rx.State if rx is not None else object):
         else:
             self.enable_geofence = bool(checked)
 
+    def _resolve_rx_var(self, value: Any, default: Any = None) -> Any:
+        """Extract actual value from Reflex rx.Var-like state values."""
+        if value is None:
+            return default
+
+        if isinstance(value, (str, int, float, bool)):
+            return value
+
+        try:
+            if hasattr(value, "_value") and getattr(value, "_value", None) is not None:
+                return value._value
+            if hasattr(value, "value") and getattr(value, "value", None) is not None:
+                return value.value
+        except Exception:
+            pass
+
+        if hasattr(value, "_var_data") or hasattr(value, "_var_state") or hasattr(value, "_var_type"):
+            return default
+
+        return value
+
+    def _get_auth_user_context(self) -> tuple[int, str]:
+        """Read authentication state as plain Python values for business logic."""
+        try:
+            from oaepp.states.auth import AuthState
+        except Exception:
+            from states.auth import AuthState
+
+        auth_user_id_var = getattr(AuthState, "current_user_id", 0)
+        auth_role_var = getattr(AuthState, "current_role", "")
+
+        raw_uid = self._resolve_rx_var(auth_user_id_var, 0)
+        raw_role = self._resolve_rx_var(auth_role_var, "")
+
+        uid = raw_uid if isinstance(raw_uid, int) else int(raw_uid) if isinstance(raw_uid, (float, bool)) else 0
+        role = raw_role if isinstance(raw_role, str) else str(raw_role) if raw_role is not None else ""
+
+        return uid, role
+
     async def start_rollcall(self, duration_seconds: int = 60) -> None:
         """教师开启点名会话，默认 60 秒窗口。"""
         self._ensure_current_course()
@@ -110,35 +130,41 @@ class AttendanceState(rx.State if rx is not None else object):
 
     async def confirm_attendance(self, session_id: int = 0) -> None:
         """学生端确认签到；超过截止时间自动标记迟到。"""
-        if not session_id:
+        if session_id:
+            if self.session_id == 0:
+                self.session_id = session_id
+            elif session_id != self.session_id:
+                self.attendance_message = "当前点名会话已过期，请刷新后重试。"
+                return
+        else:
             session_id = self.session_id
 
-        if session_id != self.session_id or not self.rollcall_active:
-            self.attendance_message = "当前点名会话已过期，请刷新后重试。"
+        rollcall_active = self._resolve_rx_var(self.rollcall_active, False)
+        if self.session_id == 0 and not rollcall_active:
+            self.attendance_message = "当前点名会话未开始，请先刷新或重新发起点名。"
             return
 
-        if not self.current_user_id:
-            try:
-                from oaepp.states.auth import AuthState
-            except Exception:
-                from states.auth import AuthState
-            self.current_user_id = getattr(AuthState, "current_user_id", 0) or 0
-            self.current_role = getattr(AuthState, "current_role", "") or ""
+        current_user_id = self._resolve_rx_var(self.current_user_id, 0)
+        current_role = self._resolve_rx_var(self.current_role, "")
+        if current_user_id == 0:
+            current_user_id, current_role = self._get_auth_user_context()
+            self.current_user_id = current_user_id
+            self.current_role = current_role
 
-        if not self.current_user_id:
+        if current_user_id == 0:
             self.attendance_message = "无法识别当前用户，请先登录。"
-            return
 
         now = datetime.datetime.now()
+
         if self.confirm_deadline is None:
-            self.attendance_status = "absent"
+            self.attendance_status = "present"
         elif now <= self.confirm_deadline:
             self.attendance_status = "present"
         else:
             self.attendance_status = "late"
 
         self.rollcall_active = False
-        self._save_attendance(self.current_user_id, self.attendance_status)
+        self._save_attendance(current_user_id, self.attendance_status)
         self.attendance_message = f"签到已记录：{self.attendance_status}" if self.attendance_status != "absent" else "已记录缺勤。"
         self._load_attendance_history()
         self._load_student_list()
@@ -166,32 +192,35 @@ class AttendanceState(rx.State if rx is not None else object):
             self.attendance_message = "无效的考勤状态。"
             return
 
-        if not self.selected_student_no:
+        selected_student_no = self._resolve_rx_var(self.selected_student_no, "")
+        if selected_student_no == "":
             self.attendance_message = "请先输入学号后再标记考勤。"
             return
 
-        student_user_id = self._resolve_student_user_id(self.selected_student_no)
-        if not student_user_id:
+        student_user_id = self._resolve_student_user_id(selected_student_no)
+        if student_user_id is None:
             self.attendance_message = "未找到该学生学号。"
             return
 
         self._ensure_current_course()
         self._save_attendance(student_user_id, status)
-        self.attendance_message = f"已为 {self.selected_student_no} 标记为 {status}。"
+        self.attendance_message = f"已为 {selected_student_no} 标记为 {status}。"
         self._load_student_list()
         self._load_attendance_history()
 
     # ── 内部数据库方法 ────────────────────────────────────────
 
     def _ensure_current_course(self) -> None:
-        if self.current_course_id == 0 and self.courses:
+        current_course_id = self._resolve_rx_var(self.current_course_id, 0)
+        if current_course_id == 0 and self.courses:
             first = self.courses[0]
-            self.current_course_id = first.get("id", 0) or 0
+            current_course_id = first.get("id", 0) or 0
+            self.current_course_id = current_course_id
             self.current_course_name = first.get("name", "") or ""
             return
 
-        if self.current_course_id and self.courses:
-            match = next((course for course in self.courses if course.get("id") == self.current_course_id), None)
+        if current_course_id and self.courses:
+            match = next((course for course in self.courses if course.get("id") == current_course_id), None)
             if match:
                 self.current_course_name = match.get("name", "") or ""
             else:
@@ -258,7 +287,8 @@ class AttendanceState(rx.State if rx is not None else object):
             self.student_list = []
             return
 
-        if self.current_course_id == 0:
+        current_course_id = self._resolve_rx_var(self.current_course_id, 0)
+        if current_course_id == 0:
             self.student_list = []
             return
 
@@ -290,7 +320,7 @@ class AttendanceState(rx.State if rx is not None else object):
                     WHERE u.role = 'student'
                     ORDER BY u.student_no ASC
                     """,
-                    (self.current_course_id, self.current_course_id),
+                    (current_course_id, current_course_id),
                 )
                 rows = cur.fetchall() or []
 
@@ -309,23 +339,25 @@ class AttendanceState(rx.State if rx is not None else object):
             self.student_list = []
 
     def _load_attendance_history(self) -> None:
-        if not self.current_user_id:
+        current_user_id = self._resolve_rx_var(self.current_user_id, 0)
+        if current_user_id == 0:
             self.attendance_history = []
             return
 
-        is_teacher = self.current_role == "teacher"
+        current_role = self._resolve_rx_var(self.current_role, "")
+        is_teacher = current_role == "teacher"
         filters = ""
         params: List[Any] = []
 
+        current_course_id = self._resolve_rx_var(self.current_course_id, 0)
         if is_teacher:
-            if self.current_course_id == 0:
+            if current_course_id == 0:
                 self.attendance_history = []
                 return
             filters = "WHERE ar.course_id = %s"
-            params = [self.current_course_id]
+            params = [current_course_id]
         else:
-            filters = "WHERE ar.student_user_id = %s"
-            params = [self.current_user_id]
+            params = [current_user_id]
 
         if self.history_date:
             filters += " AND DATE(ar.checkin_at) = %s"
@@ -375,7 +407,8 @@ class AttendanceState(rx.State if rx is not None else object):
             return
 
         self._ensure_current_course()
-        if self.current_course_id == 0:
+        current_course_id = self._resolve_rx_var(self.current_course_id, 0)
+        if current_course_id == 0:
             self.attendance_message = "请先选择课程后再保存考勤。"
             return
 
@@ -385,13 +418,15 @@ class AttendanceState(rx.State if rx is not None else object):
             from database import transaction_sync
 
         now = datetime.datetime.now()
-        geo_value = self.geo_hash.strip() if self.enable_geofence and self.geo_hash else None
+        enable_geofence = self._resolve_rx_var(self.enable_geofence, False)
+        geo_hash = self._resolve_rx_var(self.geo_hash, "")
+        geo_value = geo_hash.strip() if enable_geofence and geo_hash else None
 
         try:
             with transaction_sync() as cur:
                 cur.execute(
                     "SELECT id FROM attendance_records WHERE course_id = %s AND student_user_id = %s AND DATE(checkin_at) = %s",
-                    (self.current_course_id, student_user_id, now.date()),
+                    (current_course_id, student_user_id, now.date()),
                 )
                 row = cur.fetchone()
                 if row:
@@ -403,18 +438,15 @@ class AttendanceState(rx.State if rx is not None else object):
                 else:
                     cur.execute(
                         "INSERT INTO attendance_records (course_id, student_user_id, status, checkin_at, geo_hash) VALUES (%s, %s, %s, %s, %s)",
-                        (self.current_course_id, student_user_id, status, now, geo_value),
+                        (current_course_id, student_user_id, status, now, geo_value),
                     )
         except Exception as e:
             self.attendance_message = f"保存考勤失败: {e}"
             return
 
     def _check_teacher(self) -> bool:
-        if self.current_role == "teacher":
+        current_role = self._resolve_rx_var(self.current_role, "")
+        if current_role == "teacher":
             return True
-        try:
-            from oaepp.states.auth import AuthState
-        except Exception:
-            from states.auth import AuthState
-        role = getattr(AuthState, "current_role", "") or ""
+        _, role = self._get_auth_user_context()
         return role == "teacher"

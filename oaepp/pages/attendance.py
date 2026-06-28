@@ -1,4 +1,6 @@
 """课堂点名页面。"""
+import datetime
+
 try:
     import reflex as rx
 except Exception:
@@ -15,6 +17,31 @@ if rx is not None:
         from states.auth import AuthState
     except ImportError:
         from oaepp.states.auth import AuthState
+
+    def _build_attendance_stats(records: list[dict]):
+        total = len(records)
+        present = sum(1 for item in records if str(item.get("status", "")).lower() == "present")
+        late = sum(1 for item in records if str(item.get("status", "")).lower() == "late")
+        absent = sum(1 for item in records if str(item.get("status", "")).lower() == "absent")
+        rate = round(((present + late) / total) * 100, 1) if total else 0.0
+        return {
+            "total": total,
+            "present": present,
+            "late": late,
+            "absent": absent,
+            "rate": rate,
+        }
+
+    def _build_rollcall_window_info():
+        if not AttendanceState.rollcall_active or not AttendanceState.confirm_deadline:
+            return 0, "未开启点名"
+
+        remaining_seconds = max(
+            0,
+            int((AttendanceState.confirm_deadline - datetime.datetime.now()).total_seconds()),
+        )
+        window_percent = max(0, min(100, int((remaining_seconds / 60) * 100)))
+        return window_percent, f"{remaining_seconds}s 剩余"
 
     def _render_attendance_item(record: dict):
         status_color = {
@@ -48,6 +75,8 @@ if rx is not None:
         title = rx.heading("课堂点名与考勤", size="2")
         role_label = AuthState.current_role or "访客"
         user_label = rx.text(f"当前用户: {AuthState.current_full_name} ({role_label})", color="gray")
+        attendance_stats = _build_attendance_stats(AttendanceState.attendance_history)
+        window_percent, window_status = _build_rollcall_window_info()
 
         control_panel = rx.box(
             rx.vstack(
@@ -112,6 +141,87 @@ if rx is not None:
                     rx.button("查询历史", on_click=AttendanceState.load_history, color_scheme="blue"),
                     spacing="3",
                     wrap="wrap",
+                ),
+                spacing="3",
+                width="100%",
+                align="stretch",
+            ),
+            padding="20px",
+            border="1px solid #e2e8f0",
+            border_radius="16px",
+            background="white",
+            width="100%",
+        )
+
+        summary_panel = rx.box(
+            rx.vstack(
+                rx.text("出勤概览与规则", weight="bold", size="md"),
+                rx.hstack(
+                    rx.box(
+                        rx.vstack(
+                            rx.text("出勤率", size="sm", color="gray"),
+                            rx.text(f"{attendance_stats['rate']}%", size="2xl", weight="bold"),
+                            spacing="1",
+                        ),
+                        padding="12px 16px",
+                        border="1px solid #e2e8f0",
+                        border_radius="12px",
+                        min_width="130px",
+                    ),
+                    rx.box(
+                        rx.vstack(
+                            rx.text("出勤", size="sm", color="gray"),
+                            rx.text(str(attendance_stats["present"]), size="2xl", weight="bold"),
+                            spacing="1",
+                        ),
+                        padding="12px 16px",
+                        border="1px solid #e2e8f0",
+                        border_radius="12px",
+                        min_width="110px",
+                    ),
+                    rx.box(
+                        rx.vstack(
+                            rx.text("迟到", size="sm", color="gray"),
+                            rx.text(str(attendance_stats["late"]), size="2xl", weight="bold"),
+                            spacing="1",
+                        ),
+                        padding="12px 16px",
+                        border="1px solid #e2e8f0",
+                        border_radius="12px",
+                        min_width="110px",
+                    ),
+                    rx.box(
+                        rx.vstack(
+                            rx.text("缺勤", size="sm", color="gray"),
+                            rx.text(str(attendance_stats["absent"]), size="2xl", weight="bold"),
+                            spacing="1",
+                        ),
+                        padding="12px 16px",
+                        border="1px solid #e2e8f0",
+                        border_radius="12px",
+                        min_width="110px",
+                    ),
+                    spacing="3",
+                    wrap="wrap",
+                ),
+                rx.vstack(
+                    rx.text("点名窗口进度", weight="medium"),
+                    rx.progress(value=window_percent, max=100, color_scheme="green"),
+                    rx.text(window_status, color="gray", size="sm"),
+                    spacing="1",
+                ),
+                rx.box(
+                    rx.vstack(
+                        rx.text("得分规则", weight="medium"),
+                        rx.text("• 出勤得分 = 出勤率 × 本项满分（15 分）", color="gray", size="sm"),
+                        rx.text("• 迟到按半额计入；缺勤按 0 分处理。", color="gray", size="sm"),
+                        rx.text("• 最终成绩以教师确认结果为准。", color="gray", size="sm"),
+                        spacing="1",
+                    ),
+                    padding="12px 16px",
+                    border="1px solid #e2e8f0",
+                    border_radius="12px",
+                    width="100%",
                 ),
                 spacing="3",
                 width="100%",
@@ -201,6 +311,7 @@ if rx is not None:
                     user_label,
                     rx.divider(),
                     control_panel,
+                    summary_panel,
                     rx.cond(
                         AuthState.current_role == "teacher",
                         student_panel,
