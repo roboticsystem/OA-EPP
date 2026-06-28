@@ -17,7 +17,8 @@ from __future__ import annotations
 import reflex as rx
 
 from oaepp.components.layout import page_layout
-from oaepp.states.progress import ProgressState, STATUS_COLORS, STATUS_LABELS
+from oaepp.states.progress import STATUS_COLORS, STATUS_LABELS
+from oaepp.states.teacher_progress_board import ProgressBoardState, HEATMAP_STATUS
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -60,7 +61,7 @@ def _summary_cards() -> rx.Component:
         rx.card(
             rx.vstack(
                 rx.text("学生人数", font_size="xs", color="gray.500"),
-                rx.heading(ProgressState.summary_total_students, size="5"),
+                rx.heading(ProgressBoardState.summary_total_students, size="5"),
                 spacing="1",
                 align="center",
             ),
@@ -69,7 +70,7 @@ def _summary_cards() -> rx.Component:
         rx.card(
             rx.vstack(
                 rx.text("任务数量", font_size="xs", color="gray.500"),
-                rx.heading(ProgressState.summary_total_assignments, size="5"),
+                rx.heading(ProgressBoardState.summary_total_assignments, size="5"),
                 spacing="1",
                 align="center",
             ),
@@ -78,7 +79,7 @@ def _summary_cards() -> rx.Component:
         rx.card(
             rx.vstack(
                 rx.text("提交总数", font_size="xs", color="gray.500"),
-                rx.heading(ProgressState.summary_total_submissions, size="5"),
+                rx.heading(ProgressBoardState.summary_total_submissions, size="5"),
                 spacing="1",
                 align="center",
             ),
@@ -88,7 +89,7 @@ def _summary_cards() -> rx.Component:
             rx.vstack(
                 rx.text("整体完成率", font_size="xs", color="gray.500"),
                 rx.heading(
-                    rx.text.span(ProgressState.summary_overall_rate),
+                    rx.text.span(ProgressBoardState.summary_overall_rate),
                     rx.text.span("%"),
                     size="5",
                 ),
@@ -115,10 +116,10 @@ def _filter_bar() -> rx.Component:
             rx.vstack(
                 rx.text("课程", font_size="xs", color="gray.500"),
                 rx.select(
-                    ProgressState.course_labels,
+                    ProgressBoardState.course_labels,
                     placeholder="选择课程...",
-                    value=ProgressState.selected_course_label,
-                    on_change=ProgressState.select_course_by_label,
+                    value=ProgressBoardState.selected_course_label,
+                    on_change=ProgressBoardState.select_course_by_label,
                     size="2",
                     min_width="200px",
                 ),
@@ -130,8 +131,8 @@ def _filter_bar() -> rx.Component:
                 rx.text("学期", font_size="xs", color="gray.500"),
                 rx.select(
                     ["全部", "2026-春", "2025-秋", "2025-春", "2024-秋"],
-                    value=ProgressState.selected_term,
-                    on_change=ProgressState.set_term,
+                    value=ProgressBoardState.selected_term,
+                    on_change=ProgressBoardState.set_term,
                     size="2",
                     min_width="120px",
                 ),
@@ -144,8 +145,8 @@ def _filter_bar() -> rx.Component:
                 rx.text("末位置顶数", font_size="xs", color="gray.500"),
                 rx.hstack(
                     rx.input(
-                        value=ProgressState.bottom_n.to(str),
-                        on_change=ProgressState.set_bottom_n_str,
+                        value=ProgressBoardState.bottom_n.to(str),
+                        on_change=ProgressBoardState.set_bottom_n_str,
                         type="number",
                         min=1,
                         max=20,
@@ -171,12 +172,12 @@ def _filter_bar() -> rx.Component:
                         size="2",
                         color_scheme="blue",
                         variant="outline",
-                        on_click=ProgressState.manual_refresh,
+                        on_click=ProgressBoardState.manual_refresh,
                     ),
                     rx.cond(
-                        ProgressState.last_refresh != "",
+                        ProgressBoardState.last_refresh != "",
                         rx.text(
-                            f"更新于 {ProgressState.last_refresh}",
+                            f"更新于 {ProgressBoardState.last_refresh}",
                             font_size="xs",
                             color="gray.400",
                         ),
@@ -208,7 +209,7 @@ def _heatmap_column_headers() -> rx.Component:
         rx.box(width="70px", flex_shrink="0"),
         rx.text("│", color="gray.300", font_size="12px"),
         rx.foreach(
-            ProgressState.assignments,
+            ProgressBoardState.assignments,
             lambda a: rx.tooltip(
                 rx.box(
                     rx.text(
@@ -263,7 +264,7 @@ def _heatmap_cell(cell: dict) -> rx.Component:
             bg=cell.get("color", "#d1d5db"),
             border_right="1px solid rgba(255,255,255,0.3)",
             _hover={"opacity": "0.8", "outline": "2px solid var(--blue-5)"},
-            on_click=lambda: ProgressState.show_cell_detail(c_sid, c_aid),
+            on_click=lambda: ProgressBoardState.show_cell_detail(c_sid, c_aid),
         ),
         content=cell.get("tooltip", ""),
         side="top",
@@ -373,7 +374,7 @@ def _bar_chart() -> rx.Component:
             rx.text("纵轴为完成比例（%），横轴为任务名称，按发布时间排序",
                     font_size="sm", color="gray.500"),
             rx.vstack(
-                rx.foreach(ProgressState.completion_trend, _bar_row),
+                rx.foreach(ProgressBoardState.completion_trend, _bar_row),
                 width="100%",
             ),
             width="100%", padding="16px", spacing="3",
@@ -408,7 +409,7 @@ def _detail_section(title: str, fields: list) -> rx.Component:
 
 
 def _detail_dialog() -> rx.Component:
-    d = ProgressState.detail_data
+    d = ProgressBoardState.detail_data
     return rx.alert_dialog.root(
         rx.alert_dialog.content(
             rx.alert_dialog.title("📋 提交详情"),
@@ -441,11 +442,11 @@ def _detail_dialog() -> rx.Component:
                 ),
             ),
             rx.alert_dialog.action(
-                rx.button("关闭", on_click=ProgressState.close_detail),
+                rx.button("关闭", on_click=ProgressBoardState.close_detail),
             ),
             max_width="520px",
         ),
-        open=ProgressState.detail_open,
+        open=ProgressBoardState.detail_open,
     )
 
 
@@ -481,8 +482,8 @@ def progress_page() -> rx.Component:
                     rx.heading("📊 学生 × 任务 完成状态矩阵", size="4"),
                     rx.spacer(),
                     rx.cond(
-                        ProgressState.bottom_n > 0,
-                        rx.badge(f"末 {ProgressState.bottom_n} 名高亮",
+                        ProgressBoardState.bottom_n > 0,
+                        rx.badge(f"末 {ProgressBoardState.bottom_n} 名高亮",
                                  color_scheme="red", variant="soft"),
                     ),
                     width="100%", align="center",
@@ -491,7 +492,7 @@ def progress_page() -> rx.Component:
                         font_size="xs", color="gray.500"),
                 rx.box(_heatmap_column_headers(), overflow_x="auto", width="100%"),
                 rx.box(
-                    rx.foreach(ProgressState.heatmap_rows, _heatmap_row),
+                    rx.foreach(ProgressBoardState.heatmap_rows, _heatmap_row),
                     overflow_y="auto", max_height="480px", width="100%",
                 ),
                 width="100%", padding="16px", spacing="2",
@@ -506,6 +507,6 @@ def progress_page() -> rx.Component:
         _auto_refresh_script(),
         rx.toast.provider(),
         width="100%", max_width="1200px", margin="0 auto", spacing="4",
-        on_mount=ProgressState.on_mount,
+        on_mount=ProgressBoardState.on_mount,
     )
     return page_layout(title="📊 进度看板", content=content)
