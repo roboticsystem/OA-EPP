@@ -1,5 +1,4 @@
 reflex==0.9.4
-sqlmodel>=0.0.14
 aiomysql>=0.2.0
 pymysql>=1.1.0
 bcrypt>=4.0.0
