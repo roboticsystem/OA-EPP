@@ -8,11 +8,11 @@
 - 失败步骤支持重试
 
 预定义脚本：
-- repo_init.sh — GitHub 仓库初始化
-- branch_protect.sh — 设置分支保护规则
-- secrets_inject.sh — 注入 Secrets
-- setup_ci.sh — 设置 CI 工作流
-- commitlint_setup.sh — 配置 commitlint
+- repo_init.ps1 — GitHub 仓库初始化
+- branch_protect.ps1 — 设置分支保护规则
+- secrets_inject.ps1 — 注入 Secrets
+- setup_ci.ps1 — 设置 CI 工作流
+- commitlint_setup.ps1 — 配置 commitlint
 
 执行流程：
 1. 用户选择脚本 → 点击执行
@@ -74,36 +74,36 @@ if rx is not None:
                 "id": "repo_init",
                 "name": "① 仓库初始化",
                 "description": "克隆模板、初始化基础配置",
-                "script_path": "scripts/devops/repo_init.sh",
+                "script_path": "scripts/devops/repo_init.ps1",
             },
             {
                 "id": "branch_protect",
                 "name": "② 分支保护规则",
                 "description": "配置 main 分支保护、PR 审查要求",
-                "script_path": "scripts/devops/branch_protect.sh",
+                "script_path": "scripts/devops/branch_protect.ps1",
             },
             {
                 "id": "secrets_inject",
                 "name": "③ Secrets 注入",
                 "description": "批量注入数据库、JWT 等密钥",
-                "script_path": "scripts/devops/secrets_inject.sh",
+                "script_path": "scripts/devops/secrets_inject.ps1",
             },
             {
                 "id": "setup_ci",
                 "name": "④ CI 工作流配置",
                 "description": "设置 Ruff 检查 + pytest 工作流",
-                "script_path": "scripts/devops/setup_ci.sh",
+                "script_path": "scripts/devops/setup_ci.ps1",
             },
             {
                 "id": "commitlint_setup",
                 "name": "⑤ Commitlint 规则",
                 "description": "配置提交信息格式检查",
-                "script_path": "scripts/devops/commitlint_setup.sh",
+                "script_path": "scripts/devops/commitlint_setup.ps1",
             },
         ]
 
-        def __init__(self):
-            super().__init__()
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
             self.script_output = []
             self.line_types = []
             self.is_running = False
@@ -202,7 +202,7 @@ if rx is not None:
 
             try:
                 process = await asyncio.create_subprocess_exec(
-                    "bash", script_path,
+                    "powershell", "-File", script_path,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     cwd=os.getcwd(),
@@ -227,6 +227,7 @@ if rx is not None:
             if not self.is_running and self.exit_code != 0 and self.selected_script:
                 await self.execute_script()
 
+        @rx.var
         def get_full_log(self) -> str:
             """获取完整可复制的错误日志（验收标准要求）"""
             return "\n".join(self.script_output)
