@@ -89,7 +89,7 @@ if rx is not None:
             rx.hstack(
                 rx.icon(icon, size=16, color=_COLOR_ACCENT if active else _COLOR_GRAY),
                 rx.text(label, size="2", color=_COLOR_ACCENT if active else _COLOR_GRAY,
-                        weight="medium" if active else "normal"),
+                        weight="medium" if active else "regular"),
                 spacing="3",
                 padding_x="12px", padding_y="10px",
                 width="100%",
@@ -106,8 +106,8 @@ if rx is not None:
         return rx.box(
             rx.hstack(
                 rx.vstack(
-                    rx.text(script["name"], size="2", weight="semibold",
-                            color=_COLOR_ACCENT if is_selected else _COLOR_DARK),
+                    rx.text(script["name"], size="2", weight="bold",
+                            color=rx.cond(is_selected, _COLOR_ACCENT, _COLOR_DARK)),
                     rx.text(script["description"], size="1", color=_COLOR_GRAY),
                     spacing="0",
                     flex="1",
@@ -120,7 +120,7 @@ if rx is not None:
                         size="1",
                         on_click=ScriptExecuteState.execute_script,
                         color_scheme="indigo",
-                        variant="solid" if is_selected else "outline",
+                        variant=rx.cond(is_selected, "solid", "outline"),
                         disabled=is_running,
                     ),
                 ),
@@ -129,8 +129,8 @@ if rx is not None:
             ),
             padding="14px",
             border_radius="8px",
-            background=_COLOR_ACCENT_LIGHT if is_selected else _COLOR_CARD,
-            border=f"1px solid {_COLOR_ACCENT if is_selected else _COLOR_BORDER}",
+            background=rx.cond(is_selected, _COLOR_ACCENT_LIGHT, _COLOR_CARD),
+            border=rx.cond(is_selected, f"1px solid {_COLOR_ACCENT}", f"1px solid {_COLOR_BORDER}"),
             cursor="pointer",
             on_click=lambda: ScriptExecuteState.select_script(script["id"]),
             width="100%",
@@ -183,7 +183,7 @@ if rx is not None:
                     rx.cond(
                         ScriptExecuteState.is_failed,
                         rx.hstack(
-                            rx.icon("x-circle", size=14, color=_COLOR_RED),
+                            rx.icon("circle-x", size=14, color=_COLOR_RED),
                             rx.text(f"退出码: {ScriptExecuteState.exit_code}", size="1",
                                     color=_COLOR_RED),
                             spacing="1",
@@ -191,7 +191,7 @@ if rx is not None:
                         rx.cond(
                             ScriptExecuteState.is_success,
                             rx.hstack(
-                                rx.icon("check-circle", size=14, color=_COLOR_GREEN),
+                                rx.icon("circle-check", size=14, color=_COLOR_GREEN),
                                 rx.text("执行成功", size="1", color=_COLOR_GREEN),
                                 spacing="1",
                             ),
@@ -234,7 +234,7 @@ if rx is not None:
     def _progress_bar():
         return rx.box(
             rx.hstack(
-                rx.text("执行进度", size="2", weight="semibold", color=_COLOR_DARK),
+                rx.text("执行进度", size="2", weight="bold", color=_COLOR_DARK),
                 rx.spacer(),
                 rx.text(
                     rx.text(f"{ScriptExecuteState.current_step}", as_="span", weight="bold"),
@@ -258,7 +258,7 @@ if rx is not None:
     # ── 步骤汇总面板 ──────────────────────────────────────────────────
     def _step_summary():
         return rx.box(
-            rx.text("运维步骤总览", size="2", weight="semibold", color=_COLOR_DARK),
+            rx.text("运维步骤总览", size="2", weight="bold", color=_COLOR_DARK),
             rx.vstack(
                 *_step_item("① 仓库初始化", True, "F-D-001"),
                 *_step_item("② 分支保护 & Secrets", True, "F-D-002/003"),
@@ -279,7 +279,7 @@ if rx is not None:
     def _step_item(label: str, done: bool, ref: str):
         return [
             rx.hstack(
-                rx.icon("check-circle" if done else "circle", size=14,
+                rx.icon("circle-check" if done else "circle", size=14,
                         color=_COLOR_GREEN if done else _COLOR_GRAY),
                 rx.text(label, size="1", weight="medium",
                         color=_COLOR_GREEN if done else _COLOR_DARK),
@@ -296,21 +296,21 @@ if rx is not None:
             ScriptExecuteState.is_failed,
             rx.box(
                 rx.hstack(
-                    rx.text("错误日志", size="2", weight="semibold", color=_COLOR_RED),
+                    rx.text("错误日志", size="2", weight="bold", color=_COLOR_RED),
                     rx.spacer(),
                     rx.button(
                         "复制日志",
                         size="1",
                         color_scheme="red",
                         variant="outline",
-                        on_click=rx.set_clipboard(ScriptExecuteState.get_full_log()),
+                        on_click=rx.set_clipboard(ScriptExecuteState.get_full_log),
                     ),
                     spacing="2",
                     width="100%",
                 ),
                 rx.box(
                     rx.text(
-                        ScriptExecuteState.get_full_log(),
+                        ScriptExecuteState.get_full_log,
                         size="1",
                         font_family="monospace",
                         color=_COLOR_RED,
@@ -345,7 +345,7 @@ if rx is not None:
             ("key", "Secrets", "https://github.com/settings/secrets"),
         ]
         return rx.box(
-            rx.text("GitHub 快捷链接", size="2", weight="semibold", color=_COLOR_DARK),
+            rx.text("GitHub 快捷链接", size="2", weight="bold", color=_COLOR_DARK),
             rx.text("开发运维常用入口 (F-D-008)", size="1", color=_COLOR_GRAY),
             rx.vstack(
                 *[
@@ -402,7 +402,7 @@ if rx is not None:
                     rx.box(
                         # 左栏：脚本执行区
                         rx.vstack(
-                            rx.text("自动化脚本执行", size="3", weight="semibold",
+                            rx.text("自动化脚本执行", size="3", weight="bold",
                                     color=_COLOR_DARK),
                             # 脚本选择
                             rx.text("选择脚本", size="2", weight="medium", color=_COLOR_GRAY),
