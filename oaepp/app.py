@@ -1,9 +1,9 @@
-"""OA-EPP Reflex app — 路由注册 & 启动入口
+"""
+OA-EPP Reflex app — 路由注册 & 启动入口
 
 路由规则：
   - 所有页面：pages/xxx.py → xxx_page() → 自动注册到 /xxx
   - 特殊路由：login → /（首页，显式注册）
-  - 课程和章节浏览 → 显式注册（F-S-010 + F-S-011）
 """
 import importlib
 import shutil
@@ -14,9 +14,6 @@ try:
     import reflex as rx
 except Exception:
     rx = None
-
-from oaepp.states.chapter import ChapterState
-
 
 # ── 辅助函数 ─────────────────────────────────────────────────────────────
 
@@ -30,7 +27,7 @@ def _import_page(module_name: str):
     return None
 
 
-def _register_page(app, route: str, module_name: str, attr_name: str, on_load=None):
+def _register_page(app, route: str, module_name: str, attr_name: str):
     """安全地导入页面模块并注册路由，失败时静默跳过。"""
     if app is None:
         return
@@ -39,23 +36,32 @@ def _register_page(app, route: str, module_name: str, attr_name: str, on_load=No
         return
     page_fn = getattr(mod, attr_name, None)
     if page_fn is not None and callable(page_fn):
-        kwargs = {"route": route}
-        if on_load is not None:
-            kwargs["on_load"] = on_load
         try:
-            app.add_page(page_fn, **kwargs)
+            app.add_page(page_fn, route=route)
         except Exception:
             pass
 
 
 def _auto_discover(app):
-    """自动发现 pages/ 目录下的页面模块。"""
+    """自动发现 pages/ 目录下的页面模块。
+
+    约定：
+      pages/xxx.py 中定义 xxx_page() → 自动注册路由 /xxx
+
+    跳过：
+      - __init__.py, __pycache__
+      - login（特殊路由 /，已由显式注册处理）
+    """
     if app is None:
         return
-    _skip_modules = {"login", "__init__", "courses"}
+
+    # 已由显式路由特殊处理的模块（不需要自动发现）
+    _skip_modules = {"login", "__init__"}
+
     pages_dir = Path(__file__).resolve().parent / "pages"
     if not pages_dir.is_dir():
         return
+
     for py_file in sorted(pages_dir.glob("*.py")):
         module_name = py_file.stem
         if module_name in _skip_modules or module_name.startswith("_"):
@@ -66,78 +72,57 @@ def _auto_discover(app):
 
 
 # ── 创建 App ─────────────────────────────────────────────────────────────
-
 app = None
 if rx is not None:
-    app = rx.App(
-        style={
-            "font_family": "system-ui, -apple-system, sans-serif",
-        },
-    )
-
-
-# ── courses 课程学习页（F-S-010 + F-S-011） ───────────────────────────
-
-try:
-    from pages import courses as courses_mod
-except Exception:
     try:
-        from oaepp.pages import courses as courses_mod
+        app = rx.App()
     except Exception:
-        courses_mod = None
-
-if app is not None and courses_mod is not None:
-    page_fn = getattr(courses_mod, "courses_page_component", None)
-    if page_fn is not None and callable(page_fn):
         try:
-            app.add_page(page_fn, route="/courses",
-                         title="课程学习 - OA-EPP",
-                         on_load=ChapterState.load_courses)
+            app = rx.app.App()
         except Exception:
-            pass
+            app = None
 
+# ── 最简后台 API（挂载在 Reflex 内置 Starlette，端口 8000） ─────────────
+if app is not None and hasattr(app, "_api") and app._api is not None:
+    from datetime import datetime, timezone
+    from starlette.routing import Route
+    from starlette.responses import JSONResponse
 
-# ── chapter 章节内容详情页（F-S-011 章节浏览） ────────────────────────
+    async def _api_hello(request):
+        return JSONResponse({"message": "Hello from OA-EPP backend!"})
 
-try:
-    from pages import chapter_detail as chapter_mod
-except Exception:
-    try:
-        from oaepp.pages import chapter_detail as chapter_mod
-    except Exception:
-        chapter_mod = None
+    async def _api_status(request):
+        return JSONResponse({
+            "status": "ok",
+            "time": datetime.now(timezone.utc).isoformat(),
+            "app": "OA-EPP",
+        })
 
-if app is not None and chapter_mod is not None:
-    page_fn = getattr(chapter_mod, "chapter_page_component", None)
-    if page_fn is not None and callable(page_fn):
-        try:
-            app.add_page(page_fn, route="/chapter",
-                         title="章节内容 - OA-EPP")
-        except Exception:
-            pass
+    app._api.routes.append(Route("/api/hello", _api_hello, methods=["GET"]))
+    app._api.routes.append(Route("/api/status", _api_status, methods=["GET"]))
 
-
-# ── 显式路由 ──────────────────────────────────────────────────────────
+# ── 显式路由（特殊路由，如首页 /） ────────────────────────────────────────
 _register_page(app, "/", "login", "login_page")
 
-# courses：手动注册以支持 on_load
-from oaepp.states.courses import CoursesState as _CoursesState  # noqa: E402
-_register_page(app, "/courses", "courses", "courses_page", on_load=_CoursesState.load_courses)
-
-# ── 自动发现（其余页面） ─────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════
+#  所有页面 — 自动发现
+#  规则：pages/xxx.py → xxx_page() → /xxx
+#  学生页面、管理员页面均自动注册，无需修改此文件
+# ═══════════════════════════════════════════════════════════════════════════
 _auto_discover(app)
 
 
-# ── run() 入口 ────────────────────────────────────────────────────────
-
 def run(port: int = 3000):
-    """Run Reflex dev server."""
+    """Run Reflex dev server (prefer `reflex` CLI, fallback to python -m reflex)."""
     if rx is None or app is None:
-        print("Reflex 或 app 未准备，确保已安装 requirements.txt 并重试。")
+        print("Reflex 或 app 未准备，确保已安装 oaepp/requirements.txt 并重试。")
         return
     try:
+        # try app.run if provided by this reflex version
         app.run(host="0.0.0.0", port=port)
     except Exception:
+        # fallback to CLI
+        import subprocess
         binpath = shutil.which("reflex")
         cmds = []
         if binpath:

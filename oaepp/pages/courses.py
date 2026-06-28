@@ -1,7 +1,4 @@
-"""课程学习页 (F-S-010 + F-S-011)
-
-工程实践1-4 课程卡片 + 章节明细表格。
-"""
+"""课程学习页 (F-S-010 + F-S-011)"""
 
 import reflex as rx
 from oaepp.components.layout import page_layout
@@ -9,16 +6,13 @@ from oaepp.states.courses import CoursesState
 
 
 def _status_badge(status: str) -> rx.Component:
-    """状态标签"""
-    cls = {
-        "已完成": "bg-green-100 text-green-600",
-        "进行中": "bg-blue-100 text-blue-600",
-    }.get(status, "bg-gray-100 text-gray-500")
+    cls = {"已完成": "bg-green-100 text-green-600", "进行中": "bg-blue-100 text-blue-600"}.get(
+        status, "bg-gray-100 text-gray-500"
+    )
     return rx.badge(status, class_name=f"px-2 py-0.5 rounded text-xs font-medium {cls}")
 
 
 def _type_badge(ch_type: str) -> rx.Component:
-    """章节类型标签"""
     cls = {
         "作业": "bg-purple-100 text-purple-600",
         "考试": "bg-red-100 text-red-600",
@@ -28,7 +22,6 @@ def _type_badge(ch_type: str) -> rx.Component:
 
 
 def _course_card(course: dict) -> rx.Component:
-    """课程卡片"""
     return rx.box(
         rx.vstack(
             rx.hstack(
@@ -39,13 +32,10 @@ def _course_card(course: dict) -> rx.Component:
             ),
             rx.hstack(
                 rx.text(f"学期: {course['term']}", class_name="text-xs text-gray-500"),
-                rx.text(f"code: {course['code']}", class_name="text-xs text-gray-500"),
+                rx.text(f"代码: {course['code']}", class_name="text-xs text-gray-500"),
                 spacing="4",
             ),
-            rx.text(
-                f"{course['total_chapters']} 章节",
-                class_name="text-sm text-gray-600",
-            ),
+            rx.text(f"{course['total_chapters']} 章节", class_name="text-sm text-gray-600"),
             spacing="3",
             align="start",
             width="100%",
@@ -56,7 +46,6 @@ def _course_card(course: dict) -> rx.Component:
 
 
 def _chapter_table() -> rx.Component:
-    """章节明细表格"""
     return rx.box(
         rx.cond(
             CoursesState.chapters_loading,
@@ -96,18 +85,34 @@ def courses_page():
     return page_layout(
         title="课程学习",
         content=rx.vstack(
-            # 课程卡片网格
+            # 加载按钮（初始状态）
+            rx.cond(
+                (CoursesState.courses.length() == 0) & ~CoursesState.courses_loading,
+                rx.vstack(
+                    rx.text("点击加载课程数据", class_name="text-sm text-gray-400"),
+                    rx.button(
+                        "加载课程",
+                        on_click=CoursesState.load_courses(),
+                        color_scheme="blue",
+                    ),
+                    spacing="3",
+                    align="center",
+                    class_name="py-8",
+                ),
+            ),
+            # 加载中
             rx.cond(
                 CoursesState.courses_loading,
                 rx.text("加载中...", class_name="text-gray-400 text-sm"),
-                rx.cond(
-                    CoursesState.courses.length() > 0,
-                    rx.grid(
-                        rx.foreach(CoursesState.courses, lambda c: _course_card(c)),
-                        columns="2",
-                        spacing="4",
-                        width="100%",
-                    ),
+            ),
+            # 课程卡片网格
+            rx.cond(
+                CoursesState.courses.length() > 0,
+                rx.grid(
+                    rx.foreach(CoursesState.courses, lambda c: _course_card(c)),
+                    columns="2",
+                    spacing="4",
+                    width="100%",
                 ),
             ),
             # 章节明细
