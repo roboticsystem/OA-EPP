@@ -1,11 +1,11 @@
-"""F-T-013 进度看板 — ProgressBoardState (TDD GREEN)
+"""F-T-013 Progress Board — ProgressBoardState (TDD GREEN).
 
-满足 TDD 测试要求的接口契约，继承并扩展 ProgressState：
-- HEATMAP_STATUS: 热力图状态→颜色映射常量
-- heatmap_data: 热力图矩阵数据（rx.var → matrix_cells）
-- completion_rate_chart: 完成率柱状图数据（rx.var → completion_trend）
-- load_progress(): 加载进度数据（→ load_data）
-- filter_by_course(): 按课程筛选（→ set_course）
+Satisfies the TDD interface contract by inheriting from and extending ProgressState:
+- HEATMAP_STATUS: heatmap status → colour mapping constant
+- heatmap_data: heatmap matrix data (rx.var → matrix_cells)
+- completion_rate_chart: completion rate bar-chart data (rx.var → completion_trend)
+- load_progress(): load progress data (→ load_data)
+- filter_by_course(): filter by course (→ set_course)
 """
 
 from __future__ import annotations
@@ -16,8 +16,7 @@ import reflex as rx
 
 from oaepp.states.progress import ProgressState, STATUS_COLORS
 
-
-# ── TDD 要求：热力图状态常量 ──
+# ── TDD-required: heatmap status colour constants ──
 HEATMAP_STATUS: Dict[str, str] = {
     "submitted":     STATUS_COLORS.get("submitted", "#22c55e"),
     "late":          STATUS_COLORS.get("late", "#eab308"),
@@ -27,33 +26,36 @@ HEATMAP_STATUS: Dict[str, str] = {
 
 
 class ProgressBoardState(ProgressState):
-    """进度看板 State — TDD F-T-013 GREEN
+    """Progress board state — TDD F-T-013 GREEN.
 
-    继承 ProgressState 的全部数据加载与筛选能力，
-    额外暴露 TDD 测试要求的命名接口。
+    Inherits all data-loading and filtering capabilities from
+    ``ProgressState``, and additionally exposes the TDD-required
+    naming interface.
     """
 
-    # ── TDD 要求的常量 ──
-    HEATMAP_STATUS: Dict[str, str] = HEATMAP_STATUS
+    # ── TDD-required constant ──
+    # Shallow-copy so the class attribute does not alias the module-level
+    # constant (prevents accidental cross-mutation).
+    HEATMAP_STATUS: Dict[str, str] = dict(HEATMAP_STATUS)
 
-    # ── TDD 要求的属性别名（rx.var 计算属性） ──
+    # ── TDD-required computed properties (rx.var) ──
 
     @rx.var
     def heatmap_data(self) -> List[Dict[str, Any]]:
-        """TDD 别名 — 热力图矩阵数据（指向 matrix_cells）。"""
+        """TDD alias — heatmap matrix data, delegates to ``matrix_cells``."""
         return self.matrix_cells
 
     @rx.var
     def completion_rate_chart(self) -> List[Dict[str, Any]]:
-        """TDD 别名 — 完成率柱状图数据（指向 completion_trend）。"""
+        """TDD alias — completion rate bar chart data, delegates to ``completion_trend``."""
         return self.completion_trend
 
-    # ── TDD 要求的方法别名 ──
+    # ── TDD-required event handlers ──
 
     def load_progress(self):
-        """TDD 别名 — 加载进度看板数据。"""
+        """TDD alias — load progress board data, delegates to ``load_data``."""
         return self.load_data()
 
     def filter_by_course(self, course_id_str: str = ""):
-        """TDD 别名 — 按课程筛选。"""
+        """TDD alias — filter by course, delegates to ``set_course``."""
         return self.set_course(course_id_str)
