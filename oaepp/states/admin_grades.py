@@ -463,13 +463,21 @@ if rx is not None and GlobalState is not None:
                 self.audit_log = []
                 for r in rows:
                     log_data = json.loads(r["log_json"]) if isinstance(r["log_json"], str) else r["log_json"]
+                    old_w = log_data.get("old_weights", {}) or {}
+                    new_w = log_data.get("new_weights", {}) or {}
                     self.audit_log.append({
                         "id": r["id"],
                         "course_name": log_data.get("course_name", ""),
                         "modified_by": log_data.get("modified_by", ""),
                         "modified_at": log_data.get("modified_at", ""),
-                        "old_weights": log_data.get("old_weights", {}),
-                        "new_weights": log_data.get("new_weights", {}),
+                        "old_attendance": old_w.get("attendance", 0),
+                        "old_exam": old_w.get("exam", 0),
+                        "old_code": old_w.get("code", 0),
+                        "old_pr": old_w.get("pr", 0),
+                        "new_attendance": new_w.get("attendance", 0),
+                        "new_exam": new_w.get("exam", 0),
+                        "new_code": new_w.get("code", 0),
+                        "new_pr": new_w.get("pr", 0),
                     })
             except Exception:
                 self.audit_log = []
