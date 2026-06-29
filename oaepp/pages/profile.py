@@ -11,6 +11,8 @@ profile_page = None
 if rx is not None:
     def profile_page():
         """A minimal profile page."""
+        # 页面加载时不使用隐藏按钮或 rx.script 自动触发；如需显示 GitHub 绑定状态
+        # 应使用显式事件或页面生命周期触发（由页面调用 GitHubBindState 的方法）。
         return rx.center(
             rx.box(
                 rx.vstack(

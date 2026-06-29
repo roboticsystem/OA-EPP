@@ -5,18 +5,22 @@
 审查必须严格遵守以下规则：
 
 ## 一、目录规范检查（最核心）
-1. 学生**只能修改自己的功能目录**：`/oaepp/pages/` 下的 `.py` 文件
-2. 功能文件命名必须与 `/prototype` 目录下的快速原型文件命名一致（例如：原型文件为 `editor.html`，则功能文件命名为 `editor.py`）
-3. 禁止修改以下全局目录与文件（出现即打回）：
-   - state.py
-   - constants.py
-   - utils/
-   - db.py
-   - rxconfig.py
+1. 学生**只能修改自己的功能目录**：`/oaepp/pages/` 下的 `.py` 文件和 `/oaepp/states/` 下的 `.py` 文件
+2. 功能文件命名必须与 `/prototype` 目录下的快速原型文件命名一致（例如：原型文件为 `editor.html`，则功能页面文件命名为 `editor.py`，对应的状态文件在 `/oaepp/states/editor.py`）
+3. `/oaepp/states/` 目录用于存放各功能的 State 类，文件命名必须与 `/oaepp/pages/` 下的功能页面文件命名一致（例如：页面为 `dashboard.py`，则状态文件为 `states/dashboard.py`）
+4. 禁止修改以下全局目录与文件（出现即打回）：
+   - **`oaepp/models/`** — ORM 模型层，负责人维护
+   - **`oaepp/components/`** — 共享 UI 组件，负责人维护
+   - **`oaepp/states/__init__.py`** — State 注册文件
+   - `oaepp/rxconfig.py`
+   - `oaepp/database.py`
+   - `oaepp/constants.py`
+   - `oaepp/utils/`
+   - `oaepp/app.py`
    - **`backend/` 目录下的所有文件**（包括 `backend/app/main.py`、`backend/app/routers/`、`backend/app/static/` 等）
    - 根目录文件
-4. 禁止创建无关文件、禁止跨目录修改他人代码
-5. **禁止在 `backend/` 目录下创建或修改任何文件**（API 路由、静态页面等均由负责人统一维护）
+5. 禁止创建无关文件、禁止跨目录修改他人代码
+6. **禁止在 `backend/` 目录下创建或修改任何文件**（API 路由、静态页面等均由负责人统一维护）
 
 ## 二、全局状态审查规则
 1. 学生**只能读取全局状态，禁止直接修改、赋值、覆盖** rx.State
@@ -24,6 +28,7 @@
    rx.State.xxx = yyy
 3. 若必须修改全局状态，**必须调用 GlobalState 提供的方法**，不能直接赋值
 4. 禁止新增全局变量、全局状态字段
+5. 学生在 `/oaepp/states/` 下创建的功能 State 类，**禁止继承或修改全局 State**，应作为独立 State 实现
 
 ## 三、全局变量/常量/工具函数审查
 1. 只能使用已有的 constants.py 中的常量，**不能新增、不能重复定义**
@@ -46,6 +51,7 @@
 2. 无语法错误、无未定义变量
 3. 无死代码、无冗余打印
 4. 代码格式整洁、缩进规范
+5. 禁止硬编码路径、本地绝对路径（如 `/Users/xxx/`、`C:\Users\xxx\`），必须使用相对路径或配置常量
 
 ## 七、审查输出格式（必须严格按这个输出）
 ### 🟢 通过
@@ -92,5 +98,5 @@
 ---
 
 ## 你的任务
-1、学生的PR是：https://github.com/roboticsystem/OA-EPP/pull/118 ，请你**逐行审查**，并按上面的规范给出审查结论：通过 / 警告 / 拒绝，并列出原因。
-2、根据PR中的代码涉及的代码或者路由的修改，在最后给出这个PR的PR Preview功能的URL，例如这样：https://115.oaepp-reflex.uwis.cn/admin_grades 
+1、学生的 PR 是：`{{PR_URL}}`，请你**逐行审查**，并按上面的规范给出审查结论：通过 / 警告 / 拒绝，并列出原因。
+2、根据 PR 中涉及的代码或路由修改，在最后给出这个 PR 的 PR Preview 功能的 URL，例如：`https://{PR编号}.oaepp-reflex.uwis.cn/{路由}`
