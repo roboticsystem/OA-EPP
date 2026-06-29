@@ -217,6 +217,9 @@ if rx is not None:
 
     def profile_page():
         """个人资料页（含 GitHub 绑定模块 + 页面加载自动查询状态）"""
+        """A minimal profile page."""
+        # 页面加载时不使用隐藏按钮或 rx.script 自动触发；如需显示 GitHub 绑定状态
+        # 应使用显式事件或页面生命周期触发（由页面调用 GitHubBindState 的方法）。
         return rx.center(
             rx.box(
                 rx.vstack(
