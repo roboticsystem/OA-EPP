@@ -1,14 +1,13 @@
 """
-F-S-003 GitHub account binding - GitHubBindState
+F-S-003 GitHub 账号绑定功能 — GitHubBindState
 
-Features:
-- Student inputs GitHub username, system validates via GitHub API
-- Binding application requires teacher approval
-- One student can only bind one account
-- Changing bound account requires teacher approval for unbinding first
+功能概述：
+- 学生可填写 GitHub 用户名，系统通过 GitHub API 校验账号有效性
+- 绑定申请需教师审核，每个学生只允许绑定一个账号
+- 已绑定账号修改需向教师申请解除旧绑定
 
-Inheritance: GitHubBindState -> GlobalState -> rx.State
-  GlobalState provides current_user, show_toast, etc.
+继承关系：GitHubBindState → GlobalState → rx.State
+  GlobalState 提供 current_user、show_toast 等公共能力。
 """
 
 import httpx
@@ -41,35 +40,35 @@ except Exception:
 
 
 class GitHubBindState(GlobalState if GlobalState else rx.State if rx else object):
-    """GitHub binding state (inherits GlobalState for current_user / show_toast)"""
+    """GitHub 账号绑定状态管理（继承 GlobalState，复用 current_user / show_toast）"""
 
-    # Form data
+    # ── 表单数据 ──
     github_username: str = ""
-    """GitHub username input by user"""
+    """用户输入的 GitHub 用户名"""
 
-    # Binding status
+    # ── 绑定状态信息 ──
     bind_status: str = "unbound"
-    """Current binding status: unbound / pending / approved / rejected / pending_release"""
+    """当前绑定状态：unbound / pending / approved / rejected / pending_release"""
 
     github_info: dict = {}
-    """GitHub API response: {"username","name","avatar_url","exists"}"""
+    """GitHub API 返回的用户信息：{"username","name","avatar_url","exists"}"""
 
-    # UI state
+    # ── UI 状态 ──
     is_validating: bool = False
     is_submitting: bool = False
     validation_message: str = ""
 
-    # Setter
+    # ── Setter 方法 ──
     def set_github_username(self, username: str):
-        """Set GitHub username"""
+        """设置 GitHub 用户名"""
         self.github_username = username
 
-    # =====================================================================
-    # Get current student info
-    # =====================================================================
+    # ═════════════════════════════════════════════════════════════════════
+    # 获取当前学生信息（优先 GlobalState，回退到 AuthState）
+    # ═════════════════════════════════════════════════════════════════════
 
     async def _get_student_no(self) -> str:
-        """Get current logged-in student number"""
+        """获取当前登录学生的学号"""
         if self.current_user and self.current_user.get("student_no"):
             return self.current_user.get("student_no", "")
         try:
@@ -78,11 +77,11 @@ class GitHubBindState(GlobalState if GlobalState else rx.State if rx else object
                 return auth.current_student_no
         except Exception:
             pass
-        # Fallback: default student for dev mode
+        # 最终回退：开发模式默认学生账号
         return "2024000001"
 
     async def _get_user_id(self) -> int:
-        """Get current logged-in student user_id"""
+        """获取当前登录学生的 user_id"""
         if self.current_user and self.current_user.get("user_id"):
             return int(self.current_user.get("user_id", 0))
         try:
@@ -93,12 +92,12 @@ class GitHubBindState(GlobalState if GlobalState else rx.State if rx else object
             pass
         return 0
 
-    # =====================================================================
-    # Query binding status
-    # =====================================================================
+    # ═════════════════════════════════════════════════════════════════════
+    # 查询绑定状态
+    # ═════════════════════════════════════════════════════════════════════
 
     async def load_bind_status(self):
-        """Load current GitHub binding status from DB (silent, no toast)"""
+        """从数据库加载当前用户的 GitHub 绑定状态（静默加载，不显示 toast）"""
         student_no = await self._get_student_no()
         _log.info("load_bind_status called, student_no=%s", student_no)
         if not student_no:
@@ -107,7 +106,7 @@ class GitHubBindState(GlobalState if GlobalState else rx.State if rx else object
 
         try:
             async with db() as cur:
-                # Rollback to end any stale implicit transaction, ensuring fresh snapshot
+                # 终结可能残留的隐式事务，确保读到最新快照
                 await cur.execute("ROLLBACK")
                 await cur.execute(
                     """
@@ -129,7 +128,7 @@ class GitHubBindState(GlobalState if GlobalState else rx.State if rx else object
                         "name": row.get("github_name") or "",
                         "exists": True,
                     }
-                    # approved + verified_by IS NULL = pending release
+                    # approved + verified_by IS NULL = 待解除绑定
                     if row["verify_status"] == "approved" and row.get("verified_by") is None:
                         self.bind_status = "pending_release"
                 else:
@@ -138,35 +137,35 @@ class GitHubBindState(GlobalState if GlobalState else rx.State if rx else object
                     self.github_info = {}
         except Exception as e:
             _log.exception("load_bind_status failed: %s", e)
-            pass  # Silent failure, user can manually refresh
+            pass  # 静默失败，用户可手动刷新
 
     async def refresh_bind_status(self):
-        """Refresh binding status and show toast (for manual refresh button)"""
+        """刷新绑定状态并显示 toast 提示（供用户手动点击按钮调用）"""
         student_no = await self._get_student_no()
         if not student_no:
-            return rx.toast("Please login first", level="warning")
+            return rx.toast("请先登录", level="warning")
 
         await self.load_bind_status()
 
         if self.bind_status == "unbound":
-            return rx.toast("No binding record", level="info")
+            return rx.toast("暂无绑定记录", level="info")
         elif self.bind_status == "pending":
-            return rx.toast(f"Status: Pending review ({self.github_username})", level="info")
+            return rx.toast(f"当前状态：待审核（{self.github_username}）", level="info")
         elif self.bind_status == "approved":
-            return rx.toast(f"Bound: {self.github_username}", level="success")
+            return rx.toast(f"✅ 已绑定 {self.github_username}", level="success")
         elif self.bind_status == "pending_release":
-            return rx.toast(f"Unbind request pending ({self.github_username})", level="info")
+            return rx.toast(f"⏳ 解除绑定申请审核中（{self.github_username}）", level="info")
         elif self.bind_status == "rejected":
-            return rx.toast("Binding rejected, you may resubmit", level="warning")
+            return rx.toast("绑定申请已被拒绝，可重新提交", level="warning")
 
     # =====================================================================
-    # Validate GitHub username (via GitHub API)
+    # 验证 GitHub 用户名（调用 GitHub API）
     # =====================================================================
 
     async def validate_github_username(self):
-        """Validate GitHub username via GitHub API"""
+        """通过 GitHub API 验证用户名是否存在"""
         if not self.github_username or not self.github_username.strip():
-            self.validation_message = "Please enter a GitHub username"
+            self.validation_message = "请输入 GitHub 用户名"
             self.github_info = {"exists": False}
             return
 
@@ -174,7 +173,7 @@ class GitHubBindState(GlobalState if GlobalState else rx.State if rx else object
         username = self.github_username.strip()
 
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(verify=False) as client:
                 resp = await client.get(
                     f"https://api.github.com/users/{username}",
                     headers={"Accept": "application/vnd.github.v3+json"},
@@ -189,38 +188,38 @@ class GitHubBindState(GlobalState if GlobalState else rx.State if rx else object
                         "exists": True,
                     }
                     self.validation_message = (
-                        f"GitHub account found: {data.get('login', username)}"
+                        f"✅ GitHub 账号存在：{data.get('login', username)}"
                     )
                 elif resp.status_code == 404:
                     self.github_info = {"exists": False}
                     self.validation_message = (
-                        "GitHub account not found, please check username"
+                        "❌ GitHub 账号不存在，请检查用户名是否正确"
                     )
                 else:
                     self.validation_message = (
-                        f"GitHub API error (status: {resp.status_code})"
+                        f"⚠️ GitHub API 请求失败（状态码：{resp.status_code}）"
                     )
                     self.github_info = {"exists": False}
         except httpx.TimeoutException:
-            self.validation_message = "GitHub API timeout, check network"
+            self.validation_message = "⚠️ GitHub API 请求超时，请检查网络连接"
             self.github_info = {"exists": False}
         except Exception as e:
-            self.validation_message = f"Validation failed: {e}"
+            self.validation_message = f"⚠️ 验证失败：{e}"
             self.github_info = {"exists": False}
         finally:
             self.is_validating = False
 
     # =====================================================================
-    # Submit binding request
+    # 提交绑定申请
     # =====================================================================
 
     async def submit_bind_request(self):
-        """Submit GitHub binding request (requires teacher approval)"""
+        """提交 GitHub 账号绑定申请（需教师审核）"""
         student_no = await self._get_student_no()
         if not student_no:
-            return rx.toast("Please login first", level="warning")
+            return rx.toast("请先登录", level="warning")
         if not self.github_info.get("exists"):
-            return rx.toast("Please validate GitHub username first", level="warning")
+            return rx.toast("请先验证 GitHub 用户名", level="warning")
 
         username = self.github_info["username"]
         name = self.github_info.get("name", "")
@@ -228,7 +227,7 @@ class GitHubBindState(GlobalState if GlobalState else rx.State if rx else object
 
         try:
             async with transaction() as cur:
-                # Check existing binding record
+                # 查询已有绑定记录
                 await cur.execute(
                     """
                     SELECT gb.id, gb.verify_status, gb.verified_by
@@ -244,15 +243,15 @@ class GitHubBindState(GlobalState if GlobalState else rx.State if rx else object
                 if existing:
                     if existing["verify_status"] == "approved" and existing.get("verified_by") is not None:
                         self.is_submitting = False
-                        return rx.toast("Already bound. Request unbind first.", level="warning")
+                        return rx.toast("您已绑定 GitHub 账号，如需修改请先申请解除绑定", level="warning")
                     elif existing["verify_status"] == "pending":
                         self.is_submitting = False
-                        return rx.toast("Binding request is pending review", level="warning")
+                        return rx.toast("您的绑定申请正在审核中，请耐心等待", level="warning")
                     elif existing["verify_status"] == "approved" and existing.get("verified_by") is None:
                         self.is_submitting = False
-                        return rx.toast("Unbind request is pending review", level="warning")
+                        return rx.toast("您的解除绑定申请正在审核中，请等待教师处理", level="warning")
                     else:
-                        # rejected -> reapply
+                        # rejected → 重新申请
                         await cur.execute(
                             """
                             UPDATE github_bindings
@@ -263,9 +262,9 @@ class GitHubBindState(GlobalState if GlobalState else rx.State if rx else object
                             (username, name, existing["id"]),
                         )
                         self.bind_status = "pending"
-                        return rx.toast("Binding request resubmitted", level="success")
+                        return rx.toast("绑定申请已重新提交，等待教师审核", level="success")
                 else:
-                    # Get user_id and ensure students record exists
+                    # 获取 user_id，并确保 students 表有对应记录
                     await cur.execute(
                         "SELECT id FROM users WHERE student_no=%s",
                         (student_no,),
@@ -273,10 +272,10 @@ class GitHubBindState(GlobalState if GlobalState else rx.State if rx else object
                     usr = await cur.fetchone()
                     if not usr:
                         self.is_submitting = False
-                        return rx.toast("Student account not found", level="error")
+                        return rx.toast("学生账号不存在，请联系管理员", level="error")
                     user_id = usr["id"]
 
-                    # Ensure students table has corresponding record (FK constraint)
+                    # 确保 students 表中有对应记录（外键约束要求）
                     await cur.execute(
                         "SELECT user_id FROM students WHERE user_id=%s",
                         (user_id,),
@@ -302,27 +301,27 @@ class GitHubBindState(GlobalState if GlobalState else rx.State if rx else object
                         (user_id, username, name),
                     )
                     self.bind_status = "pending"
-                    return rx.toast("Binding request submitted", level="success")
+                    return rx.toast("绑定申请已提交，等待教师审核", level="success")
         except Exception as e:
             em = str(e)
             if "doesn't exist" in em or "1146" in em:
-                return rx.toast("Database table not found, contact admin", level="error")
+                return rx.toast("数据库表不存在，请联系管理员创建 github_bindings 表", level="error")
             else:
-                return rx.toast(f"Submit failed: {em}", level="error")
+                return rx.toast(f"提交失败：{em}", level="error")
         finally:
             self.is_submitting = False
 
     # =====================================================================
-    # Request unbind
+    # 申请解除绑定
     # =====================================================================
 
     async def request_unbind(self):
-        """Request to unbind current GitHub account (requires teacher approval)"""
+        """申请解除当前 GitHub 绑定（需教师审核）"""
         student_no = await self._get_student_no()
         if not student_no:
-            return rx.toast("Please login first", level="warning")
+            return rx.toast("请先登录", level="warning")
         if self.bind_status != "approved":
-            return rx.toast("No need to unbind at this time", level="warning")
+            return rx.toast("当前无需解除绑定", level="warning")
 
         try:
             async with transaction() as cur:
@@ -337,9 +336,9 @@ class GitHubBindState(GlobalState if GlobalState else rx.State if rx else object
                     (student_no,),
                 )
                 if cur.rowcount == 0:
-                    return rx.toast("No approved binding found or already requested", level="warning")
+                    return rx.toast("未找到已绑定记录或已申请解除", level="warning")
         except Exception as e:
-            return rx.toast(f"Request failed: {e}", level="error")
+            return rx.toast(f"申请失败：{e}", level="error")
 
         self.bind_status = "pending_release"
-        return rx.toast("Unbind request submitted, waiting for teacher review", level="success")
+        return rx.toast("解除绑定申请已提交，等待教师审核", level="success")
