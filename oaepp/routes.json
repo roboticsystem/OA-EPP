@@ -1,34 +1,51 @@
 # OA-EPP 功能路由映射表
 
-> **用途**：此文件定义了 `/prototype` 目录下的快速原型文件与 Reflex 功能页面的一一对应关系。
-> 学生开发功能时，**功能文件命名必须与原型文件命名一致**（`.html` → `.py`）。
-> 教师/负责人在 `app.py` 中注册路由时，使用 `route` 字段作为页面路径。
+> **核心规则**：学生创建 `pages/xxx.py`，定义 `xxx_page()` 函数 → **自动注册路由 `/xxx`**，无需修改 `app.py`。
 
-## 路由映射
+## 自动发现机制
 
-| 原型文件 | 功能文件 | 路由 (route) | 功能名称 | 需求编号 | 说明 |
-|----------|----------|-------------|----------|----------|------|
-| `login.html` | `login.py` | `/` | 登录页 | F-S-001 | 首页，学号/邮箱+密码登录 |
-| `dashboard.html` | `dashboard.py` | `/dashboard` | 课程主页 | F-S-010 | 课程信息、学习进度、章节任务 |
-| `courses.html` | `courses.py` | `/courses` | 课程列表 | F-S-010 | 所有课程列表与筛选 |
-| `assignments.html` | `assignments.py` | `/assignments` | 作业提交 | F-S-020 | 作业列表、提交、版本记录 |
-| `attendance.html` | `attendance.py` | `/attendance` | 课堂点名 | F-S-052 | 签到、出勤记录 |
-| `exam.html` | `exam.py` | `/exam` | 在线考试 | F-S-053 | 限时考试、答题 |
-| `grades.html` | `grades.py` | `/grades` | 成绩看板 | F-S-030 | 成绩实时统计、得分看板 |
-| `profile.html` | `profile.py` | `/profile` | 个人资料 | F-S-002 | 个人信息、密码修改、GitHub 绑定 |
+| 学生做了什么 | 效果 |
+|------------|------|
+| 创建 `pages/grades.py`，定义 `grades_page()` | 自动注册 `/grades` |
+| 创建 `pages/assignments.py`，定义 `assignments_page()` | 自动注册 `/assignments` |
+| 文件命名与原型文件一致（`.html` → `.py`） | 路由自动匹配 |
 
-## 管理员/教师端路由（由负责人统一维护，学生禁止修改）
+**跳过规则**：
+- `pages/login.py` — 特殊路由 `/`（首页），在 `app.py` 中显式注册
+- `pages/__init__.py`、以下划线开头的文件 — 不会自动注册
 
-| 原型文件 | 路由 (route) | 功能名称 | 说明 |
-|----------|-------------|----------|------|
-| `admin_students.html` | `/admin_students` | 学生管理 | 学生名单、GitHub 账号映射 |
-| `admin_grades.html` | `/admin_grades` | 成绩管理 | 全班成绩、导出 |
-| `admin_settings.html` | `/admin_settings` | 系统设置 | 课程配置、CI/CD 配置 |
-| `admin_devops.html` | `/admin_devops` | 开发运维 | GitHub 快捷链接、仓库配置 |
+## 学生端功能路由（自动发现）
 
-## 使用规则
+| 原型文件 | 功能文件 | 路由 | 功能名称 | 需求编号 |
+|----------|----------|------|----------|----------|
+| `login.html` | `login.py` | `/` | 登录页 | F-S-001 |
+| `dashboard.html` | `dashboard.py` | `/dashboard` | 课程主页 | F-S-010 |
+| `courses.html` | `courses.py` | `/courses` | 课程列表 | F-S-010 |
+| `assignments.html` | `assignments.py` | `/assignments` | 作业提交 | F-S-020 |
+| `attendance.html` | `attendance.py` | `/attendance` | 课堂点名 | F-S-052 |
+| `exam.html` | `exam.py` | `/exam` | 在线考试 | F-S-053 |
+| `grades.html` | `grades.py` | `/grades` | 成绩看板 | F-S-030 |
+| `profile.html` | `profile.py` | `/profile` | 个人资料 | F-S-002 |
 
-1. **学生功能文件**放在 `/oaepp/pages/` 目录下，命名与原型文件一致（如 `dashboard.py`）。
-2. **路由注册**由负责人统一在 `app.py` 中完成，学生禁止修改 `app.py`。
-3. **管理员/教师端页面**由负责人统一维护，学生禁止创建或修改。
-4. 新增功能时，先在原型目录创建 `.html` 原型文件，再在 `pages/` 创建同名 `.py` 文件。
+> 以上路由由 `app.py` 中的 `_auto_discover()` 自动注册。学生只需创建对应 `.py` 文件即可。
+
+## 管理员/教师端路由（同样自动发现，学生禁止修改）
+
+| 路由 | 功能名称 | 说明 |
+|------|----------|------|
+| `/admin_students` | 学生管理 | 学生名单、GitHub 账号映射 |
+| `/admin_grades` | 成绩管理 | 全班成绩、导出 |
+| `/admin_settings` | 系统设置 | 课程配置、CI/CD 配置 |
+| `/admin_devops` | 开发运维 | GitHub 快捷链接、仓库配置 |
+
+> 管理员路由与学生路由使用**同一套自动发现机制**。创建 `pages/admin_students.py` 并定义 `admin_students_page()` 后自动注册。管理员页面由负责人统一维护，学生禁止修改。
+
+## 学生新增功能完整流程
+
+1. **在 `pages/` 下创建 `xxx.py`**（命名与原型文件一致）
+2. **定义 `xxx_page()` 函数**（命名规则：`{模块名}_page`）
+3. **本地验证**：`reflex run` → 访问 `http://localhost:3000/xxx`
+4. **提 PR** → 负责人审核合并 → Coolify 自动部署
+5. **线上访问**：`https://oaepp-reflex.uwis.cn/xxx`
+
+**不再需要修改 `app.py`！** 文件放进去，路由自动生效。
