@@ -49,41 +49,6 @@ if app is not None and hasattr(app, "_api") and app._api is not None:
     app._api.routes.append(Route("/api/hello", _api_hello, methods=["GET"]))
     app._api.routes.append(Route("/api/status", _api_status, methods=["GET"]))
 
-    async def _api_student_scores(request):
-        from starlette.responses import JSONResponse as JR
-        from urllib.parse import parse_qs
-
-        params = parse_qs(request.url.query.decode() if hasattr(request.url.query, "decode") else str(request.url.query))
-        student_no = (params.get("student_no") or [None])[0]
-        password = (params.get("password") or [None])[0]
-        if not student_no:
-            return JR({"error": "缺少学号"}, status_code=400)
-
-        from oaepp.states.score import ScoreState
-        import pymysql
-
-        state = ScoreState()
-        try:
-            conn = pymysql.connect(
-                host="156.239.252.40", port=13306, user="student_dev",
-                password="OaEpp@Dev2026", database="oaepp_dev",
-                charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor,
-            )
-            with conn.cursor() as cur:
-                cur.execute("SELECT id FROM users WHERE student_no=%s AND role='student'", (student_no,))
-                user = cur.fetchone()
-            conn.close()
-            if not user:
-                return JR({"error": "学号不存在"})
-            state.current_user_id = user["id"]
-        except Exception as e:
-            return JR({"error": f"数据库连接失败: {e}"}, status_code=500)
-
-        result = await state.load_scores()
-        return JR(result)
-
-    app._api.routes.append(Route("/api/student/scores", _api_student_scores, methods=["GET"]))
-
 # ─────────────────────────────────────────────────────────────────────────
 
 # --- profile page ---
@@ -98,19 +63,6 @@ except Exception:
 if app is not None and profile_mod is not None:
     if hasattr(profile_mod, "profile_page") and callable(getattr(profile_mod, "profile_page")):
         app.add_page(profile_mod.profile_page, route="/profile")
-
-# --- score page (F-S-030) ---
-try:
-    from pages import score as score_mod
-except Exception:
-    try:
-        from oaepp.pages import score as score_mod
-    except Exception:
-        score_mod = None
-
-if app is not None and score_mod is not None:
-    if hasattr(score_mod, "score_page") and callable(getattr(score_mod, "score_page")):
-        app.add_page(score_mod.score_page, route="/score")
 
 if app is not None and login_mod is not None:
     try:

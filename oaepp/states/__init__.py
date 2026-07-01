@@ -1,20 +1,11 @@
-"""Reflex States 子包"""
+"""Reflex States 子包 — F-S-022 截止规则
 
-import sys as _sys
-
-try:
-    from .exam import ExamState
-except Exception:
-    ExamState = None
+导出 DeadlineState 类。
+"""
 
 try:
     from .deadline import DeadlineState
 except Exception:
     DeadlineState = None
 
-try:
-    from .score import ScoreState
-except Exception:
-    ScoreState = None
-
-__all__ = ["ExamState", "DeadlineState", "ScoreState"]
+__all__ = ["DeadlineState"]
