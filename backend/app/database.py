@@ -54,13 +54,5 @@ def init_db():
             submitted_at TEXT DEFAULT (datetime('now','localtime')),
             UNIQUE(student_id, exam_id)
         );
-        
-        CREATE TABLE IF NOT EXISTS export_logs (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            actor        TEXT NOT NULL,
-            filters      TEXT,
-            record_count INTEGER,
-            created_at   TEXT DEFAULT (datetime('now','localtime'))
-        );
         """)
         # 考试记录由 sync_exams() 根据 .md 文件动态维护，此处不再硬编码预置
