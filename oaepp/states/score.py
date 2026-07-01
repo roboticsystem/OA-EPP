@@ -4,7 +4,13 @@ Reflex State — 学生登录后可实时查看本人综合得分及各维度分
 （出勤/考试/代码提交/PR审查），展示评分时间和评分人，待评分项标注状态提示。
 """
 from typing import Optional
-from oaepp.database import db_sync
+
+try:
+    import reflex as rx
+except Exception:
+    rx = None
+
+from oaepp.database import db
 from oaepp.constants import SCORE_TYPES
 
 DIMENSION_LABELS = {
@@ -16,10 +22,12 @@ DIMENSION_LABELS = {
 DEFAULT_WEIGHTS = {"attendance": 20, "exam": 30, "code": 30, "pr": 20}
 
 
-class ScoreState:
+_Base = rx.State if rx is not None else object
+
+
+class ScoreState(_Base):
     """成绩实时统计 State — 提供学生成绩看板数据查询。"""
 
-    # ── TDD 要求的属性 ──
     attendance_score: float = 0.0
     exam_score: float = 0.0
     code_score: float = 0.0
@@ -27,7 +35,6 @@ class ScoreState:
     total_score: float = 0.0
     current_user_id: Optional[int] = None
 
-    # ── 扩展属性 ──
     student_info: dict = {}
     course_info: dict = {}
     weights: dict = {}
@@ -39,7 +46,7 @@ class ScoreState:
         if self.current_user_id is None:
             return {"error": "未设置用户"}
 
-        result = self._load_from_db()
+        result = await self._load_from_db()
         if isinstance(result, dict) and "error" in result:
             self.total_score = 0.0
             return result
@@ -62,30 +69,28 @@ class ScoreState:
             "total_score": result["total_score"],
         }
 
-    def _load_from_db(self):
-        with db_sync() as cur:
-            student = self._get_student_info(cur, self.current_user_id)
+    async def _load_from_db(self):
+        async with db() as cur:
+            student = await self._get_student_info(cur, self.current_user_id)
             if not student:
                 return {"error": "学生信息不存在"}
 
-            courses = self._get_enrolled_courses(cur, self.current_user_id)
+            courses = await self._get_enrolled_courses(cur, self.current_user_id)
             if not courses:
                 return {"error": "未选课"}
 
-            course = self._pick_course(cur, courses, self.current_user_id)
-            weights = self._get_weights(cur, course["id"])
-            score_items = self._get_score_items(cur, course["id"], self.current_user_id)
-            exam_scores = self._get_exam_attempt_scores(cur, course["id"], self.current_user_id)
-            pending_items = self._get_pending_items(cur, course["id"], self.current_user_id)
+            course = await self._pick_course(cur, courses)
+            weights = await self._get_weights(cur, course["id"])
+            score_items = await self._get_score_items(cur, course["id"], self.current_user_id)
+            exam_scores = await self._get_exam_attempt_scores(cur, course["id"], self.current_user_id)
+            pending_items = await self._get_pending_items(cur, course["id"], self.current_user_id)
 
-        # 合并 exam_attempts 成绩
         all_exam = [s for s in score_items if s["score_type"] == "exam"]
         seen_ids = {s["ref_id"] for s in all_exam}
         for es in exam_scores:
             if es["ref_id"] not in seen_ids:
                 score_items.append(es)
 
-        # 统计各维度
         dim_scores = {}
         for dim in SCORE_TYPES:
             items = [s for s in score_items if s["score_type"] == dim]
@@ -101,7 +106,6 @@ class ScoreState:
                 "pending_items": pending,
             }
 
-        # 计算加权总分
         total_weighted = 0
         for dim in SCORE_TYPES:
             d = dim_scores[dim]
@@ -125,42 +129,43 @@ class ScoreState:
     # ── 数据库查询方法 ──
 
     @staticmethod
-    def _get_student_info(cur, user_id):
-        cur.execute("""
+    async def _get_student_info(cur, user_id):
+        await cur.execute("""
             SELECT u.full_name AS name, u.student_no AS student_id, s.class_name
             FROM users u
             JOIN students s ON u.id = s.user_id
             WHERE u.id = %s
         """, (user_id,))
-        return cur.fetchone()
+        return await cur.fetchone()
 
     @staticmethod
-    def _get_enrolled_courses(cur, user_id):
-        cur.execute("""
+    async def _get_enrolled_courses(cur, user_id):
+        await cur.execute("""
             SELECT c.id, c.name, c.code
             FROM enrollments e
             JOIN courses c ON e.course_id = c.id
             WHERE e.student_user_id = %s
             ORDER BY c.id
         """, (user_id,))
-        return cur.fetchall()
+        return await cur.fetchall()
 
     @staticmethod
-    def _pick_course(cur, courses, user_id):
+    async def _pick_course(cur, courses):
         for c in courses:
-            cur.execute("SELECT COUNT(*) AS cnt FROM exams WHERE course_id = %s", (c["id"],))
-            if cur.fetchone()["cnt"] > 0:
+            await cur.execute("SELECT COUNT(*) AS cnt FROM exams WHERE course_id = %s", (c["id"],))
+            row = await cur.fetchone()
+            if row["cnt"] > 0:
                 return c
         return courses[0]
 
     @staticmethod
-    def _get_weights(cur, course_id):
-        cur.execute("""
+    async def _get_weights(cur, course_id):
+        await cur.execute("""
             SELECT attendance_weight, exam_weight, code_weight, pr_weight
             FROM grade_weight_configs
             WHERE course_id = %s
         """, (course_id,))
-        row = cur.fetchone()
+        row = await cur.fetchone()
         if row:
             return {
                 "attendance": float(row["attendance_weight"]),
@@ -171,8 +176,8 @@ class ScoreState:
         return dict(DEFAULT_WEIGHTS)
 
     @staticmethod
-    def _get_score_items(cur, course_id, user_id):
-        cur.execute("""
+    async def _get_score_items(cur, course_id, user_id):
+        await cur.execute("""
             SELECT si.id, si.score_type, si.score, si.scored_at,
                    si.ref_id, u.full_name AS scorer_name
             FROM score_items si
@@ -180,7 +185,7 @@ class ScoreState:
             WHERE si.course_id = %s AND si.student_user_id = %s
             ORDER BY si.scored_at DESC
         """, (course_id, user_id))
-        rows = cur.fetchall()
+        rows = await cur.fetchall()
         result = []
         for r in rows:
             result.append({
@@ -194,8 +199,8 @@ class ScoreState:
         return result
 
     @staticmethod
-    def _get_exam_attempt_scores(cur, course_id, user_id):
-        cur.execute("""
+    async def _get_exam_attempt_scores(cur, course_id, user_id):
+        await cur.execute("""
             SELECT ea.id, e.id AS exam_id, e.title AS exam_name,
                    ea.total_score AS score, ea.submitted_at,
                    u.full_name AS scorer_name
@@ -206,7 +211,7 @@ class ScoreState:
               AND ea.status IN ('graded', 'submitted')
             ORDER BY ea.submitted_at DESC
         """, (course_id, user_id))
-        rows = cur.fetchall()
+        rows = await cur.fetchall()
         result = []
         for r in rows:
             result.append({
@@ -222,40 +227,40 @@ class ScoreState:
         return result
 
     @staticmethod
-    def _get_pending_items(cur, course_id, user_id):
+    async def _get_pending_items(cur, course_id, user_id):
         pending = []
-        cur.execute("""
+        await cur.execute("""
             SELECT e.id, e.title AS name FROM exams e
             WHERE e.course_id = %s AND NOT EXISTS (
                 SELECT 1 FROM exam_attempts ea
                 WHERE ea.exam_id = e.id AND ea.student_user_id = %s
             )
         """, (course_id, user_id))
-        for r in cur.fetchall():
+        for r in await cur.fetchall():
             pending.append({"pending_type": "exam", "label": "考试", "name": r["name"], "ref_id": r["id"]})
 
-        cur.execute("""
+        await cur.execute("""
             SELECT s.id, a.title AS name FROM submissions s
             JOIN assignments a ON s.assignment_id = a.id
             WHERE a.course_id = %s AND s.student_user_id = %s AND s.grading_status = 'pending'
         """, (course_id, user_id))
-        for r in cur.fetchall():
+        for r in await cur.fetchall():
             pending.append({"pending_type": "code", "label": "代码提交", "name": r["name"], "ref_id": r["id"]})
 
-        cur.execute("""
+        await cur.execute("""
             SELECT id, issue_no AS name FROM pr_records
             WHERE course_id = %s AND student_user_id = %s AND quality_score IS NULL
         """, (course_id, user_id))
-        for r in cur.fetchall():
+        for r in await cur.fetchall():
             name = f"PR #{r['name']}" if r["name"] else f"记录 #{r['id']}"
             pending.append({"pending_type": "pr", "label": "PR审查", "name": name, "ref_id": r["id"]})
 
-        cur.execute("""
+        await cur.execute("""
             SELECT ar.id, as2.id AS session_id FROM attendance_records ar
             JOIN attendance_sessions as2 ON ar.session_id = as2.id
             WHERE as2.course_id = %s AND ar.student_user_id = %s AND ar.status = 'absent'
         """, (course_id, user_id))
-        for r in cur.fetchall():
+        for r in await cur.fetchall():
             pending.append({"pending_type": "attendance", "label": "出勤", "name": f"签到 #{r['session_id']}", "ref_id": r["id"]})
 
         return pending
