@@ -28,29 +28,6 @@ def _require_teacher(authorization: Optional[str]):
         raise HTTPException(status_code=401, detail=str(e))
 
 
-COURSE_ID = int(os.environ.get("COURSE_ID", "2"))
-
-
-def _get_enrolled_student_count(conn):
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) AS cnt FROM enrollments WHERE course_id = %s", (COURSE_ID,))
-    return cur.fetchone()["cnt"]
-
-
-def _list_students_with_class(conn):
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT u.id AS user_id, u.full_name AS name, u.student_no AS student_id,
-               COALESCE(s.class_name, '') AS class_name
-        FROM users u
-        JOIN students s ON u.id = s.user_id
-        JOIN enrollments e ON e.student_user_id = u.id
-        WHERE e.course_id = %s AND u.role = 'student'
-        ORDER BY u.student_no
-    """, (COURSE_ID,))
-    return cur.fetchall()
-
-
 def _name_to_pinyin(name: str):
     full = "".join(lazy_pinyin(name, style=Style.NORMAL))
     abbr = "".join(lazy_pinyin(name, style=Style.FIRST_LETTER))
