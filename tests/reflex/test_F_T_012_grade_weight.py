@@ -1,13 +1,13 @@
 """F-T-012 成绩权重配置 TDD 测试
 
-被测 State : oaepp.states.admin_grades.GradeWeightState
-TDD RED   : oaepp.states.admin_grades 不存在 → ImportError → 所有用例失败（预期）
+被测 State : oaepp.states.teacher_grade_weight.GradeWeightState
+TDD RED   : oaepp.states.teacher_grade_weight 不存在 → ImportError → 所有用例失败（预期）
 TDD GREEN : GradeWeightState 实现后 → 全部通过
 """
 import pytest
 
 try:
-    from oaepp.states.admin_grades import GradeWeightState
+    from oaepp.states.teacher_grade_weight import GradeWeightState
     _IMPORT_ERROR = None
 except ImportError as _e:
     GradeWeightState = None
