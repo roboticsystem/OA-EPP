@@ -2,9 +2,10 @@ FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    REFLEX_FRONTEND_PORT=3000 \
-    REFLEX_BACKEND_PORT=8003 \
-    REFLEX_BACKEND_HOST=0.0.0.0
+    REFLEX_FRONTEND_PORT=8000 \
+    REFLEX_BACKEND_PORT=8000 \
+    REFLEX_BACKEND_HOST=0.0.0.0 \
+    DATABASE_URL=sqlite:///oaepp.db
 
 WORKDIR /app
 
@@ -21,6 +22,6 @@ COPY nginx.conf /etc/nginx/conf.d/oaepp_reflex.conf
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
-EXPOSE 80 3000 8003
+EXPOSE 80 8000
 
 CMD ["/start.sh"]
