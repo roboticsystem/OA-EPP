@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OA-EPP · Commit 消息格式自动校验 · commitlint</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex">
+
+  <!-- 侧边栏 -->
+  <aside class="w-56 bg-white border-r border-gray-200 flex flex-col min-h-screen fixed left-0 top-0">
+    <div class="px-5 py-5 border-b border-gray-100">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+          </svg>
+        </div>
+        <div>
+          <span class="font-bold text-gray-800 text-sm">OA-EPP</span>
+          <span class="ml-1.5 text-xs bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded">教师端</span>
+        </div>
+      </div>
+    </div>
+    <nav class="flex-1 px-3 py-4 space-y-1">
+      <a href="admin_students.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        学生管理
+      </a>
+      <a href="admin_devops.html" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 font-medium text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        开发运维
+      </a>
+      <a href="admin_grades.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        成绩管理
+      </a>
+      <a href="admin_settings.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+        系统设置
+      </a>
+    </nav>
+    <div class="px-4 py-4 border-t border-gray-100">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">李</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-800 truncate">李四（教师）</p>
+          <p class="text-xs text-gray-400 truncate">admin</p>
+        </div>
+      </div>
+      <a href="login.html" class="mt-3 block text-center text-xs text-gray-400 hover:text-red-500 transition">退出登录</a>
+    </div>
+  </aside>
+
+  <main class="ml-56 flex-1 p-8">
+    <!-- 页面标题 -->
+    <div class="mb-6">
+      <h1 class="text-xl font-bold text-gray-800">✅ Commit 消息格式自动校验（F-D-009）</h1>
+      <p class="text-sm text-gray-400 mt-0.5">配置 commitlint 规则集、在线编辑参数，一键生成配置文件并提交至仓库</p>
+    </div>
+
+    <!-- 状态总览 4 格 -->
+    <div class="grid grid-cols-4 gap-4 mb-6">
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <p class="text-xs text-gray-400">启用状态</p>
+        <p class="text-lg font-bold text-green-600">已启用</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <p class="text-xs text-gray-400">规则版本</p>
+        <p class="text-lg font-bold text-gray-800">v3</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <p class="text-xs text-gray-400">规则类型</p>
+        <p class="text-lg font-bold text-gray-800">Conventional Commits</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <p class="text-xs text-gray-400">Type 数量</p>
+        <p class="text-lg font-bold text-gray-800">7 个</p>
+      </div>
+    </div>
+
+    <!-- 启用开关 + 分支选择 -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-gray-600">启用状态</span>
+          <div class="relative w-11 h-6">
+            <div class="w-11 h-6 bg-green-500 rounded-full"></div>
+            <div class="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full shadow"></div>
+          </div>
+          <span class="text-sm text-green-600 font-medium">已启用</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-gray-500">目标分支：</span>
+          <select class="border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+            <option>main</option>
+            <option>dev</option>
+            <option>feature/xxx</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 规则配置编辑表单 -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
+      <h2 class="text-base font-semibold text-gray-800 mb-4">规则配置</h2>
+      <div class="space-y-4">
+        <!-- 规则集 -->
+        <div class="flex items-center gap-4">
+          <label class="text-sm text-gray-600 w-28 flex-shrink-0">规则集：</label>
+          <select class="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+            <option>conventional</option>
+            <option>custom</option>
+          </select>
+        </div>
+        <!-- 版本 -->
+        <div class="flex items-center gap-4">
+          <label class="text-sm text-gray-600 w-28 flex-shrink-0">版本：</label>
+          <span class="text-sm text-gray-400">v3</span>
+        </div>
+        <!-- Type 枚举输入 -->
+        <div class="flex items-center gap-4">
+          <label class="text-sm text-gray-600 w-28 flex-shrink-0">Type 枚举：</label>
+          <input type="text" placeholder="输入 type 后按 Enter" class="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+          <button class="px-3 py-1.5 bg-gray-100 text-gray-600 text-sm rounded-lg hover:bg-gray-200">+ 添加</button>
+        </div>
+        <!-- 当前 Type 列表 -->
+        <div class="flex items-center gap-4">
+          <label class="text-sm text-gray-600 w-28 flex-shrink-0">当前 Type 列表：</label>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">feat</span>
+            <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">fix</span>
+            <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">refactor</span>
+            <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">style</span>
+            <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">test</span>
+            <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">docs</span>
+            <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">chore</span>
+          </div>
+        </div>
+        <!-- Header 最大长度 -->
+        <div class="flex items-center gap-4">
+          <label class="text-sm text-gray-600 w-28 flex-shrink-0">Header 最大长度：</label>
+          <input type="number" value="100" min="1" max="200" class="w-24 border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+        </div>
+        <!-- Subject 最小长度 -->
+        <div class="flex items-center gap-4">
+          <label class="text-sm text-gray-600 w-28 flex-shrink-0">Subject 最小长度：</label>
+          <input type="number" value="5" min="1" max="50" class="w-24 border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+        </div>
+        <!-- 操作按钮 -->
+        <div class="flex gap-3 pt-2">
+          <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg font-medium">💾 保存配置</button>
+          <button class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg font-medium">📤 保存并提交到仓库</button>
+          <button class="px-4 py-2 border border-gray-300 text-gray-600 text-sm rounded-lg hover:bg-gray-50">⚡ 预览配置文件</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 配置文件预览区 -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
+      <h2 class="text-base font-semibold text-gray-800 mb-4">配置文件预览</h2>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <p class="text-xs text-gray-400 mb-1">📄 .github/workflows/commitlint.yml</p>
+          <pre class="bg-gray-900 rounded-lg p-4 text-xs text-green-400 font-mono overflow-x-auto h-48">name: Commit Message 检查
+
+on: [pull_request]
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: wagoid/commitlint-github-action@v5
+        with:
+          configFile: .commitlintrc.json</pre>
+        </div>
+        <div>
+          <p class="text-xs text-gray-400 mb-1">📄 .commitlintrc.json</p>
+          <pre class="bg-gray-900 rounded-lg p-4 text-xs text-green-400 font-mono overflow-x-auto h-48">{
+  "extends": ["@commitlint/config-conventional"],
+  "rules": {
+    "type-enum": [2, "always", ["feat","fix","refactor","style","test","docs","chore"]],
+    "subject-min-length": [2, "always", 5],
+    "header-max-length": [2, "always", 100]
+  }
+}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 仓库同步状态 -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base font-semibold text-gray-800">📡 仓库同步状态</h2>
+        <button class="px-3 py-1.5 border border-gray-300 text-gray-600 text-sm rounded-lg hover:bg-gray-50">🔄 刷新</button>
+      </div>
+      <div class="space-y-1.5 text-sm text-gray-600">
+        <p>仓库：roboticsystem/OA-EPP</p>
+        <div class="flex items-center gap-2"><span>commitlint.yml：</span><span class="text-green-600 font-medium">✅ 已存在</span></div>
+        <div class="flex items-center gap-2"><span>.commitlintrc.json：</span><span class="text-green-600 font-medium">✅ 已存在</span></div>
+      </div>
+    </div>
+
+    <!-- 最近校验失败记录 -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <h2 class="text-base font-semibold text-gray-800 mb-4">最近校验失败记录</h2>
+      <div class="space-y-3">
+        <div class="border-l-4 border-red-500 bg-red-50 rounded p-3">
+          <p class="text-sm font-medium text-gray-800">feat: add new feature</p>
+          <p class="text-xs text-gray-400 mt-0.5">abc1234 · 2026-06-30 14:30:00</p>
+          <p class="text-xs text-red-600 mt-0.5">subject must not be empty</p>
+        </div>
+        <div class="border-l-4 border-red-500 bg-red-50 rounded p-3">
+          <p class="text-sm font-medium text-gray-800">WIP: partial changes</p>
+          <p class="text-xs text-gray-400 mt-0.5">def5678 · 2026-06-29 10:15:00</p>
+          <p class="text-xs text-red-600 mt-0.5">type must be one of [feat, fix, refactor, style, test, docs, chore]</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部说明 -->
+    <div class="mt-6 bg-blue-50 border border-blue-100 rounded-lg p-4 text-sm text-blue-700">
+      ℹ 启用时不合规 commit 将导致 CI 失败并阻止 PR 合并；停用时规则级别为 0（仅记录不阻断）。
+    </div>
+  </main>
+</body>
+</html>

@@ -338,7 +338,7 @@ class CommitlintState(rx.State):
                 cur.execute("SELECT id FROM commitlint_configs WHERE course_id=1")
                 if cur.fetchone():
                     return
-                cur.execute("SET foreign_key_checks=0")
+                # 直接插入配置行，依赖外键约束自动校验
                 cur.execute(
                     """INSERT INTO commitlint_configs
                        (course_id, rule_set, header_max_len, subject_min_len,
@@ -346,7 +346,6 @@ class CommitlintState(rx.State):
                        VALUES (1, 'conventional', 100, 5,
                         '["feat","fix","refactor","style","test","docs","chore"]', 1, 1, 1)"""
                 )
-                cur.execute("SET foreign_key_checks=1")
         except Exception:
             pass
 
@@ -447,16 +446,10 @@ class CommitlintState(rx.State):
         self._show_toast("✅ 配置文件已生成", "success")
 
     def push_config(self):
-        """写入配置文件到本地仓库并通过 Git 推送到远程。
+        """生成配置文件内容预览，展示给用户查看（不执行 git push）。
 
-        不再使用 GitHub Contents API，改用本地 Git 命令：
-          1. 写 .commitlintrc.json 到仓库根目录
-          2. 写 .github/workflows/commitlint.yml 到仓库
-          3. git add → git commit → git push
+        用户确认预览内容后，可手动执行 git add/commit/push 提交至仓库。
         """
-        repo_root = _get_repo_root()
-        target_branch = self.selected_branch or _get_current_branch()
-
         try:
             commitlintrc = _build_commitlintrc(
                 type_enum=self.type_enum,
@@ -466,46 +459,21 @@ class CommitlintState(rx.State):
             )
             workflow = _generate_workflow_yml()
 
-            # 1. 写入文件
-            commitlintrc_path = repo_root / ".commitlintrc.json"
-            workflow_dir = repo_root / ".github" / "workflows"
-            workflow_dir.mkdir(parents=True, exist_ok=True)
-            workflow_path = workflow_dir / "commitlint.yml"
-
-            commitlintrc_path.write_text(commitlintrc, encoding="utf-8")
-            workflow_path.write_text(workflow, encoding="utf-8")
-
-            # 2. Git 操作：add → commit → push
-            status_label = "启用" if self.is_enabled else "停用"
-            commit_msg = (
-                f"chore(commitlint): {status_label}配置 v{self.config_version}\n\n"
-                f"由 OA-EPP 平台自动提交。\n"
-                f"规则版本: v{self.config_version}\n"
-                f"规则集: {self.rule_set}\n"
-                f"启用状态: {status_label}\n"
-            )
-
-            _git_run("add", ".commitlintrc.json", ".github/workflows/commitlint.yml")
-            _git_run("commit", "-m", commit_msg.strip())
-            _git_run("push", "origin", f"HEAD:{target_branch}")
-
-            # 3. 获取提交 SHA
-            sha_result = _git_run("rev-parse", "HEAD")
-            commit_sha = sha_result.stdout.strip()
+            # 生成预览内容
+            self.preview_commitlintrc = commitlintrc
+            self.preview_workflow = workflow
 
             self.push_result = {
-                "commit_sha": commit_sha,
-                "commit_url": f"https://github.com/{GITHUB_REPO}/commit/{commit_sha}",
-                "git_history_url": (
-                    f"https://github.com/{GITHUB_REPO}/commits/{target_branch}/.commitlintrc.json"
-                ),
+                "commitlintrc": commitlintrc,
+                "workflow": workflow,
+                "note": "以下为配置文件内容预览，请手动执行 git add/commit/push 提交至仓库",
             }
             self._show_toast(
-                f"✅ 已提交至仓库，commit: {commit_sha[:7]}",
+                "✅ 配置文件内容已生成（预览模式），请确认后手动提交至仓库",
                 "success",
             )
         except Exception as e:
-            self._show_toast(f"提交至仓库失败: {e}", "error")
+            self._show_toast(f"生成配置文件失败: {e}", "error")
 
     def check_repo_status(self):
         """检查 Git 仓库状态（使用本地 git 命令）。"""
@@ -586,7 +554,7 @@ class CommitlintState(rx.State):
             self._show_toast(f"保存失败: {e}", "error")
 
     def save_and_push(self):
-        """保存配置到 MySQL 并推送到 GitHub"""
+        """保存配置到 MySQL 并生成配置文件预览"""
         self.save_config_to_db()
         self.push_config()
 

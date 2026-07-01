@@ -1,33 +1,43 @@
-## 变更说明
+## 功能描述
 
-**涉及章节**：<!-- 如 chapter3, appendix_a -->
+**关联 Issue**：F-D-009
 
-**修改类型**：
-- [ ] 新增内容
-- [ ] 修正错误
-- [ ] 格式调整
-- [ ] 测验题目
+**功能概述**：
+<!-- 简要描述本次 PR 实现的功能 -->
 
-**改动概述**：
-<!-- 简述修改了什么、为什么修改 -->
+---
+
+## 变更文件清单
+
+<!-- 列出本次修改/新增的文件，并说明每处变更的目的 -->
+
+| 文件 | 变更类型 | 说明 |
+|------|---------|------|
+| `oaepp/states/commitlint.py` | 新增/修改 | Commitlint 配置状态管理 |
+| `oaepp/pages/commitlint.py` | 新增/修改 | 配置向导页面组件 |
+| `tests/reflex/test_F_D_009_commitlint.py` | 新增 | TDD 测试用例 |
+| `prototype/commitlint.html` | 新增 | 功能原型文件 |
+| `.github/PULL_REQUEST_TEMPLATE.md` | 修改 | 替换为功能 PR 模板 |
 
 ---
 
 ## 自检清单
 
-> 各条规则详见 [教材书写规范](http://robotics.uwis.cn/contributing/)（`docs/contributing.md`）
+- [ ] 仅修改了允许的文件（`oaepp/pages/`、`oaepp/states/`、`tests/reflex/`、`prototype/`）
+- [ ] 未修改禁止文件（`oaepp/models/`、`oaepp/components/`、`oaepp/app.py`、`backend/` 等）
+- [ ] 函数命名遵循 `{模块名}_page()` / `{模块名}State` 约定
+- [ ] 原型文件与页面文件命名一致
+- [ ] 本地 `reflex run` 测试通过
+- [ ] 测试用例全部通过
 
-- [ ] frontmatter 正确（→ 规范 §1）
-- [ ] 标题编号连续、层级正确（→ 规范 §2）
-- [ ] 中英文混排空格与标点（→ 规范 §3）
-- [ ] bob 框图用 ` ```bob `，编程符号双引号包裹（→ 规范 §4）
-- [ ] 代码块标注语言、≤60 行、有注释（→ 规范 §5）
-- [ ] 数学公式 `$$` 独占行、变量释义（→ 规范 §6）
-- [ ] 测验格式正确（→ 规范 §8）
-- [ ] `mkdocs build` 零错误（→ 规范 §11）
+---
+
+## 测试说明
+
+<!-- 描述测试覆盖范围和测试方法 -->
 
 ---
 
 ## 截图（可选）
 
-<!-- 如有渲染效果截图，请粘贴在此 -->
+<!-- 如有界面截图，请粘贴在此 -->

@@ -218,18 +218,13 @@ def _config_form() -> rx.Component:
                     color_scheme="blue",
                 ),
                 rx.button(
-                    "📤 保存并提交到仓库",
+                    "📤 保存并预览",
                     on_click=CommitlintState.save_and_push,
                     color_scheme="green",
                 ),
                 rx.button(
                     "⚡ 预览配置文件",
                     on_click=CommitlintState.generate_config_preview,
-                    variant="outline",
-                ),
-                rx.button(
-                    "⬆ 提交到仓库",
-                    on_click=CommitlintState.push_config,
                     variant="outline",
                 ),
                 spacing="3",
