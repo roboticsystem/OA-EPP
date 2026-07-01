@@ -1,19 +1,9 @@
-"""F-S-030 成绩实时统计 — StudentScoreState
+"""F-S-030 成绩实时统计 — ScoreState
 
 Reflex State — 学生登录后可实时查看本人综合得分及各维度分项
 （出勤/考试/代码提交/PR审查），展示评分时间和评分人，待评分项标注状态提示。
 """
-import sys
-import os
 from typing import Optional
-
-_backend_root = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "backend")
-)
-if _backend_root not in sys.path:
-    sys.path.insert(0, _backend_root)
-
-from app.database import db as _get_db
 
 DIMENSION_LABELS = {
     "attendance": "出勤",
@@ -23,6 +13,46 @@ DIMENSION_LABELS = {
 }
 DIMENSION_TYPES = ["attendance", "exam", "code", "pr"]
 DEFAULT_WEIGHTS = {"attendance": 20, "exam": 30, "code": 30, "pr": 20}
+
+
+def _get_mysql_connection():
+    import os
+    from urllib.parse import urlparse, unquote
+    import pymysql
+
+    db_url = os.environ.get("DATABASE_URL", "")
+    if db_url:
+        parsed = urlparse(db_url)
+        return pymysql.connect(
+            host=parsed.hostname or "127.0.0.1",
+            port=parsed.port or 3306,
+            user=parsed.username or "root",
+            password=unquote(parsed.password) if parsed.password else "",
+            database=parsed.path.lstrip("/") or "oaepp_dev",
+            charset="utf8mb4",
+            cursorclass=pymysql.cursors.DictCursor,
+        )
+    return pymysql.connect(
+        host=os.environ.get("DB_HOST", "156.239.252.40"),
+        port=int(os.environ.get("DB_PORT", "13306")),
+        user=os.environ.get("DB_USER", "student_dev"),
+        password=os.environ.get("DB_PASSWORD", "OaEpp@Dev2026"),
+        database=os.environ.get("DB_NAME", "oaepp_dev"),
+        charset="utf8mb4",
+        cursorclass=pymysql.cursors.DictCursor,
+    )
+
+
+def _with_db(fn):
+    def wrapper(*args, **kwargs):
+        conn = _get_mysql_connection()
+        cursor = conn.cursor()
+        try:
+            return fn(cursor, *args, **kwargs)
+        finally:
+            cursor.close()
+            conn.close()
+    return wrapper
 
 
 class ScoreState:
@@ -48,113 +78,133 @@ class ScoreState:
         if self.current_user_id is None:
             return {"error": "未设置用户"}
 
-        with _get_db() as conn:
-            student = self._get_student_info(conn, self.current_user_id)
-            if not student:
-                self.total_score = 0.0
-                return {"error": "学生信息不存在"}
+        result = self._load_from_db()
+        if isinstance(result, dict) and "error" in result:
+            self.total_score = 0.0
+            return result
 
-            courses = self._get_enrolled_courses(conn, self.current_user_id)
-            if not courses:
-                self.total_score = 0.0
-                return {"error": "未选课"}
-
-            course = self._pick_course(conn, courses, self.current_user_id)
-            weights = self._get_weights(conn, course["id"])
-            score_items = self._get_score_items(conn, course["id"], self.current_user_id)
-            exam_scores = self._get_exam_attempt_scores(conn, course["id"], self.current_user_id)
-            pending_items = self._get_pending_items(conn, course["id"], self.current_user_id)
-
-        # 合并 exam_attempts 成绩
-        all_exam = [s for s in score_items if s["score_type"] == "exam"]
-        seen_ids = {s["ref_id"] for s in all_exam}
-        for es in exam_scores:
-            if es["ref_id"] not in seen_ids:
-                score_items.append(es)
-
-        # 统计各维度
-        dim_scores = {}
-        for dim in DIMENSION_TYPES:
-            items = [s for s in score_items if s["score_type"] == dim]
-            total = sum(item["score"] for item in items) if items else 0
-            pending = [p for p in pending_items if p["pending_type"] == dim]
-
-            dim_scores[dim] = {
-                "label": DIMENSION_LABELS[dim],
-                "items": items,
-                "total_score": round(total, 1),
-                "count": len(items),
-                "pending_count": len(pending),
-                "pending_items": pending,
-            }
-
-        # 计算加权总分
-        total_weighted = 0
-        for dim in DIMENSION_TYPES:
-            d = dim_scores[dim]
-            weight = weights.get(dim, 0)
-            d["weight"] = weight
-            d["weighted_score"] = round(d["total_score"] * weight / 100, 1)
-            total_weighted += d["weighted_score"]
-
-        # 更新 State 属性
-        self.attendance_score = dim_scores["attendance"]["total_score"]
-        self.exam_score = dim_scores["exam"]["total_score"]
-        self.code_score = dim_scores["code"]["total_score"]
-        self.pr_score = dim_scores["pr"]["total_score"]
-        self.total_score = round(total_weighted, 1)
-        self.weights = weights
-        self.dimensions = dim_scores
-        self.student_info = student
-        self.course_info = {"id": course["id"], "name": course["name"], "code": course["code"]}
+        self.attendance_score = result["attendance_score"]
+        self.exam_score = result["exam_score"]
+        self.code_score = result["code_score"]
+        self.pr_score = result["pr_score"]
+        self.total_score = result["total_score"]
+        self.weights = result["weights"]
+        self.dimensions = result["dimensions"]
+        self.student_info = result["student"]
+        self.course_info = result["course"]
 
         return {
-            "student": student,
-            "course": self.course_info,
-            "weights": weights,
-            "dimensions": dim_scores,
-            "total_score": self.total_score,
+            "student": result["student"],
+            "course": result["course"],
+            "weights": result["weights"],
+            "dimensions": result["dimensions"],
+            "total_score": result["total_score"],
         }
+
+    def _load_from_db(self):
+        conn = _get_mysql_connection()
+        cursor = conn.cursor()
+        try:
+            student = self._get_student_info(cursor, self.current_user_id)
+            if not student:
+                return {"error": "学生信息不存在"}
+
+            courses = self._get_enrolled_courses(cursor, self.current_user_id)
+            if not courses:
+                return {"error": "未选课"}
+
+            course = self._pick_course(cursor, courses, self.current_user_id)
+            weights = self._get_weights(cursor, course["id"])
+            score_items = self._get_score_items(cursor, course["id"], self.current_user_id)
+            exam_scores = self._get_exam_attempt_scores(cursor, course["id"], self.current_user_id)
+            pending_items = self._get_pending_items(cursor, course["id"], self.current_user_id)
+
+            # 合并 exam_attempts 成绩
+            all_exam = [s for s in score_items if s["score_type"] == "exam"]
+            seen_ids = {s["ref_id"] for s in all_exam}
+            for es in exam_scores:
+                if es["ref_id"] not in seen_ids:
+                    score_items.append(es)
+
+            # 统计各维度
+            dim_scores = {}
+            for dim in DIMENSION_TYPES:
+                items = [s for s in score_items if s["score_type"] == dim]
+                total = sum(item["score"] for item in items) if items else 0
+                pending = [p for p in pending_items if p["pending_type"] == dim]
+
+                dim_scores[dim] = {
+                    "label": DIMENSION_LABELS[dim],
+                    "items": items,
+                    "total_score": round(total, 1),
+                    "count": len(items),
+                    "pending_count": len(pending),
+                    "pending_items": pending,
+                }
+
+            # 计算加权总分
+            total_weighted = 0
+            for dim in DIMENSION_TYPES:
+                d = dim_scores[dim]
+                weight = weights.get(dim, 0)
+                d["weight"] = weight
+                d["weighted_score"] = round(d["total_score"] * weight / 100, 1)
+                total_weighted += d["weighted_score"]
+
+            return {
+                "student": student,
+                "course": {"id": course["id"], "name": course["name"], "code": course["code"]},
+                "weights": weights,
+                "dimensions": dim_scores,
+                "attendance_score": dim_scores["attendance"]["total_score"],
+                "exam_score": dim_scores["exam"]["total_score"],
+                "code_score": dim_scores["code"]["total_score"],
+                "pr_score": dim_scores["pr"]["total_score"],
+                "total_score": round(total_weighted, 1),
+            }
+        finally:
+            cursor.close()
+            conn.close()
 
     # ── 数据库查询方法 ──
 
     @staticmethod
-    def _get_student_info(conn, user_id):
-        conn.execute("""
+    def _get_student_info(cur, user_id):
+        cur.execute("""
             SELECT u.full_name AS name, u.student_no AS student_id, s.class_name
             FROM users u
             JOIN students s ON u.id = s.user_id
             WHERE u.id = %s
         """, (user_id,))
-        return conn.fetchone()
+        return cur.fetchone()
 
     @staticmethod
-    def _get_enrolled_courses(conn, user_id):
-        conn.execute("""
+    def _get_enrolled_courses(cur, user_id):
+        cur.execute("""
             SELECT c.id, c.name, c.code
             FROM enrollments e
             JOIN courses c ON e.course_id = c.id
             WHERE e.student_user_id = %s
             ORDER BY c.id
         """, (user_id,))
-        return conn.fetchall()
+        return cur.fetchall()
 
     @staticmethod
-    def _pick_course(conn, courses, user_id):
+    def _pick_course(cur, courses, user_id):
         for c in courses:
-            conn.execute("SELECT COUNT(*) AS cnt FROM exams WHERE course_id = %s", (c["id"],))
-            if conn.fetchone()["cnt"] > 0:
+            cur.execute("SELECT COUNT(*) AS cnt FROM exams WHERE course_id = %s", (c["id"],))
+            if cur.fetchone()["cnt"] > 0:
                 return c
         return courses[0]
 
     @staticmethod
-    def _get_weights(conn, course_id):
-        conn.execute("""
+    def _get_weights(cur, course_id):
+        cur.execute("""
             SELECT attendance_weight, exam_weight, code_weight, pr_weight
             FROM grade_weight_configs
             WHERE course_id = %s
         """, (course_id,))
-        row = conn.fetchone()
+        row = cur.fetchone()
         if row:
             return {
                 "attendance": float(row["attendance_weight"]),
@@ -165,8 +215,8 @@ class ScoreState:
         return dict(DEFAULT_WEIGHTS)
 
     @staticmethod
-    def _get_score_items(conn, course_id, user_id):
-        conn.execute("""
+    def _get_score_items(cur, course_id, user_id):
+        cur.execute("""
             SELECT si.id, si.score_type, si.score, si.scored_at,
                    si.ref_id, u.full_name AS scorer_name
             FROM score_items si
@@ -174,7 +224,7 @@ class ScoreState:
             WHERE si.course_id = %s AND si.student_user_id = %s
             ORDER BY si.scored_at DESC
         """, (course_id, user_id))
-        rows = conn.fetchall()
+        rows = cur.fetchall()
         result = []
         for r in rows:
             result.append({
@@ -188,8 +238,8 @@ class ScoreState:
         return result
 
     @staticmethod
-    def _get_exam_attempt_scores(conn, course_id, user_id):
-        conn.execute("""
+    def _get_exam_attempt_scores(cur, course_id, user_id):
+        cur.execute("""
             SELECT ea.id, e.id AS exam_id, e.title AS exam_name,
                    ea.total_score AS score, ea.submitted_at,
                    u.full_name AS scorer_name
@@ -200,7 +250,7 @@ class ScoreState:
               AND ea.status IN ('graded', 'submitted')
             ORDER BY ea.submitted_at DESC
         """, (course_id, user_id))
-        rows = conn.fetchall()
+        rows = cur.fetchall()
         result = []
         for r in rows:
             result.append({
@@ -216,40 +266,40 @@ class ScoreState:
         return result
 
     @staticmethod
-    def _get_pending_items(conn, course_id, user_id):
+    def _get_pending_items(cur, course_id, user_id):
         pending = []
-        conn.execute("""
+        cur.execute("""
             SELECT e.id, e.title AS name FROM exams e
             WHERE e.course_id = %s AND NOT EXISTS (
                 SELECT 1 FROM exam_attempts ea
                 WHERE ea.exam_id = e.id AND ea.student_user_id = %s
             )
         """, (course_id, user_id))
-        for r in conn.fetchall():
+        for r in cur.fetchall():
             pending.append({"pending_type": "exam", "label": "考试", "name": r["name"], "ref_id": r["id"]})
 
-        conn.execute("""
+        cur.execute("""
             SELECT s.id, a.title AS name FROM submissions s
             JOIN assignments a ON s.assignment_id = a.id
             WHERE a.course_id = %s AND s.student_user_id = %s AND s.grading_status = 'pending'
         """, (course_id, user_id))
-        for r in conn.fetchall():
+        for r in cur.fetchall():
             pending.append({"pending_type": "code", "label": "代码提交", "name": r["name"], "ref_id": r["id"]})
 
-        conn.execute("""
+        cur.execute("""
             SELECT id, issue_no AS name FROM pr_records
             WHERE course_id = %s AND student_user_id = %s AND quality_score IS NULL
         """, (course_id, user_id))
-        for r in conn.fetchall():
+        for r in cur.fetchall():
             name = f"PR #{r['name']}" if r["name"] else f"记录 #{r['id']}"
             pending.append({"pending_type": "pr", "label": "PR审查", "name": name, "ref_id": r["id"]})
 
-        conn.execute("""
+        cur.execute("""
             SELECT ar.id, as2.id AS session_id FROM attendance_records ar
             JOIN attendance_sessions as2 ON ar.session_id = as2.id
             WHERE as2.course_id = %s AND ar.student_user_id = %s AND ar.status = 'absent'
         """, (course_id, user_id))
-        for r in conn.fetchall():
+        for r in cur.fetchall():
             pending.append({"pending_type": "attendance", "label": "出勤", "name": f"签到 #{r['session_id']}", "ref_id": r["id"]})
 
         return pending
