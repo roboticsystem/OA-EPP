@@ -3,23 +3,16 @@
 导出：
 - GlobalState：全局状态基类（所有功能状态继承此类）
 - DeadlineState：截止规则状态（F-S-022）
-- IssuePRState：Issue-PR 关联规则状态（F-T-007）
 
 使用方式：
     from states import GlobalState
     from states.deadline import DeadlineState
-    from states.issue_pr import IssuePRState
 """
 
 try:
     from .deadline import DeadlineState
 except Exception:
     DeadlineState = None
-
-try:
-    from .issue_pr import IssuePRState
-except Exception:
-    IssuePRState = None
 
 # ── 全局状态基类（学生功能继承此类） ──
 try:
@@ -72,4 +65,4 @@ try:
 except Exception:
     GlobalState = None
 
-__all__ = ["DeadlineState", "IssuePRState"]
+__all__ = ["DeadlineState"]
