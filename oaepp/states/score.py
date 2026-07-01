@@ -4,6 +4,8 @@ Reflex State — 学生登录后可实时查看本人综合得分及各维度分
 （出勤/考试/代码提交/PR审查），展示评分时间和评分人，待评分项标注状态提示。
 """
 from typing import Optional
+from oaepp.database import db_sync
+from oaepp.constants import SCORE_TYPES
 
 DIMENSION_LABELS = {
     "attendance": "出勤",
@@ -11,48 +13,7 @@ DIMENSION_LABELS = {
     "code": "代码提交",
     "pr": "PR审查",
 }
-DIMENSION_TYPES = ["attendance", "exam", "code", "pr"]
 DEFAULT_WEIGHTS = {"attendance": 20, "exam": 30, "code": 30, "pr": 20}
-
-
-def _get_mysql_connection():
-    import os
-    from urllib.parse import urlparse, unquote
-    import pymysql
-
-    db_url = os.environ.get("DATABASE_URL", "")
-    if db_url:
-        parsed = urlparse(db_url)
-        return pymysql.connect(
-            host=parsed.hostname or "127.0.0.1",
-            port=parsed.port or 3306,
-            user=parsed.username or "root",
-            password=unquote(parsed.password) if parsed.password else "",
-            database=parsed.path.lstrip("/") or "oaepp_dev",
-            charset="utf8mb4",
-            cursorclass=pymysql.cursors.DictCursor,
-        )
-    return pymysql.connect(
-        host=os.environ.get("DB_HOST", "156.239.252.40"),
-        port=int(os.environ.get("DB_PORT", "13306")),
-        user=os.environ.get("DB_USER", "student_dev"),
-        password=os.environ.get("DB_PASSWORD", "OaEpp@Dev2026"),
-        database=os.environ.get("DB_NAME", "oaepp_dev"),
-        charset="utf8mb4",
-        cursorclass=pymysql.cursors.DictCursor,
-    )
-
-
-def _with_db(fn):
-    def wrapper(*args, **kwargs):
-        conn = _get_mysql_connection()
-        cursor = conn.cursor()
-        try:
-            return fn(cursor, *args, **kwargs)
-        finally:
-            cursor.close()
-            conn.close()
-    return wrapper
 
 
 class ScoreState:
@@ -102,69 +63,64 @@ class ScoreState:
         }
 
     def _load_from_db(self):
-        conn = _get_mysql_connection()
-        cursor = conn.cursor()
-        try:
-            student = self._get_student_info(cursor, self.current_user_id)
+        with db_sync() as cur:
+            student = self._get_student_info(cur, self.current_user_id)
             if not student:
                 return {"error": "学生信息不存在"}
 
-            courses = self._get_enrolled_courses(cursor, self.current_user_id)
+            courses = self._get_enrolled_courses(cur, self.current_user_id)
             if not courses:
                 return {"error": "未选课"}
 
-            course = self._pick_course(cursor, courses, self.current_user_id)
-            weights = self._get_weights(cursor, course["id"])
-            score_items = self._get_score_items(cursor, course["id"], self.current_user_id)
-            exam_scores = self._get_exam_attempt_scores(cursor, course["id"], self.current_user_id)
-            pending_items = self._get_pending_items(cursor, course["id"], self.current_user_id)
+            course = self._pick_course(cur, courses, self.current_user_id)
+            weights = self._get_weights(cur, course["id"])
+            score_items = self._get_score_items(cur, course["id"], self.current_user_id)
+            exam_scores = self._get_exam_attempt_scores(cur, course["id"], self.current_user_id)
+            pending_items = self._get_pending_items(cur, course["id"], self.current_user_id)
 
-            # 合并 exam_attempts 成绩
-            all_exam = [s for s in score_items if s["score_type"] == "exam"]
-            seen_ids = {s["ref_id"] for s in all_exam}
-            for es in exam_scores:
-                if es["ref_id"] not in seen_ids:
-                    score_items.append(es)
+        # 合并 exam_attempts 成绩
+        all_exam = [s for s in score_items if s["score_type"] == "exam"]
+        seen_ids = {s["ref_id"] for s in all_exam}
+        for es in exam_scores:
+            if es["ref_id"] not in seen_ids:
+                score_items.append(es)
 
-            # 统计各维度
-            dim_scores = {}
-            for dim in DIMENSION_TYPES:
-                items = [s for s in score_items if s["score_type"] == dim]
-                total = sum(item["score"] for item in items) if items else 0
-                pending = [p for p in pending_items if p["pending_type"] == dim]
+        # 统计各维度
+        dim_scores = {}
+        for dim in SCORE_TYPES:
+            items = [s for s in score_items if s["score_type"] == dim]
+            total = sum(item["score"] for item in items) if items else 0
+            pending = [p for p in pending_items if p["pending_type"] == dim]
 
-                dim_scores[dim] = {
-                    "label": DIMENSION_LABELS[dim],
-                    "items": items,
-                    "total_score": round(total, 1),
-                    "count": len(items),
-                    "pending_count": len(pending),
-                    "pending_items": pending,
-                }
-
-            # 计算加权总分
-            total_weighted = 0
-            for dim in DIMENSION_TYPES:
-                d = dim_scores[dim]
-                weight = weights.get(dim, 0)
-                d["weight"] = weight
-                d["weighted_score"] = round(d["total_score"] * weight / 100, 1)
-                total_weighted += d["weighted_score"]
-
-            return {
-                "student": student,
-                "course": {"id": course["id"], "name": course["name"], "code": course["code"]},
-                "weights": weights,
-                "dimensions": dim_scores,
-                "attendance_score": dim_scores["attendance"]["total_score"],
-                "exam_score": dim_scores["exam"]["total_score"],
-                "code_score": dim_scores["code"]["total_score"],
-                "pr_score": dim_scores["pr"]["total_score"],
-                "total_score": round(total_weighted, 1),
+            dim_scores[dim] = {
+                "label": DIMENSION_LABELS[dim],
+                "items": items,
+                "total_score": round(total, 1),
+                "count": len(items),
+                "pending_count": len(pending),
+                "pending_items": pending,
             }
-        finally:
-            cursor.close()
-            conn.close()
+
+        # 计算加权总分
+        total_weighted = 0
+        for dim in SCORE_TYPES:
+            d = dim_scores[dim]
+            weight = weights.get(dim, 0)
+            d["weight"] = weight
+            d["weighted_score"] = round(d["total_score"] * weight / 100, 1)
+            total_weighted += d["weighted_score"]
+
+        return {
+            "student": student,
+            "course": {"id": course["id"], "name": course["name"], "code": course["code"]},
+            "weights": weights,
+            "dimensions": dim_scores,
+            "attendance_score": dim_scores["attendance"]["total_score"],
+            "exam_score": dim_scores["exam"]["total_score"],
+            "code_score": dim_scores["code"]["total_score"],
+            "pr_score": dim_scores["pr"]["total_score"],
+            "total_score": round(total_weighted, 1),
+        }
 
     # ── 数据库查询方法 ──
 
