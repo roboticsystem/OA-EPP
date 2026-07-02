@@ -11,9 +11,37 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict
 
 import reflex as rx
+
+
+class StudentInfo(TypedDict):
+    id: int
+    student_no: str
+    full_name: str
+    class_name: str
+
+
+class AssignmentInfo(TypedDict):
+    id: int
+    title: str
+    deadline: str
+
+
+class MatrixCell(TypedDict):
+    student_id: int
+    assignment_id: int
+    status: str
+    score: float
+
+
+class TrendItem(TypedDict):
+    assignment_id: int
+    title: str
+    submitted: int
+    total: int
+    rate: float
 
 try:
     from oaepp.database import db_sync
@@ -55,12 +83,12 @@ class ProgressState(rx.State):
     bottom_n: int = 5         # 完成率最低前 N 名置顶高亮
 
     # ── 热力图数据 ──────────────────────────────────────────────
-    students: List[Dict[str, Any]] = []
-    assignments: List[Dict[str, Any]] = []
-    matrix_cells: List[Dict[str, Any]] = []
+    students: List[StudentInfo] = []
+    assignments: List[AssignmentInfo] = []
+    matrix_cells: List[MatrixCell] = []
 
     # ── 柱状图数据 ──────────────────────────────────────────────
-    completion_trend: List[Dict[str, Any]] = []
+    completion_trend: List[TrendItem] = []
 
     # ── 提交详情弹窗 ────────────────────────────────────────────
     detail_open: bool = False
