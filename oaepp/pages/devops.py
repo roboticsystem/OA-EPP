@@ -9,7 +9,10 @@ except Exception:
 devops_page = None
 
 if rx is not None:
-    from oaepp.states.devops_review import PRReviewState
+    try:
+        from oaepp.states.devops_review import PRReviewState
+    except ImportError:
+        from states.devops_review import PRReviewState
 
     _PLACEHOLDERS = ("{diff}", "{pr_title}", "{pr_description}", "{author}")
 
