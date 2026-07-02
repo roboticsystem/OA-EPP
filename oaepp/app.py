@@ -1,25 +1,77 @@
 """
-Minimal Reflex app registration and run helper.
+OA-EPP Reflex app — 路由注册 & 启动入口
+
+路由规则：
+  - 所有页面：pages/xxx.py → xxx_page() → 自动注册到 /xxx
+  - 特殊路由：login → /（首页，显式注册）
 """
+import importlib
 import shutil
 import sys
+from pathlib import Path
 
 try:
     import reflex as rx
 except Exception:
     rx = None
 
-# Attempt to import page module (may fail if reflex not installed).
-# Priority: local `pages.login` when running inside /oaepp,
-# fallback to `oaepp.pages.login` when running from repo root.
-try:
-    from pages import login as login_mod
-except Exception:
-    try:
-        from oaepp.pages import login as login_mod
-    except Exception:
-        login_mod = None
+# ── 辅助函数 ─────────────────────────────────────────────────────────────
 
+def _import_page(module_name: str):
+    """尝试导入 pages.<module_name>，优先本地，回退 oaepp. 前缀。"""
+    for prefix in ("pages", "oaepp.pages"):
+        try:
+            return importlib.import_module(f"{prefix}.{module_name}")
+        except Exception:
+            continue
+    return None
+
+
+def _register_page(app, route: str, module_name: str, attr_name: str):
+    """安全地导入页面模块并注册路由，失败时静默跳过。"""
+    if app is None:
+        return
+    mod = _import_page(module_name)
+    if mod is None:
+        return
+    page_fn = getattr(mod, attr_name, None)
+    if page_fn is not None and callable(page_fn):
+        try:
+            app.add_page(page_fn, route=route)
+        except Exception:
+            pass
+
+
+def _auto_discover(app):
+    """自动发现 pages/ 目录下的页面模块。
+
+    约定：
+      pages/xxx.py 中定义 xxx_page() → 自动注册路由 /xxx
+
+    跳过：
+      - __init__.py, __pycache__
+      - login（特殊路由 /，已由显式注册处理）
+    """
+    if app is None:
+        return
+
+    # 已由显式路由特殊处理的模块（不需要自动发现）
+    _skip_modules = {"login", "__init__"}
+
+    pages_dir = Path(__file__).resolve().parent / "pages"
+    if not pages_dir.is_dir():
+        return
+
+    for py_file in sorted(pages_dir.glob("*.py")):
+        module_name = py_file.stem
+        if module_name in _skip_modules or module_name.startswith("_"):
+            continue
+        route = f"/{module_name}"
+        attr = f"{module_name}_page"
+        _register_page(app, route, module_name, attr)
+
+
+# ── 创建 App ─────────────────────────────────────────────────────────────
 app = None
 if rx is not None:
     try:
@@ -49,45 +101,15 @@ if app is not None and hasattr(app, "_api") and app._api is not None:
     app._api.routes.append(Route("/api/hello", _api_hello, methods=["GET"]))
     app._api.routes.append(Route("/api/status", _api_status, methods=["GET"]))
 
-# ─────────────────────────────────────────────────────────────────────────
+# ── 显式路由（特殊路由，如首页 /） ────────────────────────────────────────
+_register_page(app, "/", "login", "login_page")
 
-# --- profile page ---
-try:
-    from pages import profile as profile_mod
-except Exception:
-    try:
-        from oaepp.pages import profile as profile_mod
-    except Exception:
-        profile_mod = None
-
-if app is not None and profile_mod is not None:
-    if hasattr(profile_mod, "profile_page") and callable(getattr(profile_mod, "profile_page")):
-        app.add_page(profile_mod.profile_page, route="/profile")
-
-# --- devops / F-D-007 PR review prompts ---
-try:
-    from pages import devops as devops_mod
-except Exception:
-    try:
-        from oaepp.pages import devops as devops_mod
-    except Exception:
-        devops_mod = None
-
-if app is not None and devops_mod is not None:
-    if hasattr(devops_mod, "devops_page") and callable(getattr(devops_mod, "devops_page")):
-        app.add_page(devops_mod.devops_page, route="/admin/devops")
-
-if app is not None and login_mod is not None:
-    try:
-        if hasattr(login_mod, "login_page") and callable(getattr(login_mod, "login_page")):
-            try:
-                app.add_page(login_mod.login_page, route="/")
-            except Exception:
-                app.add_page(login_mod.login_page)
-        elif hasattr(login_mod, "page"):
-            app.add_page(login_mod.page)
-    except Exception:
-        pass
+# ═══════════════════════════════════════════════════════════════════════════
+#  所有页面 — 自动发现
+#  规则：pages/xxx.py → xxx_page() → /xxx
+#  学生页面、管理员页面均自动注册，无需修改此文件
+# ═══════════════════════════════════════════════════════════════════════════
+_auto_discover(app)
 
 
 def run(port: int = 3000):

@@ -57,3 +57,4 @@ secrets.yml
 *.sqlite
 *.sqlite3
 .local_exam_data/
+.marscode/deviceInfo.json
