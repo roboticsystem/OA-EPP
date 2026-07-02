@@ -15,7 +15,10 @@ from typing import Any, Dict, List, Optional
 
 import reflex as rx
 
-from oaepp.database import db_sync
+try:
+    from oaepp.database import db_sync
+except ImportError:
+    from database import db_sync
 
 logger = logging.getLogger("oaepp.states.progress")
 

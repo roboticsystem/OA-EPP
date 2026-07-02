@@ -14,7 +14,10 @@ from typing import Any, Dict, List
 
 import reflex as rx
 
-from oaepp.states.progress import ProgressState, STATUS_COLORS
+try:
+    from oaepp.states.progress import ProgressState, STATUS_COLORS
+except ImportError:
+    from states.progress import ProgressState, STATUS_COLORS
 
 # ── TDD-required: heatmap status colour constants ──
 HEATMAP_STATUS: Dict[str, str] = {
