@@ -104,6 +104,34 @@ if app is not None and hasattr(app, "_api") and app._api is not None:
 # ── 显式路由（特殊路由，如首页 /） ────────────────────────────────────────
 _register_page(app, "/", "login", "login_page")
 
+if app is not None and profile_mod is not None:
+    if hasattr(profile_mod, "profile_page") and callable(getattr(profile_mod, "profile_page")):
+        app.add_page(profile_mod.profile_page, route="/profile")
+
+# --- workflow page (F-T-007) ---
+try:
+    from pages import workflow as workflow_mod
+except Exception:
+    try:
+        from oaepp.pages import workflow as workflow_mod
+    except Exception:
+        workflow_mod = None
+
+if app is not None and workflow_mod is not None:
+    if hasattr(workflow_mod, "workflow_page") and callable(getattr(workflow_mod, "workflow_page")):
+        app.add_page(workflow_mod.workflow_page, route="/workflow")
+
+if app is not None and login_mod is not None:
+    try:
+        if hasattr(login_mod, "login_page") and callable(getattr(login_mod, "login_page")):
+            try:
+                app.add_page(login_mod.login_page, route="/")
+            except Exception:
+                app.add_page(login_mod.login_page)
+        elif hasattr(login_mod, "page"):
+            app.add_page(login_mod.page)
+    except Exception:
+        pass
 # ═══════════════════════════════════════════════════════════════════════════
 #  所有页面 — 自动发现
 #  规则：pages/xxx.py → xxx_page() → /xxx

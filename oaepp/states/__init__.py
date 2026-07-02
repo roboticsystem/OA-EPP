@@ -59,6 +59,7 @@ class GlobalState(rx.State):
         self.toast_message = ""
         self.toast_type = "info"
 
+__all__ = ["DeadlineState"]
     def get_current_user(self) -> dict:
         """获取当前登录用户信息
 
