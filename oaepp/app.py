@@ -98,6 +98,11 @@ if app is not None and hasattr(app, "_api") and app._api is not None:
             "app": "OA-EPP",
         })
 
+    async def _api_ping(request):
+        """Docker healthcheck endpoint — must be fast and return 200."""
+        return JSONResponse({"ping": "pong"})
+
+    app._api.routes.append(Route("/ping", _api_ping, methods=["GET"]))
     app._api.routes.append(Route("/api/hello", _api_hello, methods=["GET"]))
     app._api.routes.append(Route("/api/status", _api_status, methods=["GET"]))
 
