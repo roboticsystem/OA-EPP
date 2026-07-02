@@ -1,0 +1,60 @@
+name: F-D-004 CI 自动化
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  ruff-check:
+    name: Ruff lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ruff
+        run: python -m pip install ruff
+
+      - name: Ruff lint（本 PR 变更 Python 文件）
+        run: |
+          changed_files=$(git diff --name-only --diff-filter=ACMRT origin/${{ github.base_ref }}...HEAD -- '*.py')
+          if [ -z "$changed_files" ]; then
+            echo "No Python files changed."
+            exit 0
+          fi
+          python -m ruff check $changed_files --config backend/pyproject.toml
+
+  pytest:
+    name: Pytest 后端和 F-D-004 验收测试
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        run: python -m pip install -r backend/requirements.txt
+
+      - name: Install test dependencies
+        run: python -m pip install pytest httpx pytest-asyncio sqlmodel
+
+      - name: Run backend tests
+        working-directory: backend
+        run: python -m pytest -v
+
+      - name: Run F-D-004 acceptance test
+        run: python -m pytest tests/reflex/test_F_D_004_ci.py -v --override-ini="asyncio_mode=auto"
