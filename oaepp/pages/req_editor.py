@@ -2,7 +2,7 @@
 
 对应原型：教师端需求文档编辑工具
 路由：/req-editor（由 app.py 自动发现机制注册）
-对应 State：oaepp.states.teacher_req_editor.ReqEditorState
+对应 State：oaepp.states.req_editor.ReqEditorState
 
 功能：
 - 左右分栏：Markdown 编辑器 + 实时 HTML 预览
@@ -14,9 +14,9 @@
 import reflex as rx
 
 try:
-    from states.teacher_req_editor import ReqEditorState
+    from states.req_editor import ReqEditorState
 except ImportError:
-    from oaepp.states.teacher_req_editor import ReqEditorState
+    from oaepp.states.req_editor import ReqEditorState
 
 # ── 页面色彩常量 ─────────────────────────────────────────────────────────
 _TOOLBAR_BG = "#f8fafc"
@@ -44,14 +44,21 @@ def _toolbar() -> rx.Component:
                     size="2",
                     disabled=ReqEditorState.is_sealed,
                 ),
-                rx.button(
-                    rx.icon("upload", size=16),
-                    "导入 .md",
-                    on_click=lambda: rx.call_script("document.getElementById('md-file-input').click()"),
-                    color_scheme="indigo",
-                    variant="soft",
-                    size="2",
-                    disabled=ReqEditorState.is_sealed,
+                rx.upload(
+                    rx.button(
+                        rx.icon("upload", size=16),
+                        "导入 .md",
+                        color_scheme="indigo",
+                        variant="soft",
+                        size="2",
+                        disabled=ReqEditorState.is_sealed,
+                    ),
+                    id="md_upload",
+                    accept={".md": ".md", ".txt": ".txt"},
+                    max_files=1,
+                    on_drop=ReqEditorState.handle_upload(
+                        rx.upload_files("md_upload")
+                    ),
                 ),
                 rx.button(
                     rx.icon("check_circle", size=16),
@@ -439,29 +446,6 @@ def _comment_section() -> rx.Component:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  隐藏的文件上传 input（用于导入 .md 文件）
-# ═══════════════════════════════════════════════════════════════════════════
-
-def _hidden_upload() -> rx.Component:
-    """隐藏的文件上传控件，由导入按钮触发点击"""
-    return rx.box(
-        rx.html(
-            '<input type="file" id="md-file-input" accept=".md,.txt" '
-            'style="display:none;" '
-            'onchange="'
-            "const f = this.files[0]; if(!f) return;"
-            "const r = new FileReader();"
-            "r.onload = function(e) {"
-            "  const evt = new CustomEvent('md-import', {detail: {content: e.target.result, name: f.name}});"
-            "  document.dispatchEvent(evt);"
-            "};"
-            'r.readAsText(f);'
-            '"/>'
-        ),
-    )
-
-
-# ═══════════════════════════════════════════════════════════════════════════
 #  主页面入口
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -523,8 +507,6 @@ def req_editor_page():
                 ),
                 # 审阅评论
                 _comment_section(),
-                # 隐藏上传
-                _hidden_upload(),
                 spacing="0",
                 width="100%",
                 align="stretch",

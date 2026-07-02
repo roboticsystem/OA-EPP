@@ -276,11 +276,11 @@ class ReqEditorState(rx.State):
     # ═══════════════════════════════════════════════════════════════
 
     async def save_and_commit(self):
-        """保存文档到数据库
+        """保存文档到数据库（通过 ORM 操作 req_documents 表）
 
         流程：
         1. 校验格式合规性
-        2. 写入 req_documents 表
+        2. 通过 ReqDocument ORM 模型写入数据库
         3. 返回保存结果反馈
         """
         if self.is_sealed:
@@ -293,32 +293,31 @@ class ReqEditorState(rx.State):
             return
 
         try:
-            try:
-                from database import db_sync
-            except ImportError:
-                from oaepp.database import db_sync
+            from oaepp.models.database import ReqDocument
 
             title = self.document_title or "未命名需求文档"
 
-            with db_sync() as cur:
+            with rx.session() as session:
                 if self.document_id:
-                    # 更新已有文档
-                    cur.execute(
-                        """UPDATE req_documents
-                           SET title = %s, content_md = %s, updated_at = NOW()
-                           WHERE id = %s""",
-                        (title, self.content, self.document_id),
-                    )
+                    doc = session.get(ReqDocument, self.document_id)
+                    if doc:
+                        doc.title = title
+                        doc.content_md = self.content
+                        doc.updated_at = datetime.now()
+                        session.commit()
                 else:
-                    # 新建文档
-                    cur.execute(
-                        """INSERT INTO req_documents
-                           (course_id, title, content_md, status, version_no, created_by)
-                           VALUES (%s, %s, %s, 'draft', 1, %s)""",
-                        (self.course_id or 0, title, self.content, 1),
+                    doc = ReqDocument(
+                        course_id=self.course_id or 0,
+                        title=title,
+                        content_md=self.content,
+                        status="draft",
+                        version_no=1,
+                        created_by=1,
                     )
-                    # 获取自增 ID
-                    self.document_id = cur.lastrowid
+                    session.add(doc)
+                    session.commit()
+                    session.refresh(doc)
+                    self.document_id = doc.id
 
             self.save_message = "文档已保存"
         except Exception as exc:
@@ -337,21 +336,17 @@ class ReqEditorState(rx.State):
         self.is_sealed = True
         self.save_message = "文档已封存，所有更改已锁定"
 
-        # 同步更新数据库状态
+        # 同步更新数据库状态（通过 ORM）
         if self.document_id:
             try:
-                try:
-                    from database import db_sync
-                except ImportError:
-                    from oaepp.database import db_sync
+                from oaepp.models.database import ReqDocument
 
-                with db_sync() as cur:
-                    cur.execute(
-                        """UPDATE req_documents
-                           SET status = 'sealed', updated_at = NOW()
-                           WHERE id = %s""",
-                        (self.document_id,),
-                    )
+                with rx.session() as session:
+                    doc = session.get(ReqDocument, self.document_id)
+                    if doc:
+                        doc.status = "sealed"
+                        doc.updated_at = datetime.now()
+                        session.commit()
             except Exception:
                 pass  # 数据库更新失败不阻止封存操作
 
@@ -400,12 +395,11 @@ class ReqEditorState(rx.State):
     #  handle_upload — Reflex 文件上传入口
     # ═══════════════════════════════════════════════════════════════
 
-    async def handle_upload(self, files: list):
-        """处理 Reflex 文件上传组件传入的文件列表
+    async def handle_upload(self, files: list[rx.UploadFile]):
+        """处理 rx.upload() 组件传入的上传文件列表
 
         Args:
-            files: Reflex upload 组件传入的文件列表，
-                   每个元素包含 filename, content 等字段
+            files: rx.upload_files() 传入的 UploadFile 列表
         """
         if self.is_sealed:
             self.save_message = "文档已封存，无法导入"
@@ -414,17 +408,15 @@ class ReqEditorState(rx.State):
             return
 
         file = files[0]
-        filename = getattr(file, "filename", "uploaded.md")
-        # Reflex upload file content
-        content = ""
-        if hasattr(file, "read"):
-            try:
-                content = file.read().decode("utf-8")
-            except Exception:
-                self.save_message = "文件编码错误，仅支持 UTF-8 编码的 .md 文件"
-                return
-        elif hasattr(file, "content"):
-            content = file.content
+        filename = file.filename or "uploaded.md"
+        try:
+            content = (await file.read()).decode("utf-8")
+        except UnicodeDecodeError:
+            self.save_message = "文件编码错误，仅支持 UTF-8 编码的 .md 文件"
+            return
+        except Exception as exc:
+            self.save_message = f"文件读取失败: {exc}"
+            return
 
         if content:
             await self.import_md(content, filename)
