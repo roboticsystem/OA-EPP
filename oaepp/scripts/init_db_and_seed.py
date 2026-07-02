@@ -35,7 +35,7 @@ def _create_grade_weight_tables(cur):
                 exam_weight       INT DEFAULT 25,
                 code_weight       INT DEFAULT 25,
                 pr_weight         INT DEFAULT 25,
-                updated_by        VARCHAR(100) NOT NULL DEFAULT '',
+                updated_by        BIGINT NOT NULL DEFAULT 0,
                 updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """,
@@ -47,7 +47,7 @@ def _create_grade_weight_tables(cur):
                 id           BIGINT AUTO_INCREMENT PRIMARY KEY,
                 course_id    BIGINT NOT NULL,
                 weights_json JSON NOT NULL,
-                modified_by  VARCHAR(100) NOT NULL DEFAULT '',
+                modified_by  BIGINT NOT NULL DEFAULT 0,
                 modified_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
                 INDEX idx_hist_course (course_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci

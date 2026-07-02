@@ -57,3 +57,16 @@ GITHUB_BIND_STATUS = ["pending", "approved", "rejected"]
 # ── 课程状态 ──
 COURSE_STATUS = ["draft", "open", "closed"]
 """课程状态：草稿 / 开放 / 已关闭"""
+
+# ── 成绩权重可视化颜色 ──
+GRADE_HEATMAP_COLORS = {"up": "#22c55e", "down": "#ef4444", "unchanged": "#9ca3af"}
+"""热力图差异方向颜色：涨分→绿 / 降分→红 / 不变→灰"""
+
+# ── 成绩维度标签 ──
+GRADE_DIMENSION_LABELS = {
+    "attendance": "出勤",
+    "exam": "考试",
+    "code": "代码提交",
+    "pr": "PR贡献",
+}
+"""四维度中文标签映射"""

@@ -15,17 +15,12 @@ from typing import Any, Dict, List, Optional
 
 try:
     import reflex as rx
-    from states import GlobalState
 except Exception:
     rx = None
-    try:
-        from oaepp.states import GlobalState
-    except Exception:
-        GlobalState = None
 
 GradeWeightState = None
 
-if rx is not None and GlobalState is not None:
+if rx is not None:
 
     class GradeWeightState(rx.State):
         """教师权重调整状态管理
@@ -339,7 +334,7 @@ if rx is not None and GlobalState is not None:
                             self.exam_pct,
                             self.code_pct,
                             self.pr_pct,
-                            current_user,
+                            current_user["id"],
                         ),
                     )
 
@@ -348,14 +343,15 @@ if rx is not None and GlobalState is not None:
                         """INSERT INTO grade_weight_history
                            (course_id, weights_json, modified_by, modified_at)
                            VALUES (%s, %s, %s, NOW())""",
-                        (self.selected_course_id, json.dumps(new_weights), current_user),
+                        (self.selected_course_id, json.dumps(new_weights), current_user["id"]),
                     )
 
                     # 3. 写入审计日志
                     log_entry = {
                         "course_id": self.selected_course_id,
                         "course_name": self.selected_course_name,
-                        "modified_by": current_user,
+                        "modified_by_id": current_user["id"],
+                        "modified_by_name": current_user["display"],
                         "modified_at": now,
                         "old_weights": old_weights,
                         "new_weights": new_weights,
@@ -470,7 +466,7 @@ if rx is not None and GlobalState is not None:
                     self.audit_log.append({
                         "id": r["id"],
                         "course_name": log_data.get("course_name", ""),
-                        "modified_by": log_data.get("modified_by", ""),
+                        "modified_by": log_data.get("modified_by_name", log_data.get("modified_by", "")),
                         "modified_at": log_data.get("modified_at", ""),
                         "old_attendance": old_w.get("attendance", 0),
                         "old_exam": old_w.get("exam", 0),
@@ -630,23 +626,24 @@ if rx is not None and GlobalState is not None:
             self._sync_weights_from_pct()
             await self._refresh_heatmap()
 
-        async def _get_current_user(self) -> str:
-            """获取当前操作用户标识"""
+        async def _get_current_user(self) -> Dict[str, Any]:
+            """获取当前操作用户信息，返回 {"id": int, "display": "姓名(学号)"}"""
             try:
-                from states import GlobalState as GS
+                from states.auth import AuthState
             except ImportError:
                 try:
-                    from oaepp.states import GlobalState as GS
+                    from oaepp.states.auth import AuthState
                 except ImportError:
-                    return "unknown"
+                    return {"id": 0, "display": "unknown"}
             try:
-                global_state = await self.get_state(GS)
-                user = global_state.current_user
-                if isinstance(user, dict) and user:
-                    return f"{user.get('full_name', '')}({user.get('student_no', '')})"
-                return "unknown"
+                auth = await self.get_state(AuthState)
+                uid = auth.current_user_id or 0
+                name = auth.current_full_name or ""
+                sno = auth.current_student_no or ""
+                display = f"{name}({sno})" if name or sno else "unknown"
+                return {"id": uid, "display": display}
             except Exception:
-                return "unknown"
+                return {"id": 0, "display": "unknown"}
 
     # 向后兼容别名
     TeacherGradeWeightState = GradeWeightState

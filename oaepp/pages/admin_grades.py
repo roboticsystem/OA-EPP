@@ -23,6 +23,11 @@ if rx is not None:
         except ImportError:
             GradeWeightState = None
 
+    try:
+        from constants import GRADE_HEATMAP_COLORS, GRADE_DIMENSION_LABELS
+    except ImportError:
+        from oaepp.constants import GRADE_HEATMAP_COLORS, GRADE_DIMENSION_LABELS
+
     # ── 样式常量 ──
     CARD_STYLE = {
         "padding": "20px",
@@ -33,14 +38,9 @@ if rx is not None:
 
     LABEL_STYLE = {"font_size": "14px", "font_weight": "500", "color": "#374151"}
 
-    COLOR_MAP = {"up": "#22c55e", "down": "#ef4444", "unchanged": "#9ca3af"}
-
-    LABEL_MAP = {
-        "attendance": "出勤",
-        "exam": "考试",
-        "code": "代码提交",
-        "pr": "PR贡献",
-    }
+    _UP = GRADE_HEATMAP_COLORS["up"]
+    _DOWN = GRADE_HEATMAP_COLORS["down"]
+    _UNCHANGED = GRADE_HEATMAP_COLORS["unchanged"]
 
     # ── 子组件 ──
 
@@ -94,8 +94,8 @@ if rx is not None:
                 student["diff"].to(str),
                 font_size="12px", font_weight="bold", width="80px",
                 color=rx.cond(
-                    student["direction"] == "up", "#22c55e",
-                    rx.cond(student["direction"] == "down", "#ef4444", "#9ca3af"),
+                    student["direction"] == "up", _UP,
+                    rx.cond(student["direction"] == "down", _DOWN, _UNCHANGED),
                 ),
             ),
             spacing="2", align="center", padding="4px 8px",
@@ -313,17 +313,17 @@ if rx is not None:
                                             rx.hstack(
                                                 rx.text(
                                                     "▲ ", GradeWeightState.heatmap_up_count, "人涨分",
-                                                    color="#22c55e",
+                                                    color=_UP,
                                                     font_size="12px",
                                                 ),
                                                 rx.text(
                                                     "▼ ", GradeWeightState.heatmap_down_count, "人降分",
-                                                    color="#ef4444",
+                                                    color=_DOWN,
                                                     font_size="12px",
                                                 ),
                                                 rx.text(
                                                     "— ", GradeWeightState.heatmap_unchanged_count, "人不变",
-                                                    color="#9ca3af",
+                                                    color=_UNCHANGED,
                                                     font_size="12px",
                                                 ),
                                                 spacing="3",
