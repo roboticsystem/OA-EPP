@@ -1,13 +1,13 @@
 """F-T-006 需求文档编辑器 TDD 测试
 
-被测 State : oaepp.states.teacher_req_editor.ReqEditorState
-TDD RED   : oaepp.states.teacher_req_editor 不存在 → ImportError → 所有用例失败（预期）
+被测 State : oaepp.states.req_editor.ReqEditorState
+TDD RED   : oaepp.states.req_editor 不存在 → ImportError → 所有用例失败（预期）
 TDD GREEN : ReqEditorState 实现后 → 全部通过
 """
 import pytest
 
 try:
-    from oaepp.states.teacher_req_editor import ReqEditorState
+    from oaepp.states.req_editor import ReqEditorState
     _IMPORT_ERROR = None
 except ImportError as _e:
     ReqEditorState = None
