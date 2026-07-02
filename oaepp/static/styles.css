@@ -1,15 +1,197 @@
-/* minimal styles adapted from prototype/login.html */
+/* ═══════════════════════════════════════════════════════════════════════════
+   OA-EPP Responsive Styles
+
+   断点: 移动端 <768px（默认）, 桌面端 ≥768px
+   策略: Mobile-First（默认移动端样式，@media 覆盖桌面）
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Base ─────────────────────────────────────────────────────────────── */
 body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   background: linear-gradient(135deg,#eff6ff 0%, #e6f0ff 100%);
   margin: 0;
   padding: 0;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Mobile-First 默认样式（<768px）
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* 侧边栏：移动端默认隐藏 */
+.oaepp-sidebar {
+  display: none;
+}
+
+/* 主内容区：移动端无左边距偏移 */
+.oaepp-main-content {
+  margin-left: 0;
+  min-height: 100vh;
+  background-color: var(--gray-1);
+}
+
+/* 汉堡按钮：移动端显示 */
+.oaepp-hamburger-btn {
+  display: flex;
+}
+
+/* 移动端底部导航栏 */
+.oaepp-mobile-bottom-nav {
+  display: flex;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 900;
+  /* iPhone 刘海屏安全区适配 */
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+.oaepp-bottom-nav-item {
+  color: var(--gray-10);
+  text-decoration: none;
+  flex: 1;
+}
+.oaepp-bottom-nav-item:hover {
+  color: var(--blue-9);
+}
+
+/* 内容区底部留白，避免被底部导航遮挡 */
+.oaepp-content-area {
+  padding-bottom: 72px !important;
+}
+
+/* 移动端抽屉容器 */
+.oaepp-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+/* 遮罩层 */
+.oaepp-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}
+/* 抽屉面板 */
+.oaepp-drawer-panel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 260px;
+  max-width: 80vw;
+  background: var(--gray-2);
+  border-right: 1px solid var(--gray-5);
+  overflow-y: auto;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+  animation: oaepp-slide-in 0.2s ease-out;
+}
+@keyframes oaepp-slide-in {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+
+/* 登录页：移动端全宽卡片 */
 .oaepp-login-card {
-  max-width: 480px;
-  margin: 48px auto;
-  background: white;
+  max-width: 100%;
+  width: 100%;
+  margin: 0 auto;
   border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 8px 24px rgba(15,23,42,0.06);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  background: white;
+  padding: 20px 16px;
+}
+.oaepp-login-page {
+  min-height: 100vh;
+  width: 100%;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 统计卡片网格：移动端单列 */
+.oaepp-stat-grid {
+  grid-template-columns: 1fr !important;
+  gap: 12px;
+}
+
+/* 网络断连横幅 */
+.oaepp-connection-banner {
+  position: sticky;
+  top: 0;
+  z-index: 800;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   桌面端覆盖（≥768px）
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (min-width: 768px) {
+  /* 侧边栏：桌面端固定显示 */
+  .oaepp-sidebar {
+    display: block;
+    width: 240px;
+    min-height: 100vh;
+    background-color: var(--gray-2);
+    border-right: 1px solid var(--gray-5);
+    position: fixed;
+    left: 0;
+    top: 0;
+    overflow-y: auto;
+  }
+
+  /* 主内容区：桌面端左边距 = 侧边栏宽度 */
+  .oaepp-main-content {
+    margin-left: 240px;
+    min-height: 100vh;
+    background-color: var(--gray-1);
+  }
+
+  /* 汉堡按钮：桌面端隐藏 */
+  .oaepp-hamburger-btn {
+    display: none;
+  }
+
+  /* 底部导航栏：桌面端隐藏 */
+  .oaepp-mobile-bottom-nav {
+    display: none;
+  }
+
+  /* 恢复内容区正常底部间距 */
+  .oaepp-content-area {
+    padding-bottom: 24px !important;
+  }
+
+  /* 登录卡片：桌面端居中限宽 */
+  .oaepp-login-card {
+    max-width: 460px;
+    width: 100%;
+    padding: 28px;
+  }
+
+  /* 统计卡片网格：桌面端三列 */
+  .oaepp-stat-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 16px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   小屏移动端微调（<375px，如 iPhone SE）
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 374px) {
+  .oaepp-content-area {
+    padding: 12px 10px !important;
+    padding-bottom: 68px !important;
+  }
+  .oaepp-hamburger-btn {
+    padding: 4px;
+  }
+  .oaepp-login-card {
+    padding: 16px 12px;
+  }
+  .oaepp-bottom-nav-item {
+    font-size: 11px;
+  }
 }

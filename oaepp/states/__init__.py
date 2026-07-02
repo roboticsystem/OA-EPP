@@ -65,3 +65,21 @@ class GlobalState(rx.State):
         返回示例：{"student_no": "2024000001", "full_name": "张三", "role": "student"}
         """
         return self.current_user
+
+
+class ResponsiveState(rx.State):
+    """响应式布局状态 — 控制移动端侧边栏抽屉
+
+    属性:
+        sidebar_open: 移动端侧边抽屉是否打开
+    """
+
+    sidebar_open: bool = False
+
+    def toggle_sidebar(self):
+        """切换移动端侧边抽屉的开/关状态。"""
+        self.sidebar_open = not self.sidebar_open
+
+    def close_sidebar(self):
+        """关闭移动端侧边抽屉。"""
+        self.sidebar_open = False
