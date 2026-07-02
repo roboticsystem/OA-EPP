@@ -83,6 +83,20 @@ if rx is not None:
             "pr": 20.0,
         }
 
+        # ── 显式 setter（兼容 Reflex 0.9.x rx.slider on_change） ──
+
+        def set_attendance_weight(self, val):
+            self.attendance_weight = float(val[0] if isinstance(val, list) else val)
+
+        def set_exam_weight(self, val):
+            self.exam_weight = float(val[0] if isinstance(val, list) else val)
+
+        def set_code_weight(self, val):
+            self.code_weight = float(val[0] if isinstance(val, list) else val)
+
+        def set_pr_weight(self, val):
+            self.pr_weight = float(val[0] if isinstance(val, list) else val)
+
         @rx.var
         def total_weight(self) -> float:
             return (self.attendance_weight + self.exam_weight
