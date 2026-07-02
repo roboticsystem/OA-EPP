@@ -31,18 +31,20 @@ def submit_score(req: SubmitRequest, authorization: Optional[str] = Header(None)
         raise HTTPException(status_code=422, detail="成绩数据无效")
 
     with db() as conn:
-        # 再次确认未提交（防止并发重复）
-        existing = conn.execute(
-            "SELECT id FROM scores WHERE student_id = ? AND exam_id = ?",
-            (student_id, exam_id)
-        ).fetchone()
-        if existing:
-            raise HTTPException(status_code=409, detail="您已经提交过本次考试的成绩")
+        with conn.cursor() as cur:
+            # 再次确认未提交（防止并发重复）
+            cur.execute(
+                "SELECT id FROM scores WHERE student_id = %s AND exam_id = %s",
+                (student_id, exam_id)
+            )
+            existing = cur.fetchone()
+            if existing:
+                raise HTTPException(status_code=409, detail="您已经提交过本次考试的成绩")
 
-        conn.execute(
-            "INSERT INTO scores (student_id, exam_id, score, total) VALUES (?,?,?,?)",
-            (student_id, exam_id, req.score, req.total)
-        )
+            cur.execute(
+                "INSERT INTO scores (student_id, exam_id, score, total) VALUES (%s,%s,%s,%s)",
+                (student_id, exam_id, req.score, req.total)
+            )
 
     return {"ok": True, "student_id": student_id, "exam_id": exam_id,
             "score": req.score, "total": req.total}
@@ -52,21 +54,25 @@ def submit_score(req: SubmitRequest, authorization: Optional[str] = Header(None)
 def get_scores(student_id: str = Query(...)):
     """查询某学生所有考试成绩（公开接口，凭学号查询）"""
     with db() as conn:
-        student = conn.execute(
-            "SELECT name, student_id, class_name FROM students WHERE student_id = ?",
-            (student_id,)
-        ).fetchone()
-        if not student:
-            raise HTTPException(status_code=404, detail="学号不存在")
-
-        exams = conn.execute("SELECT id, title FROM exams ORDER BY id").fetchall()
-        scores_map = {
-            row["exam_id"]: dict(row)
-            for row in conn.execute(
-                "SELECT exam_id, score, total, submitted_at FROM scores WHERE student_id = ?",
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT name, student_id, class_name FROM students WHERE student_id = %s",
                 (student_id,)
-            ).fetchall()
-        }
+            )
+            student = cur.fetchone()
+            if not student:
+                raise HTTPException(status_code=404, detail="学号不存在")
+
+            cur.execute("SELECT id, title FROM exams ORDER BY id")
+            exams = cur.fetchall()
+            cur.execute(
+                "SELECT exam_id, score, total, submitted_at FROM scores WHERE student_id = %s",
+                (student_id,)
+            )
+            scores_map = {
+                row["exam_id"]: dict(row)
+                for row in cur.fetchall()
+            }
 
     result = []
     for exam in exams:
