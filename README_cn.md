@@ -253,3 +253,9 @@ x -> y: hello
 ## 联系方式
 
 如有任何问题、建议或需要支持，请联系课程负责人，邮箱：robotics-course@example.com。
+
+### 仓库初始化说明
+自定义Python+Reflex忽略规则存放于 .gitignore_python_reflex
+新拉取代码后二选一启用忽略：
+1. 执行：python init_repo.py（初始化脚本自动配置本地git）
+2. 手动执行：git config --local core.excludesfile .gitignore_python_reflex
