@@ -9,6 +9,7 @@ Reflex State，提供教师成绩导出的状态管理：
 - audit_log: 审计日志记录
 """
 
+import logging
 from typing import Any, List, Optional
 
 try:
@@ -16,19 +17,26 @@ try:
 except Exception:
     rx = None
 
+logger = logging.getLogger("teacher_grade_export")
 
-def _compute_total_score(row: dict, weights: Optional[dict] = None) -> float:
+
+def _compute_total_score(row: dict, weights: Optional[dict] = None) -> Optional[float]:
     """根据权重公式自动计算总评成绩"""
     if not weights:
         weights = {"attendance": 0.15, "exam": 0.30, "code": 0.35, "pr": 0.20}
     total = 0.0
+    has_any = False
     for k, w in weights.items():
+        val = row.get(k)
+        if val is None:
+            continue
         try:
-            v = float(row.get(k, 0) or 0)
-        except Exception:
-            v = 0
-        total += v * float(w)
-    return round(total, 2)
+            v = float(val)
+            has_any = True
+            total += v * float(w)
+        except (TypeError, ValueError):
+            continue
+    return round(total, 2) if has_any else None
 
 
 def _compute_grade(score: float) -> str:
@@ -37,7 +45,7 @@ def _compute_grade(score: float) -> str:
         return ""
     try:
         s = float(score)
-    except Exception:
+    except (TypeError, ValueError):
         return ""
     if s >= 90:
         return "A"
@@ -50,7 +58,7 @@ def _compute_grade(score: float) -> str:
     return "F"
 
 
-def _load_filter_options():
+def _load_filter_options() -> dict:
     """从数据库加载筛选选项（班级/课程/学期）"""
     try:
         from oaepp.database import db_sync
@@ -58,24 +66,25 @@ def _load_filter_options():
         try:
             from database import db_sync
         except ImportError:
+            logger.warning("db_sync not available, returning empty filters")
             return {"classes": [], "courses": [], "terms": []}
     try:
         with db_sync() as cur:
             cur.execute(
-                "SELECT DISTINCT class_name FROM students WHERE class_name!='' ORDER BY class_name"
+                "SELECT DISTINCT s.class_name FROM students s "
+                "JOIN users u ON u.id = s.user_id "
+                "WHERE u.role='student' AND s.class_name!='' ORDER BY s.class_name"
             )
             classes = [r["class_name"] for r in cur.fetchall()]
-            cur.execute("SELECT id, title FROM exams ORDER BY id")
-            courses = [{"id": r["id"], "title": r["title"]} for r in cur.fetchall()]
-            _term_set = set()
-            for r in cur.execute("SELECT title FROM exams").fetchall():
-                import re
-                m = re.search(r'（(20\d{2}[春秋])）', r["title"])
-                if m:
-                    _term_set.add(m.group(1))
-            terms = sorted(_term_set)
+
+            cur.execute("SELECT id, name, term FROM courses ORDER BY id")
+            courses = [{"id": r["id"], "title": r["name"]} for r in cur.fetchall()]
+
+            cur.execute("SELECT DISTINCT term FROM courses WHERE term!='' ORDER BY term")
+            terms = [r["term"] for r in cur.fetchall()]
         return {"classes": classes, "courses": courses, "terms": terms}
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to load filter options: %s", e)
         return {"classes": [], "courses": [], "terms": []}
 
 
@@ -113,6 +122,8 @@ if rx is not None:
         selected_weights: dict = {}
         audit_log: List[dict] = []
         filter_options: dict = {}
+        export_error: str = ""
+        export_message: str = ""
 
         def get_export_filename(self, course_name: str = "", class_name: str = "", term: str = "") -> str:
             """生成导出文件名：课程名称_班级_学期_成绩单_日期.xlsx"""
@@ -123,7 +134,7 @@ if rx is not None:
             safe_term = (term or self.term_filter or "").replace("/", "-")
             return f"{safe_course}_{safe_class}_{safe_term}_成绩单_{date_str}.xlsx"
 
-        def compute_total_score(self, row: dict, weights: Optional[dict] = None) -> float:
+        def compute_total_score(self, row: dict, weights: Optional[dict] = None) -> Optional[float]:
             """根据权重公式自动计算总评成绩"""
             return _compute_total_score(row, weights)
 
@@ -138,52 +149,72 @@ if rx is not None:
         async def preview(self):
             """按当前筛选条件加载预览数据"""
             self.is_exporting = True
+            self.export_error = ""
+            self.export_message = ""
+
             try:
                 from oaepp.database import db_sync
             except ImportError:
                 try:
                     from database import db_sync
                 except ImportError:
+                    self.export_error = "数据库连接不可用"
                     self.is_exporting = False
                     return
+
             try:
                 with db_sync() as cur:
                     if self.class_filter:
                         cur.execute(
-                            "SELECT name, student_id, class_name FROM students WHERE class_name=%s ORDER BY student_id",
+                            """SELECT u.id, u.student_no, u.full_name, s.class_name
+                               FROM users u
+                               JOIN students s ON u.id = s.user_id
+                               WHERE u.role='student' AND s.class_name=%s
+                               ORDER BY u.student_no""",
                             (self.class_filter,)
                         )
                     else:
                         cur.execute(
-                            "SELECT name, student_id, class_name FROM students ORDER BY student_id"
+                            """SELECT u.id, u.student_no, u.full_name, s.class_name
+                               FROM users u
+                               JOIN students s ON u.id = s.user_id
+                               WHERE u.role='student'
+                               ORDER BY u.student_no"""
                         )
                     students = cur.fetchall()
 
-                    exam_scores = {}
+                    score_map = {}
                     if self.course_filter:
-                        cur.execute("SELECT id FROM exams WHERE title=%s", (self.course_filter,))
-                        exam_row = cur.fetchone()
-                        if not exam_row:
-                            cur.execute("SELECT id FROM exams WHERE id=%s", (self.course_filter,))
-                            exam_row = cur.fetchone()
-                        if exam_row:
-                            eid = exam_row["id"]
-                            cur.execute("SELECT student_id, score FROM scores WHERE exam_id=%s", (eid,))
+                        cur.execute("SELECT id FROM courses WHERE name=%s", (self.course_filter,))
+                        course_row = cur.fetchone()
+                        if not course_row:
+                            cur.execute("SELECT id FROM courses WHERE id=%s", (self.course_filter,))
+                            course_row = cur.fetchone()
+                        if course_row:
+                            cid = course_row["id"]
+                            cur.execute(
+                                "SELECT student_user_id, score_type, score FROM score_items WHERE course_id=%s",
+                                (cid,)
+                            )
                             for r in cur.fetchall():
-                                exam_scores[r["student_id"]] = r["score"]
+                                uid = r["student_user_id"]
+                                if uid not in score_map:
+                                    score_map[uid] = {}
+                                score_map[uid][r["score_type"]] = float(r["score"])
 
                 rows = []
                 for s in students:
-                    sid = s["student_id"]
+                    uid = s["id"]
+                    scores = score_map.get(uid, {})
                     row = {
-                        "student_id": sid,
-                        "name": s["name"],
+                        "student_id": s["student_no"],
+                        "name": s["full_name"],
                         "class_name": s["class_name"],
                         "course_name": self.course_filter or "",
-                        "attendance": None,
-                        "exam": exam_scores.get(sid),
-                        "code": None,
-                        "pr": None,
+                        "attendance": scores.get("attendance"),
+                        "exam": scores.get("exam"),
+                        "code": scores.get("code"),
+                        "pr": scores.get("pr"),
                         "total": None,
                         "grade": "",
                         "remark": "",
@@ -195,7 +226,10 @@ if rx is not None:
                     rows.append(row)
 
                 self.preview_rows = rows
-            except Exception:
+                self.export_message = f"预览成功，共 {len(rows)} 条记录"
+            except Exception as e:
+                logger.error("preview failed: %s", e)
+                self.export_error = f"预览失败：{e}"
                 self.preview_rows = []
             finally:
                 self.is_exporting = False
@@ -203,13 +237,16 @@ if rx is not None:
         async def export_excel(self):
             """生成并下载 Excel，同时写入审计日志"""
             self.is_exporting = True
+            self.export_error = ""
+            self.export_message = ""
+
             try:
                 from oaepp.database import db_sync, transaction_sync
                 import openpyxl
                 from openpyxl.styles import Font, PatternFill, Alignment
-                from datetime import datetime
                 import json
-            except ImportError:
+            except ImportError as e:
+                self.export_error = f"缺少依赖：{e}"
                 self.is_exporting = False
                 return
 
@@ -250,7 +287,6 @@ if rx is not None:
 
                 filename = self.get_export_filename()
 
-                # 写审计日志
                 try:
                     filters = {"class_name": self.class_filter, "course_name": self.course_filter, "term": self.term_filter}
                     with transaction_sync() as cur:
@@ -258,12 +294,14 @@ if rx is not None:
                             "INSERT INTO export_logs (actor, filters, record_count) VALUES (%s, %s, %s)",
                             ("teacher", json.dumps(filters, ensure_ascii=False), len(rows))
                         )
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("Failed to write audit log: %s", e)
 
                 self.is_exporting = False
                 return rx.download(data=buf.getvalue(), filename=filename)
-            except Exception:
+            except Exception as e:
+                logger.error("export failed: %s", e)
+                self.export_error = f"导出失败：{e}"
                 self.is_exporting = False
 
         def add_audit_log(self, actor: str, filters: dict, record_count: int) -> None:
@@ -283,19 +321,26 @@ if rx is not None:
 
         async def load_audit_logs(self):
             """从数据库加载审计日志"""
+            self.export_error = ""
+            self.export_message = ""
+
             try:
                 from oaepp.database import db_sync
             except ImportError:
                 try:
                     from database import db_sync
                 except ImportError:
+                    logger.warning("db_sync not available, audit logs empty")
                     self.audit_log = []
                     return
+
             try:
                 with db_sync() as cur:
                     cur.execute(
-                        "SELECT id, actor, filters, record_count, created_at FROM export_logs ORDER BY id DESC LIMIT 200"
+                        "SELECT id, actor, filters, record_count, created_at "
+                        "FROM export_logs ORDER BY id DESC LIMIT 200"
                     )
                     self.audit_log = [dict(r) for r in cur.fetchall()]
-            except Exception:
+            except Exception as e:
+                logger.error("Failed to load audit logs: %s", e)
                 self.audit_log = []
