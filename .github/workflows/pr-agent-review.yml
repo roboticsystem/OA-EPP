@@ -37,20 +37,6 @@ jobs:
           sed -n '1,200p' .github/pr_agent/configuration.toml || true
           echo '--- configuration end ---'
 
-      - name: 加载 F-D-007 审查提示词模板
-        id: review_prompt
-        run: |
-          PROMPT=".github/review-prompts/code-review.prompt.md"
-          if [ ! -f "$PROMPT" ]; then
-            echo "未找到 $PROMPT，使用仓库默认审查规则"
-            echo "has_prompt=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "has_prompt=true" >> "$GITHUB_OUTPUT"
-          echo "prompt_file=$PROMPT" >> "$GITHUB_OUTPUT"
-          wc -c "$PROMPT" || true
-          head -n 5 "$PROMPT" || true
-
       - name: Run PR Agent Review（机器人系统课程定制版）
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -63,11 +49,6 @@ jobs:
           PR_AGENT_CONFIG_PATH: .github/pr_agent/configuration.toml
         run: |
           set -x
-          EXTRA_FILE=".github/review-prompts/code-review.prompt.md"
-          if [ -f "$EXTRA_FILE" ]; then
-            export PR_REVIEWER__EXTRA_INSTRUCTIONS="$(cat "$EXTRA_FILE")"
-            echo "已加载 F-D-007 提示词模板（$(wc -c < "$EXTRA_FILE") bytes）"
-          fi
           # pr-agent 0.2.4 语法：--pr_url 必须在子命令之前
           pr-agent --pr_url "${{ github.event.pull_request.html_url }}" review || true
 
