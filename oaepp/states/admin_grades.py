@@ -7,8 +7,6 @@
 - 审计日志不可删除
 """
 
-from __future__ import annotations
-
 import datetime
 import json
 from typing import Any, Dict, List, Optional
@@ -198,20 +196,6 @@ if rx is not None:
                 self.code_pct = remaining - self.attendance_pct - self.exam_pct
             self._sync_weights_from_pct()
             await self._refresh_heatmap()
-
-        # ── Slider 事件处理器（Reflex 0.9.4: rx.slider on_change 传递 List[int]） ──
-
-        async def set_attendance_pct_from_slider(self, val: List[int]):
-            await self.set_attendance_pct(val[0] if val else 0)
-
-        async def set_exam_pct_from_slider(self, val: List[int]):
-            await self.set_exam_pct(val[0] if val else 0)
-
-        async def set_code_pct_from_slider(self, val: List[int]):
-            await self.set_code_pct(val[0] if val else 0)
-
-        async def set_pr_pct_from_slider(self, val: List[int]):
-            await self.set_pr_pct(val[0] if val else 0)
 
         async def set_active_tab(self, tab: str):
             """切换标签页"""
