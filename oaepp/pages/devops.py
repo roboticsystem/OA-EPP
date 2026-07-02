@@ -9,7 +9,10 @@ except Exception:
 devops_page = None
 
 if rx is not None:
-    from oaepp.states.devops_review import PRReviewState
+    try:
+        from oaepp.states.devops_review import PRReviewState
+    except ImportError:
+        from states.devops_review import PRReviewState
 
     _PLACEHOLDERS = ("{diff}", "{pr_title}", "{pr_description}", "{author}")
 
@@ -150,11 +153,11 @@ if rx is not None:
                         on_change=PRReviewState.set_new_template_name,
                         flex="1",
                     ),
-                    rx.button("复制模板", on_click=PRReviewState.copy_template),
+                    rx.button("复制模板", on_click=lambda: PRReviewState.copy_template()),
                     rx.button(
                         "设为默认",
                         variant="soft",
-                        on_click=PRReviewState.set_default_template(),
+                        on_click=lambda: PRReviewState.set_default_template(),
                     ),
                     width="100%",
                 ),
@@ -165,12 +168,12 @@ if rx is not None:
                         on_change=PRReviewState.set_rename_target_name,
                         flex="1",
                     ),
-                    rx.button("重命名", on_click=PRReviewState.rename_template),
+                    rx.button("重命名", on_click=lambda: PRReviewState.rename_template()),
                     rx.button(
                         "删除当前",
                         color_scheme="red",
                         variant="outline",
-                        on_click=PRReviewState.delete_template,
+                        on_click=lambda: PRReviewState.delete_template(),
                     ),
                     width="100%",
                 ),

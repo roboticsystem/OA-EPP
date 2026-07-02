@@ -15,10 +15,25 @@
 import reflex as rx
 from sqlmodel import select, func
 
-from oaepp.components.layout import page_layout
-from oaepp.components.common import empty_state, loading_spinner
-from oaepp.models import Notification, User
-from oaepp.states import GlobalState
+try:
+    from oaepp.components.layout import page_layout
+except ImportError:
+    from components.layout import page_layout
+
+try:
+    from oaepp.components.common import empty_state, loading_spinner
+except ImportError:
+    from components.common import empty_state, loading_spinner
+
+try:
+    from oaepp.models import Notification, User
+except ImportError:
+    from models import Notification, User
+
+try:
+    from oaepp.states import GlobalState
+except ImportError:
+    from states import GlobalState
 
 
 # ── 分类配置 ──

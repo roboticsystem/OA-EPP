@@ -13,10 +13,8 @@
 """
 try:
     import reflex as rx
-    from reflex.vars import ArrayVar
 except Exception:
     rx = None
-    ArrayVar = None
 
 student_import_page = None
 if rx is not None:
@@ -137,7 +135,7 @@ if rx is not None:
                 ),
                 rx.divider(),
                 rx.cond(
-                    ArrayVar.create(StudentImportState.parsed_rows).length() > 0,
+                    StudentImportState.has_parsed_rows,
                     rx.table.root(
                         rx.table.header(
                             rx.table.row(
@@ -152,7 +150,7 @@ if rx is not None:
                         ),
                         rx.table.body(
                             rx.foreach(
-                                ArrayVar.create(StudentImportState.parsed_rows),
+                                StudentImportState.parsed_rows,
                                 lambda row: rx.table.row(
                                     rx.table.cell(row["row_num"], font_size="xs"),
                                     rx.table.cell(row["student_no"], font_size="xs", font_family="monospace"),
@@ -217,9 +215,7 @@ if rx is not None:
                 ),
             ),
             on_click=StudentImportState.handle_import,
-            disabled=StudentImportState.is_loading | 
-            (ArrayVar.create(StudentImportState.parsed_rows).length() == 0) | 
-            (StudentImportState.invalid_count > 0),
+            disabled=StudentImportState.is_import_disabled,
             color_scheme="indigo",
             size="3",
         )
@@ -227,7 +223,7 @@ if rx is not None:
     def _import_result() -> rx.Component:
         """导入结果展示"""
         return rx.cond(
-            StudentImportState.import_result != "",
+            StudentImportState.has_import_result,
             rx.callout(
                 StudentImportState.import_result,
                 color_scheme=rx.cond(
@@ -243,7 +239,7 @@ if rx is not None:
     def _file_errors() -> rx.Component:
         """文件错误信息展示"""
         return rx.cond(
-            StudentImportState.file_errors.length() > 0,
+            StudentImportState.has_file_errors,
             rx.vstack(
                 rx.foreach(
                     StudentImportState.file_errors,

@@ -8,7 +8,10 @@ from __future__ import annotations
 import datetime
 from typing import Any, Dict, List, Optional
 
-from oaepp.constants import ATTENDANCE_STATUS
+try:
+    from oaepp.constants import ATTENDANCE_STATUS
+except ImportError:
+    from constants import ATTENDANCE_STATUS
 
 try:
     import reflex as rx  # noqa: F401
