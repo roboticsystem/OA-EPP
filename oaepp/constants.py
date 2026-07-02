@@ -57,4 +57,3 @@ GITHUB_BIND_STATUS = ["pending", "approved", "rejected"]
 # ── 课程状态 ──
 COURSE_STATUS = ["draft", "open", "closed"]
 """课程状态：草稿 / 开放 / 已关闭"""
-
