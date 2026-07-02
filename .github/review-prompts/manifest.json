@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "default_template_id": "general-review",
+  "ignore_patterns": [
+    "**/node_modules/**",
+    "**/*.min.js",
+    "**/dist/**",
+    "**/.web/**"
+  ],
+  "templates": [
+    {
+      "id": "general-review",
+      "name": "通用代码审查",
+      "description": "代码质量、命名规范、潜在 Bug 与可读性",
+      "file": "general-review.prompt.md",
+      "builtin": true,
+      "kind": "code-review"
+    },
+    {
+      "id": "engineering-practices",
+      "name": "工程实践规范检查",
+      "description": "单元测试、依赖管理、提交规范与架构分层",
+      "file": "engineering-practices.prompt.md",
+      "builtin": true,
+      "kind": "code-review"
+    },
+    {
+      "id": "security-audit",
+      "name": "安全全面审查",
+      "description": "注入、密钥泄露、权限与敏感数据处理",
+      "file": "security-audit.prompt.md",
+      "builtin": true,
+      "kind": "code-review"
+    }
+  ],
+  "dry_run_audit": [
+    {
+      "verified_at": "2026-06-04T09:45:31.066707+00:00",
+      "operator": "teacher",
+      "cleared_at": "2026-06-04T09:45:31.067733+00:00"
+    },
+    {
+      "verified_at": "2026-06-04T09:57:40.487389+00:00",
+      "operator": "teacher",
+      "cleared_at": "2026-06-04T09:57:40.488296+00:00"
+    }
+  ]
+}
