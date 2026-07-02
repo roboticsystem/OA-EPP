@@ -23,11 +23,6 @@ if rx is not None:
         except ImportError:
             GradeWeightState = None
 
-    try:
-        from constants import GRADE_HEATMAP_COLORS, GRADE_DIMENSION_LABELS
-    except ImportError:
-        from oaepp.constants import GRADE_HEATMAP_COLORS, GRADE_DIMENSION_LABELS
-
     # ── 样式常量 ──
     CARD_STYLE = {
         "padding": "20px",
@@ -38,9 +33,9 @@ if rx is not None:
 
     LABEL_STYLE = {"font_size": "14px", "font_weight": "500", "color": "#374151"}
 
-    _UP = GRADE_HEATMAP_COLORS["up"]
-    _DOWN = GRADE_HEATMAP_COLORS["down"]
-    _UNCHANGED = GRADE_HEATMAP_COLORS["unchanged"]
+    _UP = "#22c55e"
+    _DOWN = "#ef4444"
+    _UNCHANGED = "#9ca3af"
 
     # ── 子组件 ──
 
