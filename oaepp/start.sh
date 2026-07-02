@@ -13,6 +13,20 @@ echo "[start.sh] 启动 Reflex (生产模式)..."
 reflex run --env prod --single-port --frontend-port 8000 --backend-port 8000 &
 REFLEX_PID=$!
 
+# 等待 Reflex 编译完成并开始监听端口
+echo "[start.sh] 等待 Reflex 就绪..."
+for i in $(seq 1 60); do
+    if curl -sf -o /dev/null http://127.0.0.1:8000/api/status 2>/dev/null; then
+        echo "[start.sh] Reflex 已就绪（${i}s）"
+        break
+    fi
+    if ! kill -0 "$REFLEX_PID" 2>/dev/null; then
+        echo "[start.sh] Reflex 进程异常退出！"
+        exit 1
+    fi
+    sleep 1
+done
+
 echo "[start.sh] 启动 Nginx..."
 nginx -g 'daemon off;' &
 NGINX_PID=$!
