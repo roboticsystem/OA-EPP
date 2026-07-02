@@ -443,22 +443,24 @@ if rx is not None and GlobalState is not None:
             except ImportError:
                 from oaepp.database import db as async_db
 
-            course_filter = ""
-            params = []
-            if self.selected_course_id > 0:
-                course_filter = "WHERE course_id = %s"
-                params.append(self.selected_course_id)
-
             try:
                 async with async_db() as cur:
-                    await cur.execute(
-                        f"""SELECT id, course_id, log_json, created_at
-                           FROM grade_weight_audit_log
-                           {course_filter}
-                           ORDER BY created_at DESC
-                           LIMIT 100""",
-                        tuple(params),
-                    )
+                    if self.selected_course_id > 0:
+                        await cur.execute(
+                            """SELECT id, course_id, log_json, created_at
+                               FROM grade_weight_audit_log
+                               WHERE course_id = %s
+                               ORDER BY created_at DESC
+                               LIMIT 100""",
+                            (self.selected_course_id,),
+                        )
+                    else:
+                        await cur.execute(
+                            """SELECT id, course_id, log_json, created_at
+                               FROM grade_weight_audit_log
+                               ORDER BY created_at DESC
+                               LIMIT 100"""
+                        )
                     rows = await cur.fetchall()
                 self.audit_log = []
                 for r in rows:
