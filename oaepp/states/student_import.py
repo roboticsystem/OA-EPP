@@ -22,12 +22,23 @@ import csv
 import datetime
 import io
 import json
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TypedDict
 
 try:
     import reflex as rx
 except Exception:
     rx = None
+
+
+class ParsedRow(TypedDict, total=False):
+    """CSV 解析后的行数据类型。"""
+    row_num: int
+    student_no: str
+    full_name: str
+    class_name: str
+    course: str
+    errors: str
+    valid: bool
 
 
 def _hash_password(password: str) -> str:
@@ -339,8 +350,8 @@ if rx is not None:
 
         import_mode: str = "incremental"
         file_content: str = ""
-        parsed_rows: List[dict] = []
-        file_errors: List[str] = []
+        parsed_rows: list[ParsedRow] = []
+        file_errors: list[str] = []
         valid_count: int = 0
         invalid_count: int = 0
         is_loading: bool = False
@@ -349,6 +360,22 @@ if rx is not None:
         import_batch_id: Optional[int] = None
         operator_id: Optional[int] = None
         operator_name: str = ""
+
+        @rx.var
+        def has_parsed_rows(self) -> bool:
+            return len(self.parsed_rows) > 0
+
+        @rx.var
+        def has_file_errors(self) -> bool:
+            return len(self.file_errors) > 0
+
+        @rx.var
+        def has_import_result(self) -> bool:
+            return bool(self.import_result)
+
+        @rx.var
+        def is_import_disabled(self) -> bool:
+            return self.is_loading or not self.has_parsed_rows or self.invalid_count > 0
 
         def set_import_mode(self, mode: str):
             """设置导入模式：incremental（增量）或 overwrite（全量覆盖）"""

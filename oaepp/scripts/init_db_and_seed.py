@@ -58,6 +58,80 @@ def main():
                 else:
                     raise
 
+            # ── 1b. 创建关联表（学生导入等功能依赖） ──
+            _extra_tables = {
+                "students": """
+                    CREATE TABLE IF NOT EXISTS students (
+                        id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        user_id     BIGINT       NOT NULL,
+                        class_name  VARCHAR(100) NOT NULL DEFAULT '',
+                        created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
+                        updated_at  DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        INDEX idx_user_id (user_id),
+                        INDEX idx_class_name (class_name)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """,
+                "courses": """
+                    CREATE TABLE IF NOT EXISTS courses (
+                        id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        name        VARCHAR(200) NOT NULL,
+                        code        VARCHAR(50)  NOT NULL DEFAULT '',
+                        term        VARCHAR(20)  NOT NULL DEFAULT '',
+                        status      VARCHAR(20)  NOT NULL DEFAULT 'open',
+                        created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
+                        updated_at  DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        INDEX idx_status (status)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """,
+                "enrollments": """
+                    CREATE TABLE IF NOT EXISTS enrollments (
+                        id               BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        course_id        BIGINT   NOT NULL,
+                        student_user_id  BIGINT   NOT NULL,
+                        enrolled_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_course (course_id),
+                        INDEX idx_student (student_user_id),
+                        UNIQUE KEY uk_course_student (course_id, student_user_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """,
+                "notifications": """
+                    CREATE TABLE IF NOT EXISTS notifications (
+                        id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        user_id     BIGINT       NOT NULL,
+                        title       VARCHAR(200) NOT NULL DEFAULT '',
+                        body        TEXT         NOT NULL,
+                        category    VARCHAR(50)  NOT NULL DEFAULT 'system',
+                        is_read     TINYINT(1)   NOT NULL DEFAULT 0,
+                        created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_user_read (user_id, is_read),
+                        INDEX idx_created (created_at)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """,
+                "audit_logs": """
+                    CREATE TABLE IF NOT EXISTS audit_logs (
+                        id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        actor_user_id   BIGINT       NOT NULL DEFAULT 0,
+                        action          VARCHAR(100) NOT NULL DEFAULT '',
+                        target_type     VARCHAR(50)  NOT NULL DEFAULT '',
+                        target_id       BIGINT       NOT NULL DEFAULT 0,
+                        detail_json     JSON         NULL,
+                        action_at       DATETIME     DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_actor (actor_user_id),
+                        INDEX idx_action (action),
+                        INDEX idx_action_at (action_at)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """,
+            }
+            for tbl_name, ddl in _extra_tables.items():
+                try:
+                    cur.execute(ddl)
+                    print(f"[init] {tbl_name} 表已就绪")
+                except (pymysql.ProgrammingError, pymysql.OperationalError) as e:
+                    if "command denied" in str(e).lower():
+                        print(f"[init] 跳过建表（权限不足），{tbl_name} 表应已存在")
+                    else:
+                        raise
+
             # ── 2. 种子用户 ──
             seed_users = [
                 ("2024000001", "张三",   "student", "2024000001"),
