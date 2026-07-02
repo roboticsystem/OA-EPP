@@ -16,6 +16,7 @@ F-T-003 GitHub账号实名核查（含AI审查）— GitHubRealnameVerifyState
 - 人工确认与AI判断状态独立记录
 """
 
+import os
 import re
 import logging
 from typing import List, Dict, Optional
@@ -262,9 +263,7 @@ def _ai_analyze_github_name(name: str, github_username: str = "") -> Dict:
 #  State
 # ═══════════════════════════════════════════════════════════════════════════
 
-class GitHubRealnameVerifyState(
-    GlobalState if GlobalState else rx.State if rx else object
-):
+class GitHubRealnameVerifyState(rx.State):
     """GitHub 账号实名核查状态管理（教师端）"""
 
     # ── 核查列表数据 ──
@@ -296,46 +295,24 @@ class GitHubRealnameVerifyState(
     # ── 批量操作 ──
     selected_binding_ids: str = ""  # 逗号分隔的选中ID，用于checkbox联动
 
+    # ── 分页 ──
+    current_page: int = 1
+    page_size: int = 20
+    total_count: int = 0
+
     # ── AI核查结果摘要 ──
     last_verify_time: str = ""
     last_verify_summary: str = ""
 
     # ═════════════════════════════════════════════════════════════════════
-    #  数据库表结构保障
-    # ═════════════════════════════════════════════════════════════════════
-
-    async def _ensure_schema(self):
-        """确保 github_bindings 表包含 AI 审查所需字段"""
-        columns_to_add = [
-            ("ai_verdict", "VARCHAR(32) DEFAULT NULL"),
-            ("ai_confidence", "VARCHAR(16) DEFAULT NULL"),
-            ("ai_reason", "TEXT DEFAULT NULL"),
-            ("ai_checked_at", "DATETIME DEFAULT NULL"),
-            ("human_confirm", "VARCHAR(32) DEFAULT 'pending'"),
-            ("human_confirmed_at", "DATETIME DEFAULT NULL"),
-            ("human_confirmed_by", "INT DEFAULT NULL"),
-        ]
-        try:
-            async with transaction() as cur:
-                for col_name, col_def in columns_to_add:
-                    try:
-                        await cur.execute(
-                            f"ALTER TABLE github_bindings ADD COLUMN {col_name} {col_def}"
-                        )
-                    except Exception:
-                        # 列已存在则跳过
-                        pass
-        except Exception as e:
-            _log.warning(f"_ensure_schema failed: {e}")
-
-    # ═════════════════════════════════════════════════════════════════════
     #  获取当前教师信息
     # ═════════════════════════════════════════════════════════════════════
 
-    async def _get_teacher_id(self) -> int:
-        """获取当前登录教师的 user_id"""
-        if self.current_user and self.current_user.get("user_id"):
-            candidate = int(self.current_user.get("user_id", 0))
+    async def _get_teacher_id(self) -> Optional[int]:
+        """获取当前登录教师的 user_id，无法获取时返回 None"""
+        global_state = await self.get_state(GlobalState)
+        if global_state.current_user and global_state.current_user.get("user_id"):
+            candidate = int(global_state.current_user.get("user_id", 0))
             try:
                 async with db() as cur:
                     await cur.execute(
@@ -345,7 +322,7 @@ class GitHubRealnameVerifyState(
                     if await cur.fetchone():
                         return candidate
             except Exception:
-                pass
+                _log.warning("_get_teacher_id: failed to verify teacher via current_user")
 
         try:
             auth = await self.get_state(AuthState)
@@ -358,7 +335,7 @@ class GitHubRealnameVerifyState(
                     if await cur.fetchone():
                         return cid
         except Exception:
-            pass
+            _log.warning("_get_teacher_id: failed to verify teacher via AuthState")
 
         # 回退：查询任意教师
         try:
@@ -371,24 +348,57 @@ class GitHubRealnameVerifyState(
                 if row:
                     return int(row["id"])
         except Exception:
-            pass
-        return 1
+            _log.warning("_get_teacher_id: fallback query failed")
+        return None
 
     # ═════════════════════════════════════════════════════════════════════
     #  数据加载
     # ═════════════════════════════════════════════════════════════════════
 
     async def load_verification_list(self):
-        """加载 GitHub 实名核查列表"""
+        """加载 GitHub 实名核查列表（分页）"""
         self.is_loading = True
         try:
-            await self._ensure_schema()
-
             async with db() as cur:
                 await cur.execute("ROLLBACK")
 
-                # 基础查询：所有已绑定的 GitHub 账号 + AI审查字段
-                query = """
+                # 构建 WHERE 条件
+                where_clause = "WHERE 1=1"
+                where_params = []
+
+                if self.search_keyword:
+                    kw = f"%{self.search_keyword}%"
+                    where_clause += (
+                        " AND (u.student_no LIKE %s OR u.full_name LIKE %s "
+                        "OR gb.github_username LIKE %s OR gb.github_name LIKE %s)"
+                    )
+                    where_params.extend([kw, kw, kw, kw])
+
+                if self.filter_ai_verdict == "疑似真名":
+                    where_clause += " AND gb.ai_verdict = 'suspected_real'"
+                elif self.filter_ai_verdict == "待人工审查":
+                    where_clause += " AND (gb.ai_verdict = 'pending_review' OR gb.ai_verdict IS NULL)"
+                elif self.filter_ai_verdict == "未填写":
+                    where_clause += " AND gb.ai_verdict = 'not_filled'"
+
+                # COUNT 查询（总数，不受分页影响）
+                count_query = f"""
+                    SELECT COUNT(*) AS cnt
+                    FROM github_bindings gb
+                    JOIN users u ON gb.student_user_id = u.id
+                    JOIN students s ON u.id = s.user_id
+                    {where_clause}
+                """
+                await cur.execute(
+                    count_query,
+                    tuple(where_params) if where_params else None,
+                )
+                count_row = await cur.fetchone()
+                self.total_count = count_row["cnt"] if count_row else 0
+
+                # 主查询（分页）
+                offset = (self.current_page - 1) * self.page_size
+                query = f"""
                     SELECT
                         gb.id,
                         gb.student_user_id,
@@ -408,29 +418,14 @@ class GitHubRealnameVerifyState(
                     FROM github_bindings gb
                     JOIN users u ON gb.student_user_id = u.id
                     JOIN students s ON u.id = s.user_id
-                    WHERE 1=1
+                    {where_clause}
+                    ORDER BY gb.ai_checked_at DESC, u.student_no ASC
+                    LIMIT %s OFFSET %s
                 """
-                params = []
+                query_params = list(where_params)
+                query_params.extend([self.page_size, offset])
 
-                # 筛选条件
-                if self.search_keyword:
-                    kw = f"%{self.search_keyword}%"
-                    query += (
-                        " AND (u.student_no LIKE %s OR u.full_name LIKE %s "
-                        "OR gb.github_username LIKE %s OR gb.github_name LIKE %s)"
-                    )
-                    params.extend([kw, kw, kw, kw])
-
-                if self.filter_ai_verdict == "疑似真名":
-                    query += " AND gb.ai_verdict = 'suspected_real'"
-                elif self.filter_ai_verdict == "待人工审查":
-                    query += " AND (gb.ai_verdict = 'pending_review' OR gb.ai_verdict IS NULL)"
-                elif self.filter_ai_verdict == "未填写":
-                    query += " AND gb.ai_verdict = 'not_filled'"
-
-                query += " ORDER BY gb.ai_checked_at DESC, u.student_no ASC"
-
-                await cur.execute(query, tuple(params) if params else None)
+                await cur.execute(query, tuple(query_params))
                 rows = await cur.fetchall()
 
                 self.verification_list = []
@@ -472,10 +467,8 @@ class GitHubRealnameVerifyState(
                     }
                     self.verification_list.append(item)
 
-                # 计算统计
-                self._compute_stats(rows)
-
-            # 同时加载未绑定学生
+            # 统计与未绑定学生（不受分页影响，独立查询）
+            await self._load_stats()
             await self._load_unbound_students()
 
         except Exception as e:
@@ -483,6 +476,19 @@ class GitHubRealnameVerifyState(
             self.action_message = f"加载数据失败：{e}"
         finally:
             self.is_loading = False
+
+    async def _load_stats(self):
+        """加载统计数据（全量，不受分页影响）"""
+        try:
+            async with db() as cur:
+                await cur.execute("ROLLBACK")
+                await cur.execute(
+                    "SELECT verify_status, ai_verdict FROM github_bindings"
+                )
+                rows = await cur.fetchall()
+                self._compute_stats(rows)
+        except Exception as e:
+            _log.warning(f"_load_stats failed: {e}")
 
     def _compute_stats(self, rows):
         """根据查询结果计算统计数据"""
@@ -581,6 +587,49 @@ class GitHubRealnameVerifyState(
         self.selected_binding_ids = value
 
     # ═════════════════════════════════════════════════════════════════════
+    #  分页导航
+    # ═════════════════════════════════════════════════════════════════════
+
+    @rx.var
+    def total_pages(self) -> int:
+        """总页数"""
+        if self.total_count <= 0 or self.page_size <= 0:
+            return 0
+        return (self.total_count + self.page_size - 1) // self.page_size
+
+    async def go_to_page(self, page: int):
+        """跳转到指定页"""
+        if page < 1:
+            page = 1
+        total = self.total_pages
+        if total > 0 and page > total:
+            page = total
+        self.current_page = page
+        await self.load_verification_list()
+
+    async def next_page(self):
+        """下一页"""
+        if self.current_page < self.total_pages:
+            self.current_page += 1
+            await self.load_verification_list()
+
+    async def prev_page(self):
+        """上一页"""
+        if self.current_page > 1:
+            self.current_page -= 1
+            await self.load_verification_list()
+
+    async def first_page(self):
+        """首页"""
+        self.current_page = 1
+        await self.load_verification_list()
+
+    async def last_page(self):
+        """末页"""
+        self.current_page = self.total_pages
+        await self.load_verification_list()
+
+    # ═════════════════════════════════════════════════════════════════════
     #  核心功能：AI 批量核查
     # ═════════════════════════════════════════════════════════════════════
 
@@ -589,8 +638,6 @@ class GitHubRealnameVerifyState(
         self.is_verifying = True
         self.action_message = ""
         try:
-            await self._ensure_schema()
-
             # 获取绑定记录
             async with db() as cur:
                 await cur.execute("ROLLBACK")
@@ -654,8 +701,6 @@ class GitHubRealnameVerifyState(
         self.is_verifying = True
         self.action_message = ""
         try:
-            await self._ensure_schema()
-
             async with db() as cur:
                 await cur.execute("ROLLBACK")
                 await cur.execute(
@@ -741,10 +786,14 @@ class GitHubRealnameVerifyState(
         if not github_username or not httpx:
             return None
         try:
-            async with httpx.AsyncClient(verify=False, timeout=10.0) as client:
+            headers = {"Accept": "application/vnd.github.v3+json"}
+            github_token = os.environ.get("GITHUB_TOKEN")
+            if github_token:
+                headers["Authorization"] = f"token {github_token}"
+            async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.get(
                     f"https://api.github.com/users/{github_username}",
-                    headers={"Accept": "application/vnd.github.v3+json"},
+                    headers=headers,
                 )
                 if resp.status_code == 200:
                     data = resp.json()
@@ -768,6 +817,9 @@ class GitHubRealnameVerifyState(
     async def _human_confirm(self, binding_id: int, status: str):
         """执行人工确认操作"""
         teacher_id = await self._get_teacher_id()
+        if teacher_id is None:
+            self.action_message = "无法获取教师身份，请重新登录"
+            return
         self.action_message = ""
         try:
             async with transaction() as cur:
@@ -821,6 +873,9 @@ class GitHubRealnameVerifyState(
     async def batch_pass_high_confidence(self):
         """批量通过高置信度疑似真名条目"""
         teacher_id = await self._get_teacher_id()
+        if teacher_id is None:
+            self.action_message = "无法获取教师身份，请重新登录"
+            return
         self.is_batch_processing = True
         self.action_message = ""
         try:
@@ -958,11 +1013,11 @@ class GitHubRealnameVerifyState(
         """底部汇总文本"""
         if self.last_verify_summary:
             return (
-                f"AI 末次批量审查：{self.last_verify_time} · "
+                f"末次批量检测：{self.last_verify_time} · "
                 f"{self.last_verify_summary}"
             )
         if self.last_verify_time:
-            return f"AI 末次批量审查：{self.last_verify_time}"
+            return f"末次批量检测：{self.last_verify_time}"
         return "尚未执行批量审查 · 点击「一键全班核查」开始"
 
     # ═════════════════════════════════════════════════════════════════════
@@ -971,7 +1026,6 @@ class GitHubRealnameVerifyState(
 
     async def on_mount(self):
         """页面加载时初始化"""
-        await self._ensure_schema()
         await self.load_verification_list()
 
     async def refresh(self):

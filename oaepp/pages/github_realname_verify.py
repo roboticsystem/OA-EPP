@@ -365,7 +365,7 @@ if rx is not None:
             rx.vstack(
                 rx.heading("GitHub 账号实名核查", size="6", color=_DARK),
                 rx.text(
-                    "AI 检测 GitHub profile name 字段是否为真实中文姓名，"
+                    "自动检测 GitHub profile name 字段是否为真实中文姓名，"
                     "标记疑似异常条目供教师人工确认",
                     size="2", color=_GRAY,
                 ),
@@ -376,7 +376,7 @@ if rx is not None:
             rx.hstack(
                 rx.button(
                     rx.icon("brain", size=16),
-                    "AI 实名审查",
+                    "自动检测",
                     color_scheme="orange",
                     variant="soft",
                     size="2",
@@ -412,7 +412,7 @@ if rx is not None:
             _stat_card("未绑定", GitHubRealnameVerifyState.unbound_count,
                        color=_RED),
             _stat_card(
-                "AI 审查待确认",
+                "自动检测待确认",
                 GitHubRealnameVerifyState.ai_pending_review_count,
                 color=_ORANGE,
                 bg="#fff7ed",
@@ -439,10 +439,10 @@ if rx is not None:
                         justify_content="center",
                     ),
                     rx.vstack(
-                        rx.text("AI 实名自动审查队列", weight="bold",
+                        rx.text("实名自动检测队列", weight="bold",
                                 size="3", color=_DARK),
                         rx.text(
-                            "AI 检测 GitHub name 字段是否为汉语姓名，"
+                            "自动检测 GitHub name 字段是否为汉语姓名，"
                             "标记疑似异常条目供教师人工确认",
                             size="1", color=_GRAY,
                         ),
@@ -502,9 +502,9 @@ if rx is not None:
                 rx.hstack(
                     rx.icon("info", size=14, color=_ORANGE),
                     rx.text(
-                        "AI 判断规则：✅ 疑似真名 = 含 CJK 汉字 + 2–4 字 + 常见姓氏匹配；"
+                        "自动检测规则：✅ 疑似真名 = 含 CJK 汉字 + 2–4 字 + 常见姓氏匹配；"
                         "⚠️ 待审查 = 纯英文/拼音/数字/昵称特征、长度异常；"
-                        "❌ 未设置 = name 字段为空。AI 结论仅供参考，以教师人工确认为准。",
+                        "❌ 未设置 = name 字段为空。检测结论仅供参考，以教师人工确认为准。",
                         size="1", color=_ORANGE,
                     ),
                     spacing="2",
@@ -598,13 +598,13 @@ if rx is not None:
                                         "GitHub 实名（name 字段）", width="150px"
                                     ),
                                     rx.table.column_header_cell(
-                                        "AI 判断", width="110px"
+                                        "自动检测", width="110px"
                                     ),
                                     rx.table.column_header_cell(
                                         "置信度", width="70px"
                                     ),
                                     rx.table.column_header_cell(
-                                        "AI 判断理由", width="200px"
+                                        "检测理由", width="200px"
                                     ),
                                     rx.table.column_header_cell(
                                         "人工确认", width="100px"
