@@ -80,6 +80,13 @@
   .repo-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
   .repo-row input { flex:1; padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.95rem; }
   .repo-row button { padding:8px 12px; border-radius:6px; }
+
+  /* Progress bar */
+  .progress-root { width:100%; height:22px; background:#e9ecef; border-radius:11px; overflow:hidden; margin:8px 0; }
+  .progress-fill { height:100%; background:linear-gradient(90deg,#4ade80,#22c55e); border-radius:11px; transition:width 0.5s ease; min-width:0; }
+  .progress-fill.has-warn { background:linear-gradient(90deg,#fbbf24,#f59e0b); }
+  .progress-fill.has-only-err { background:linear-gradient(90deg,#f87171,#ef4444); }
+
   /* Mobile improvements */
   @media (max-width:600px) {
     .login-box { width: 92%; padding: 24px; }
@@ -524,20 +531,33 @@ async function previewIssues() {
 function renderPreviewItems(items) {
   const area = document.getElementById('preview-area');
   if (!items.length) { area.innerHTML = '<p style="color:#888">未检测到 F-xxx 项目</p>'; return; }
-  const rows = items.map(it => `
-    <div style="border:1px solid #f0f0f0;padding:10px;border-radius:6px;margin-bottom:8px" data-id="${it.id}">
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
-        <input style="flex:1;padding:6px;border:1px solid #ddd;border-radius:4px" value="${escapeHtml(it.candidate_title)}" data-field="title" />
-        <input style="width:160px;padding:6px;border:1px solid #ddd;border-radius:4px" data-field="labels" value="${(it.labels||[]).join(',')}" />
-        <input style="width:140px;padding:6px;border:1px solid #ddd;border-radius:4px" data-field="assignee" placeholder="Assignee 可选" />
+  const rows = items.map(it => {
+    const moduleBadge = it.module ? `<span style="display:inline-block;background:#e0f2fe;color:#0369a1;font-size:.75rem;padding:2px 8px;border-radius:10px;margin-right:6px">📌 ${escapeHtml(it.module)}</span>` : '';
+    const protoBadge = it.prototype_name && it.prototype_page
+      ? `<a href="prototype/${escapeHtml(it.prototype_page)}" target="_blank" style="display:inline-block;background:#f3e8ff;color:#7c3aed;font-size:.75rem;padding:2px 8px;border-radius:10px;text-decoration:none">📐 ${escapeHtml(it.prototype_name)}</a>`
+      : '';
+    return `
+    <div style="border:1px solid #f0f0f0;padding:10px;border-radius:6px;margin-bottom:8px" data-id="${it.id}" data-module="${escapeHtml(it.module||'')}">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+        <input style="flex:1;min-width:160px;padding:6px;border:1px solid #ddd;border-radius:4px" value="${escapeHtml(it.candidate_title)}" data-field="title" />
+        <input style="width:150px;padding:6px;border:1px solid #ddd;border-radius:4px" data-field="labels" value="${(it.labels||[]).join(',')}" placeholder="标签" />
+        <input style="width:120px;padding:6px;border:1px solid #ddd;border-radius:4px" data-field="assignee" placeholder="Assignee" />
       </div>
-      <pre style="background:#fafafa;padding:8px;border-radius:4px;white-space:pre-wrap">${escapeHtml(it.body||'')}</pre>
-    </div>
-  `).join('');
+      <div style="margin-bottom:4px">${moduleBadge}${protoBadge}</div>
+      <pre style="background:#fafafa;padding:8px;border-radius:4px;white-space:pre-wrap;font-size:.85rem">${escapeHtml(it.body||'')}</pre>
+    </div>`;
+  }).join('');
   area.innerHTML = `
     <div style="margin-bottom:8px">共 ${items.length} 条候选</div>
     ${rows}
-    <div style="display:flex;gap:8px;margin-top:8px">
+    <div style="display:flex;gap:12px;align-items:center;margin-top:8px;flex-wrap:wrap">
+      <label style="font-size:.9rem;color:#555">
+        遇到已存在 Issue：
+        <select id="on-conflict-select" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px">
+          <option value="skip">跳过</option>
+          <option value="update">更新正文</option>
+        </select>
+      </label>
       <button class="btn btn-success" onclick="startCreateFromPreview()">开始批量创建</button>
       <button class="btn btn-outline" onclick="area.innerHTML=''">关闭</button>
     </div>
@@ -563,10 +583,11 @@ async function startCreateFromPreview() {
   const repo = (repoInput && repoInput.value && repoInput.value.trim()) || localStorage.getItem('oa_default_repo') || '';
   if (!repo) { showMsg('issues-msg', '请先设置目标仓库（owner/repo）', 'error'); return; }
   if (!validateRepo(repo)) { showMsg('issues-msg', '仓库格式应为 owner/repo，例如 uwislab/robotics-systems-course', 'error'); return; }
+  const onConflict = (document.getElementById('on-conflict-select')?.value) || 'skip';
   try {
     const r = await fetch(`${API}/api/teacher/issues/create`, {
       method: 'POST', headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type':'application/json'},
-      body: JSON.stringify({repo, items, on_conflict: 'skip'})
+      body: JSON.stringify({repo, items, on_conflict: onConflict})
     });
     if (!r.ok) { const e = await r.json(); showMsg('issues-msg', e.detail||'创建任务失败', 'error'); return; }
     const d = await r.json();
@@ -639,10 +660,53 @@ loadRepoToInput();
 
 async function pollTaskStatus(taskId) {
   const el = document.getElementById('create-progress');
-  const MAX_ATTEMPTS = 50;              // 最多 50 次 ≈ 5 分钟（1.2k+1.8k+…+30k）
-  const BASE_INTERVAL = 1200;           // 初始间隔 1.2s
-  const MAX_INTERVAL = 30000;           // 最大间隔 30s
+  const MAX_ATTEMPTS = 50;
+  const BASE_INTERVAL = 1200;
+  const MAX_INTERVAL = 30000;
   let attempt = 0;
+
+  const statusIcon = { 'created':'✅','updated':'🔄','skipped':'⏭️','failed':'❌','pending':'⏳' };
+  const statusLabel = { 'created':'已创建','updated':'已更新','skipped':'跳过','failed':'失败','pending':'等待中' };
+
+  const render = (d) => {
+    const total = (d.results||[]).length;
+    const created = d.created || 0;
+    const updated = d.updated || 0;
+    const skipped = d.skipped || 0;
+    const failed  = d.failed || 0;
+    const done = created + updated + skipped + failed;
+    const pct = total ? Math.round(done / total * 100) : 0;
+    // Progress bar color
+    let cls = 'progress-fill';
+    if (failed > 0 && done === total) cls += ' has-only-err';
+    else if (failed > 0 || (skipped > 0 && done === total)) cls += ' has-warn';
+    // Item rows
+    const parts = (d.results||[]).map(it => {
+      const icon = statusIcon[it.status] || '❓';
+      const label = statusLabel[it.status] || it.status;
+      let extra = '';
+      if (it.status==='created') extra = ` #${it.number} <a href="${it.url}" target="_blank">查看</a>`;
+      if (it.status==='updated') extra = ` #${it.number} <a href="${it.url}" target="_blank">查看</a>`;
+      if (it.status==='skipped' && it.existing) extra = ` 已存在 <a href="${it.existing.url}" target="_blank">#${it.existing.number}</a>`;
+      if (it.status==='failed') extra = ` ${escapeHtml(it.reason||'')}`;
+      return `<div style="padding:5px 0;border-bottom:1px solid #f3f3f3;font-size:.9rem">${icon} ${escapeHtml(it.title)}${extra}</div>`;
+    }).join('');
+    // Summary counts
+    const counts = [];
+    if (created) counts.push(`✅ 创建 ${created}`);
+    if (updated) counts.push(`🔄 更新 ${updated}`);
+    if (skipped) counts.push(`⏭️ 跳过 ${skipped}`);
+    if (failed)  counts.push(`❌ 失败 ${failed}`);
+    el.innerHTML = `
+      <div class="progress-root"><div class="${cls}" style="width:${pct}%"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:.85rem;color:#555">
+        <span>${pct}% (${done}/${total})</span>
+        <span>${counts.join(' · ')}</span>
+        <span>状态：${d.status||'unknown'}</span>
+      </div>
+      <div style="margin-top:10px">${parts}</div>
+    `;
+  };
 
   const poll = async () => {
     attempt++;
@@ -653,24 +717,12 @@ async function pollTaskStatus(taskId) {
         return;
       }
       const d = await r.json();
-      const parts = (d.results||[]).map(it=>{
-        const status = it.status;
-        let s = `${escapeHtml(it.title)} — ${status}`;
-        if (it.status==='created') s += ` #${it.number} <a href="${it.url}" target="_blank">查看</a>`;
-        if (it.status==='skipped' && it.existing) s += ` 已存在 <a href="${it.existing.url}" target="_blank">#${it.existing.number}</a>`;
-        if (it.status==='failed') s += ` 错误：${escapeHtml(it.reason||'')}`;
-        return `<div style="padding:6px 0;border-bottom:1px solid #f3f3f3">${s}</div>`;
-      }).join('');
-      el.innerHTML = `
-        <div>状态：${d.status || 'unknown'} &nbsp; 已创建:${d.created||0} 跳过:${d.skipped||0} 失败:${d.failed||0}</div>
-        <div style="margin-top:8px">${parts}</div>
-      `;
+      render(d);
       if ((d.status||'') !== 'finished') {
         if (attempt >= MAX_ATTEMPTS) {
           el.innerHTML = '<div class="alert alert-error">⏱ 轮询超时，任务未能按时完成。请稍后刷新页面查看 Issue 是否已创建，或检查后端日志。</div>';
           return;
         }
-        // 指数退避：间隔 *= 1.5，上限 MAX_INTERVAL
         const delay = Math.min(BASE_INTERVAL * Math.pow(1.5, attempt - 1), MAX_INTERVAL);
         setTimeout(poll, delay);
       }

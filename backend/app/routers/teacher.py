@@ -419,6 +419,13 @@ class CreateRequest(BaseModel):
             raise ValueError('仓库格式错误，应为 owner/repo，例如 uwislab/robotics-systems-course')
         return v
 
+    @field_validator('on_conflict')
+    @classmethod
+    def validate_on_conflict(cls, v):
+        if v not in ('skip', 'update'):
+            raise ValueError("on_conflict 必须为 'skip' 或 'update'")
+        return v
+
 
 @router.post('/api/teacher/issues/create')
 def create_issues(req: CreateRequest, authorization: Optional[str] = Header(None)):
