@@ -367,8 +367,8 @@ def export_scores(exam_id: str = Query(...), authorization: Optional[str] = Head
 
 
 class PreviewRequest(BaseModel):
-    content: str = Field(None, description="直接传入 Markdown 内容")
-    doc_path: str = Field(None, description="仓库中文档路径，相对 docs/，例如 'chapter1/需求.md'")
+    content: Optional[str] = Field(None, description="直接传入 Markdown 内容")
+    doc_path: Optional[str] = Field(None, description="仓库中文档路径，相对 docs/，例如 'chapter1/需求.md'")
 
 
 @router.post('/api/teacher/issues/preview')
@@ -377,7 +377,10 @@ def preview_issues(req: PreviewRequest, authorization: Optional[str] = Header(No
     content = req.content
     if not content and req.doc_path:
         docs_dir = os.environ.get('DOCS_DIR', os.path.join(os.path.dirname(__file__), '..', '..', 'docs'))
-        fp = os.path.join(docs_dir, req.doc_path)
+        docs_dir = os.path.realpath(docs_dir)
+        fp = os.path.realpath(os.path.join(docs_dir, req.doc_path))
+        if not fp.startswith(docs_dir + os.sep):
+            raise HTTPException(status_code=403, detail='非法路径：不允许访问 docs/ 以外的文件')
         if not os.path.exists(fp):
             raise HTTPException(status_code=404, detail=f"文档未找到: {req.doc_path}")
         with open(fp, 'r', encoding='utf-8') as f:

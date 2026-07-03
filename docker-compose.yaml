@@ -47,6 +47,7 @@ services:
       - JWT_SECRET=${JWT_SECRET:-please-change-this-secret}
       - DB_PATH=/app/data/exam.db
       - DOCS_DIR=/app/docs
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
     networks:
       - coolify
 
