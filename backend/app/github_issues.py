@@ -8,7 +8,7 @@ from typing import List, Dict, Any
 import requests
 
 # In-memory task store: task_id -> {items: [...], status: {...}}
-# 注意：进程重启后所有任务状态丢失，前端轮询会得到 {'status': 'unknown'}。
+# 注意：进程重启后所有任务状态丢失，后端对未知 task_id 会返回 404（任务未找到或不属于当前会话）。
 # 长期方案应落库到 SQLite（项目已有 database.py 框架）。
 _TASKS: Dict[str, Dict[str, Any]] = {}
 _lock = threading.Lock()
@@ -138,7 +138,7 @@ def parse_markdown_for_features(content: str) -> List[Dict[str, Any]]:
 
 
 def _list_existing_issue_titles(owner: str, repo: str, token: str) -> List[Dict[str, Any]]:
-    headers = {'Authorization': f'token {token}'} if token else {}
+    headers = {'Authorization': f'Bearer {token}'} if token else {}
     per_page = 100
     page = 1
     results = []
@@ -160,7 +160,7 @@ def _list_existing_issue_titles(owner: str, repo: str, token: str) -> List[Dict[
 
 
 def _create_issue(owner: str, repo: str, token: str, title: str, body: str, labels: List[str], assignee: str = None, milestone: int | None = None):
-    headers = {'Authorization': f'token {token}', 'Accept': 'application/vnd.github.v3+json'} if token else {'Accept': 'application/vnd.github.v3+json'}
+    headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.github.v3+json'} if token else {'Accept': 'application/vnd.github.v3+json'}
     url = f'https://api.github.com/repos/{owner}/{repo}/issues'
     payload = {'title': title, 'body': body or ''}
     if labels:
@@ -174,7 +174,7 @@ def _create_issue(owner: str, repo: str, token: str, title: str, body: str, labe
 
 
 def _update_issue(owner: str, repo: str, token: str, number: int, title: str, body: str, labels: List[str], assignee: str = None, milestone: int | None = None):
-    headers = {'Authorization': f'token {token}', 'Accept': 'application/vnd.github.v3+json'} if token else {'Accept': 'application/vnd.github.v3+json'}
+    headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.github.v3+json'} if token else {'Accept': 'application/vnd.github.v3+json'}
     url = f'https://api.github.com/repos/{owner}/{repo}/issues/{number}'
     payload = {'title': title, 'body': body or ''}
     if labels is not None:
@@ -191,7 +191,7 @@ def _ensure_milestone(owner: str, repo: str, token: str, name: str) -> int | Non
     """Find or create a milestone by name, return its number (or None on failure)."""
     if not name:
         return None
-    headers = {'Authorization': f'token {token}', 'Accept': 'application/vnd.github.v3+json'} if token else {'Accept': 'application/vnd.github.v3+json'}
+    headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.github.v3+json'} if token else {'Accept': 'application/vnd.github.v3+json'}
     # List existing milestones (open + closed)
     for state in ('all',):
         url = f'https://api.github.com/repos/{owner}/{repo}/milestones?state={state}&per_page=100'

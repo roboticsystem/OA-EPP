@@ -395,6 +395,9 @@ def preview_issues(req: PreviewRequest, authorization: Optional[str] = Header(No
             'candidate_title': it['candidate_title'],
             'labels': it['labels'],
             'body': it['body'],
+            'module': it.get('module', ''),
+            'prototype_page': it.get('prototype_page', ''),
+            'prototype_name': it.get('prototype_name', ''),
         })
     return {'items': out}
 
@@ -405,6 +408,7 @@ class CreateItem(BaseModel):
     labels: Optional[List[str]] = None
     assignee: Optional[str] = None
     body: Optional[str] = None
+    module: Optional[str] = None
 
 
 class CreateRequest(BaseModel):
@@ -430,21 +434,30 @@ class CreateRequest(BaseModel):
 @router.post('/api/teacher/issues/create')
 def create_issues(req: CreateRequest, authorization: Optional[str] = Header(None)):
     payload = _require_teacher(authorization)
+    owner_sub = payload.get('sub')
+    if not owner_sub:
+        raise HTTPException(status_code=401, detail='无效的登录凭证：缺少 sub 声明')
     token = os.environ.get('GITHUB_TOKEN')
     if not token:
         raise HTTPException(status_code=500, detail='服务器未配置 GITHUB_TOKEN，请在环境变量中添加')
     # convert items to plain dicts
     items = []
     for it in req.items:
-        items.append({'id': it.id, 'title': it.title, 'labels': it.labels or [], 'assignee': it.assignee, 'body': it.body})
-    task_id = start_create_task(items, req.repo, token, payload.get('sub'), req.on_conflict)
+        items.append({'id': it.id, 'title': it.title, 'labels': it.labels or [], 'assignee': it.assignee, 'body': it.body, 'module': it.module or ''})
+    task_id = start_create_task(items, req.repo, token, owner_sub, req.on_conflict)
     return {'task_id': task_id}
 
 
 @router.get('/api/teacher/issues/task/{task_id}')
 def issues_task_status(task_id: str, authorization: Optional[str] = Header(None)):
     payload = _require_teacher(authorization)
-    result = get_task_status(task_id, payload.get('sub'))
+    owner_sub = payload.get('sub')
+    if not owner_sub:
+        raise HTTPException(status_code=401, detail='无效的登录凭证：缺少 sub 声明')
+    result = get_task_status(task_id, owner_sub)
     if result is None:
         raise HTTPException(status_code=404, detail='任务未找到或不属于当前会话')
-    return result
+    # 浅拷贝后移除内部鉴权字段，不污染内存中的原始记录
+    safe = dict(result)
+    safe.pop('owner_sub', None)
+    return safe

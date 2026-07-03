@@ -576,7 +576,8 @@ async function startCreateFromPreview() {
     title: node.querySelector('[data-field="title"]').value.trim(),
     labels: node.querySelector('[data-field="labels"]').value.split(',').map(s=>s.trim()).filter(Boolean),
     assignee: node.querySelector('[data-field="assignee"]').value.trim() || null,
-    body: node.querySelector('pre').innerText || ''
+    body: node.querySelector('pre').innerText || '',
+    module: node.getAttribute('data-module') || ''
   }));
   // 首先尝试从输入框或 localStorage 获取 repo
   const repoInput = document.getElementById('issues-repo');
