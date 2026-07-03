@@ -27,3 +27,4 @@ from .database import (
     GithubBinding,
     CommitlintConfig,
 )
+from .gh_quicklink import GHSLink  # noqa: E402, F401
