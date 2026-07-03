@@ -10,8 +10,15 @@ try:
 except Exception:
     rx = None
 
-from oaepp.database import db
-from oaepp.constants import SCORE_TYPES
+try:
+    from oaepp.database import db
+except ImportError:
+    from database import db
+
+try:
+    from oaepp.constants import SCORE_TYPES
+except ImportError:
+    from constants import SCORE_TYPES
 
 DIMENSION_LABELS = {
     "attendance": "出勤",
