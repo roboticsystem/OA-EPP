@@ -329,6 +329,17 @@ class PrRecord(SQLModel, table=True):
     merged_at: Optional[datetime] = Field(default=None)
 
 
+class CourseIssuePrConfig(SQLModel, table=True):
+    """课程 Issue-PR 规则配置 — 映射到 course_issue_pr_configs 表"""
+    __tablename__ = "course_issue_pr_configs"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    course_id: int = Field(unique=True, foreign_key="courses.id")
+    rule_enabled: bool = Field(default=True)
+    updated_by: int = Field(foreign_key="users.id")
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+
 class CommitlintConfig(SQLModel, table=True):
     """Commitlint 配置 — 映射到 commitlint_configs 表"""
     __tablename__ = "commitlint_configs"

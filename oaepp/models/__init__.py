@@ -26,4 +26,5 @@ from .database import (
     PrRecord,
     GithubBinding,
     CommitlintConfig,
+    CourseIssuePrConfig,
 )
