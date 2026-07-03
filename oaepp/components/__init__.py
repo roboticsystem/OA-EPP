@@ -2,13 +2,7 @@
 
 学生用法：
     from oaepp.components.layout import page_layout
-    from oaepp.components.common import (
-        stat_card, empty_state, loading_spinner,
-        connection_banner, network_status_icon,
-    )
+    from oaepp.components.common import stat_card, empty_state, loading_spinner
 """
 from .layout import page_layout
-from .common import (
-    stat_card, empty_state, loading_spinner, data_table,
-    connection_banner, network_status_icon,
-)
+from .common import stat_card, empty_state, loading_spinner, data_table
