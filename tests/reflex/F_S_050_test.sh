@@ -29,7 +29,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 echo ""
 echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BOLD}${CYAN}║   F-S-050  响应式布局 & 网络韧性 — 自动化测试             ║${NC}"
-echo -e "${BOLD}${CYAN}║   分支: F_S_050  关联: #19                                  ║${NC}"
+echo -e "${BOLD}${CYAN}║   分支: feature/廖荣登-响应式布局  关联: #19               ║${NC}"
 echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
@@ -112,9 +112,9 @@ echo ""
 if "$PYTHON" -m pytest tests/reflex/test_F_S_050_responsive.py \
     -v --tb=short --no-header \
     --rootdir="${PROJECT_ROOT}/tests/reflex" 2>&1; then
-    PASS_COUNT=$((PASS_COUNT + 3))
+    PASS_COUNT=$((PASS_COUNT + 5))
     echo ""
-    echo -e "    ${GREEN}${BOLD}🟢 F_S_050 全部通过 (3/3)${NC}"
+    echo -e "    ${GREEN}${BOLD}🟢 F_S_050 全部通过 (5/5)${NC}"
 else
     FAIL_COUNT=$((FAIL_COUNT + 1))
     FAILED_TESTS="$FAILED_TESTS  - F_S_050_responsive\n"

@@ -18,7 +18,7 @@ $ProjectRoot = Resolve-Path "$ScriptDir\..\.."
 Write-Host ""
 Write-Host "╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
 Write-Host "║   F-S-050  响应式布局 & 网络韧性 — 自动化测试             ║" -ForegroundColor Cyan
-Write-Host "║   分支: F_S_050  关联: #19                                  ║" -ForegroundColor Cyan
+Write-Host "║   分支: feature/廖荣登-响应式布局  关联: #19               ║" -ForegroundColor Cyan
 Write-Host "╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 
@@ -116,9 +116,9 @@ Write-Host "  测试组 1: F_S_050 响应式布局" -ForegroundColor White
 Write-Host ""
 & $Python -m pytest "$TestRoot\test_F_S_050_responsive.py" -v --tb=short --no-header --rootdir="$TestRoot" 2>&1
 if ($LASTEXITCODE -eq 0) {
-    $PassCount += 3
+    $PassCount += 5
     Write-Host ""
-    Write-Host "    🟢 F_S_050 全部通过 (3/3)" -ForegroundColor Green
+    Write-Host "    🟢 F_S_050 全部通过 (5/5)" -ForegroundColor Green
 } else {
     $FailCount += 1
 }
