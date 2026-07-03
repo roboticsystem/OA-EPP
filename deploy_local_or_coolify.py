@@ -268,6 +268,9 @@ def serve_local():
     try:
         env = os.environ.copy()
         env.setdefault("NO_MKDOCS_2_WARNING", "1")
+        # Ensure Python uses UTF-8 mode so mkdocs plugins that read UTF-8 assets
+        # don't fail on Windows with a legacy locale (GBK).
+        env.setdefault("PYTHONUTF8", "1")
         subprocess.run(
             ["mkdocs", "serve", "-a", f"{HOST}:{MKDOCS_PORT}", "--open", "--watch-theme"],
             env=env, check=True, cwd=str(REPO_ROOT),

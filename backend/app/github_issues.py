@@ -38,11 +38,11 @@ def parse_markdown_for_features(content: str) -> List[Dict[str, Any]]:
             candidate_title = raw + ((' - ' + rest) if rest else '')
             prefix = raw.split('-')[0] + '-' + raw.split('-')[1] if len(raw.split('-'))>=2 else raw
             labels = [_label_from_prefix(prefix)]
-            # collect following paragraph as body until next blank line or heading
+            # collect body until next heading or end of document
             body_lines = []
-            for j in range(i+1, min(i+20, len(lines))):
+            for j in range(i+1, len(lines)):
                 nl = lines[j]
-                if nl.strip().startswith('#') and j!=i+1:
+                if nl.strip().startswith('#'):
                     break
                 if nl.strip() == '':
                     if body_lines:

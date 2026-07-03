@@ -13,7 +13,8 @@ from pypinyin import lazy_pinyin, Style
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from fastapi import BackgroundTasks
-from pydantic import Field
+from pydantic import Field, field_validator
+import re
 from app.github_issues import parse_markdown_for_features, start_create_task, get_task_status
 import json
 
@@ -30,6 +31,36 @@ def _require_teacher(authorization: Optional[str]):
         verify_teacher_token(token)
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
+
+
+class ConfigItem(BaseModel):
+    key: str
+    value: Optional[str] = None
+
+
+@router.get('/api/teacher/config')
+def get_config_item(key: Optional[str] = None, authorization: Optional[str] = Header(None)):
+    """获取配置信息；不传 key 返回全部配置"""
+    _require_teacher(authorization)
+    with db() as conn:
+        if key:
+            row = conn.execute('SELECT value FROM config WHERE key=?', (key,)).fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail='配置未找到')
+            return {'key': key, 'value': row['value']}
+        rows = conn.execute('SELECT key, value FROM config').fetchall()
+    return {r['key']: r['value'] for r in rows}
+
+
+@router.post('/api/teacher/config')
+def set_config_item(item: ConfigItem, authorization: Optional[str] = Header(None)):
+    """设置单个配置项（插入或更新）"""
+    _require_teacher(authorization)
+    if not item.key:
+        raise HTTPException(status_code=422, detail='key 不能为空')
+    with db() as conn:
+        conn.execute('INSERT OR REPLACE INTO config (key, value) VALUES (?,?)', (item.key, item.value))
+    return {'ok': True, 'key': item.key, 'value': item.value}
 
 
 def _name_to_pinyin(name: str):
@@ -378,6 +409,13 @@ class CreateRequest(BaseModel):
     repo: str
     items: List[CreateItem]
     on_conflict: str = 'skip'
+
+    @field_validator('repo')
+    @classmethod
+    def validate_repo_format(cls, v):
+        if not re.match(r'^[\w.-]+/[\w.-]+$', v):
+            raise ValueError('仓库格式错误，应为 owner/repo，例如 uwislab/robotics-systems-course')
+        return v
 
 
 @router.post('/api/teacher/issues/create')

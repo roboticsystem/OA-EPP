@@ -76,6 +76,17 @@
   .confirm-dialog p { color: #666; font-size: .9rem; margin-bottom: 20px; line-height: 1.6; }
   .confirm-dialog .btn-row { display: flex; gap: 10px; justify-content: center; }
   #app { display: none; }
+  /* Issues card repo input styling */
+  .repo-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  .repo-row input { flex:1; padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.95rem; }
+  .repo-row button { padding:8px 12px; border-radius:6px; }
+  /* Mobile improvements */
+  @media (max-width:600px) {
+    .login-box { width: 92%; padding: 24px; }
+    .repo-row { flex-direction: column; align-items: stretch; }
+    .repo-row button { width: 100%; }
+    .card-title, .card-body { padding-left:12px; padding-right:12px; }
+  }
 </style>
 </head>
 <body>
@@ -90,12 +101,23 @@
     <button class="btn btn-primary btn-full" onclick="doLogin()">登 录</button>
   </div>
 </div>
+<!-- 主界面 -->
+<div id="app">
+  <div class="header">
+    <h1>🎓 教师管理后台 — 研究生课程《机器人系统》</h1>
+    <button onclick="logout()">退出登录</button>
+  </div>
+  <div class="container">
 
-    <!-- 需求转 GitHub Issues -->
+    <!-- 需求转 GitHub Issues（教师功能：仅在登录后可见） -->
     <div class="card">
       <div class="card-title">🔀 需求转 GitHub Issues（上传 Markdown 预览）</div>
       <div class="card-body">
         <div id="issues-msg"></div>
+        <div class="repo-row">
+          <input type="text" id="issues-repo" placeholder="目标仓库 owner/repo（将保存在本地）" aria-label="目标仓库" />
+          <button class="btn btn-outline btn-sm" id="save-repo-btn">保存默认</button>
+        </div>
         <p style="font-size:.88rem;color:#888;margin-bottom:12px">上传包含 F-xxx 标识的 Markdown 文件，系统将解析出候选 Issue。</p>
         <input type="file" id="md-file" accept=".md" />
         <div style="margin-top:12px;display:flex;gap:8px">
@@ -106,13 +128,8 @@
       </div>
     </div>
 
-<!-- 主界面 -->
-<div id="app">
-  <div class="header">
-    <h1>🎓 教师管理后台 — 研究生课程《机器人系统》</h1>
-    <button onclick="logout()">退出登录</button>
-  </div>
-  <div class="container">
+
+    
 
     <!-- 上传名单 -->
     <div class="card">
@@ -541,8 +558,11 @@ async function startCreateFromPreview() {
     assignee: node.querySelector('[data-field="assignee"]').value.trim() || null,
     body: node.querySelector('pre').innerText || ''
   }));
-  const repo = prompt('请输入目标仓库（owner/repo），例如 uwislab/robotics-systems-course');
-  if (!repo) return;
+  // 首先尝试从输入框或 localStorage 获取 repo
+  const repoInput = document.getElementById('issues-repo');
+  const repo = (repoInput && repoInput.value && repoInput.value.trim()) || localStorage.getItem('oa_default_repo') || '';
+  if (!repo) { showMsg('issues-msg', '请先设置目标仓库（owner/repo）', 'error'); return; }
+  if (!validateRepo(repo)) { showMsg('issues-msg', '仓库格式应为 owner/repo，例如 uwislab/robotics-systems-course', 'error'); return; }
   try {
     const r = await fetch(`${API}/api/teacher/issues/create`, {
       method: 'POST', headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type':'application/json'},
@@ -555,6 +575,67 @@ async function startCreateFromPreview() {
     pollTaskStatus(taskId);
   } catch(e){ showMsg('issues-msg', '网络错误：'+e, 'error'); }
 }
+
+// 仓库相关工具函数：校验、保存、加载
+function validateRepo(repo){
+  // 简单校验 owner/repo，允许字母数字、下划线、点和短横线
+  return /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(repo.trim());
+}
+
+function saveRepoToLocal(repo){
+  // 若已登录，优先保存到后端配置；否则回退到 localStorage
+  if (TOKEN) {
+    fetch(`${API}/api/teacher/config`, {
+      method: 'POST', headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type':'application/json'},
+      body: JSON.stringify({key: 'default_repo', value: repo.trim()})
+    }).then(r=>{
+      if (!r.ok) return r.json().then(e=>{ throw new Error(e.detail||'保存失败'); });
+      localStorage.setItem('oa_default_repo', repo.trim());
+      showMsg('issues-msg', '默认目标仓库已保存到服务器', 'success');
+    }).catch(e=>{ showMsg('issues-msg', '保存到服务器失败：'+e, 'error'); });
+  } else {
+    try{ localStorage.setItem('oa_default_repo', repo.trim()); showMsg('issues-msg', '默认目标仓库已保存（仅本地）', 'success'); }
+    catch(e){ showMsg('issues-msg', '保存失败：' + e, 'error'); }
+  }
+}
+
+function loadRepoToInput(){
+  const el = document.getElementById('issues-repo');
+  if (!el) return;
+  // 若已登录，先尝试从后端读取配置
+  if (TOKEN) {
+    fetch(`${API}/api/teacher/config?key=default_repo`, { headers: {'Authorization': `Bearer ${TOKEN}`} })
+      .then(r=>{
+        if (!r.ok) return null;
+        return r.json();
+      }).then(d=>{
+        if (d && d.value) { el.value = d.value; localStorage.setItem('oa_default_repo', d.value); }
+        else {
+          const repo = localStorage.getItem('oa_default_repo') || '';
+          if (repo) el.value = repo;
+        }
+      }).catch(()=>{
+        const repo = localStorage.getItem('oa_default_repo') || '';
+        if (repo) el.value = repo;
+      });
+  } else {
+    const repo = localStorage.getItem('oa_default_repo') || '';
+    if (repo) el.value = repo;
+  }
+}
+
+// 绑定保存按钮
+document.getElementById('save-repo-btn').addEventListener('click', ()=>{
+  const el = document.getElementById('issues-repo');
+  if (!el) return;
+  const v = el.value.trim();
+  if (!v) { showMsg('issues-msg','仓库不能为空','error'); return; }
+  if (!validateRepo(v)) { showMsg('issues-msg','仓库格式错误，应为 owner/repo','error'); return; }
+  saveRepoToLocal(v);
+});
+
+// 页面加载时填充
+loadRepoToInput();
 
 async function pollTaskStatus(taskId) {
   const el = document.getElementById('create-progress');

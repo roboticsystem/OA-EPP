@@ -54,5 +54,11 @@ def init_db():
             submitted_at TEXT DEFAULT (datetime('now','localtime')),
             UNIQUE(student_id, exam_id)
         );
+        
+        -- 简单的键值配置表，用于存储教师级别配置（如默认目标仓库）
+        CREATE TABLE IF NOT EXISTS config (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        );
         """)
         # 考试记录由 sync_exams() 根据 .md 文件动态维护，此处不再硬编码预置
