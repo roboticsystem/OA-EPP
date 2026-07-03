@@ -12,11 +12,9 @@ from app.sync_exams import sync_exams
 from pypinyin import lazy_pinyin, Style
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
-from fastapi import BackgroundTasks
 from pydantic import Field, field_validator
 import re
 from app.github_issues import parse_markdown_for_features, start_create_task, get_task_status
-import json
 
 router = APIRouter()
 
@@ -422,7 +420,7 @@ class CreateRequest(BaseModel):
 
 
 @router.post('/api/teacher/issues/create')
-def create_issues(req: CreateRequest, background_tasks: BackgroundTasks, authorization: Optional[str] = Header(None)):
+def create_issues(req: CreateRequest, authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
     token = os.environ.get('GITHUB_TOKEN')
     if not token:
