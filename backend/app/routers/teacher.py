@@ -1,5 +1,6 @@
 import os
 import io
+import uuid
 import chardet
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Header, UploadFile, File, Query
@@ -21,12 +22,12 @@ router = APIRouter()
 TEACHER_PASSWORD = os.environ.get("TEACHER_PASSWORD", "admin123")
 
 
-def _require_teacher(authorization: Optional[str]):
+def _require_teacher(authorization: Optional[str]) -> dict:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="请先登录")
     token = authorization.removeprefix("Bearer ").strip()
     try:
-        verify_teacher_token(token)
+        return verify_teacher_token(token)
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
 
@@ -75,7 +76,7 @@ class LoginRequest(BaseModel):
 def teacher_login(req: LoginRequest):
     if req.password != TEACHER_PASSWORD:
         raise HTTPException(status_code=401, detail="密码错误")
-    token = create_token({"role": "teacher"}, expires_hours=8)
+    token = create_token({"role": "teacher", "sub": str(uuid.uuid4())}, expires_hours=8)
     return {"token": token}
 
 
@@ -421,7 +422,7 @@ class CreateRequest(BaseModel):
 
 @router.post('/api/teacher/issues/create')
 def create_issues(req: CreateRequest, authorization: Optional[str] = Header(None)):
-    _require_teacher(authorization)
+    payload = _require_teacher(authorization)
     token = os.environ.get('GITHUB_TOKEN')
     if not token:
         raise HTTPException(status_code=500, detail='服务器未配置 GITHUB_TOKEN，请在环境变量中添加')
@@ -429,11 +430,14 @@ def create_issues(req: CreateRequest, authorization: Optional[str] = Header(None
     items = []
     for it in req.items:
         items.append({'id': it.id, 'title': it.title, 'labels': it.labels or [], 'assignee': it.assignee, 'body': it.body})
-    task_id = start_create_task(items, req.repo, token, req.on_conflict)
+    task_id = start_create_task(items, req.repo, token, payload.get('sub'), req.on_conflict)
     return {'task_id': task_id}
 
 
 @router.get('/api/teacher/issues/task/{task_id}')
 def issues_task_status(task_id: str, authorization: Optional[str] = Header(None)):
-    _require_teacher(authorization)
-    return get_task_status(task_id)
+    payload = _require_teacher(authorization)
+    result = get_task_status(task_id, payload.get('sub'))
+    if result is None:
+        raise HTTPException(status_code=404, detail='任务未找到或不属于当前会话')
+    return result

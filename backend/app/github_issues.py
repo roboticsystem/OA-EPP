@@ -110,12 +110,12 @@ def _update_issue(owner: str, repo: str, token: str, number: int, title: str, bo
     return r
 
 
-def start_create_task(items: List[Dict[str, Any]], repo_full: str, token: str, on_conflict: str = 'skip') -> str:
+def start_create_task(items: List[Dict[str, Any]], repo_full: str, token: str, owner_sub: str, on_conflict: str = 'skip') -> str:
     """Start background task to create issues. Returns task_id."""
     task_id = str(uuid.uuid4())
     owner, repo = repo_full.split('/', 1)
     with _lock:
-        _TASKS[task_id] = {'items': [], 'status': 'running', 'created': 0, 'skipped': 0, 'failed': 0, 'results': []}
+        _TASKS[task_id] = {'items': [], 'status': 'running', 'created': 0, 'skipped': 0, 'failed': 0, 'results': [], 'owner_sub': owner_sub}
 
     def _worker():
         try:
@@ -173,11 +173,10 @@ def start_create_task(items: List[Dict[str, Any]], repo_full: str, token: str, o
     return task_id
 
 
-def get_task_status(task_id: str) -> Dict[str, Any]:
-    """返回任务状态。
-
-    注意：任务状态仅保存在内存中，进程重启后返回 {'status': 'unknown'}。
-    长期方案应落库到 SQLite（参见 project 已有 database.py 框架）。
-    """
+def get_task_status(task_id: str, owner_sub: str) -> Dict[str, Any] | None:
+    """返回任务状态；任务不存在或不属于 owner_sub 时返回 None。"""
     with _lock:
-        return _TASKS.get(task_id, {'status': 'unknown'})
+        task = _TASKS.get(task_id)
+        if task is None or task.get('owner_sub') != owner_sub:
+            return None
+        return task
