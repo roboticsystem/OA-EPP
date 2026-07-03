@@ -639,11 +639,19 @@ loadRepoToInput();
 
 async function pollTaskStatus(taskId) {
   const el = document.getElementById('create-progress');
-  const interval = 1200;
+  const MAX_ATTEMPTS = 50;              // 最多 50 次 ≈ 5 分钟（1.2k+1.8k+…+30k）
+  const BASE_INTERVAL = 1200;           // 初始间隔 1.2s
+  const MAX_INTERVAL = 30000;           // 最大间隔 30s
+  let attempt = 0;
+
   const poll = async () => {
+    attempt++;
     try {
       const r = await fetch(`${API}/api/teacher/issues/task/${taskId}`, { headers: {'Authorization': `Bearer ${TOKEN}`} });
-      if (!r.ok) { el.innerHTML = '<div class="alert alert-error">获取任务状态失败</div>'; return; }
+      if (!r.ok) {
+        el.innerHTML = `<div class="alert alert-error">获取任务状态失败（HTTP ${r.status}）</div>`;
+        return;
+      }
       const d = await r.json();
       const parts = (d.results||[]).map(it=>{
         const status = it.status;
@@ -657,8 +665,24 @@ async function pollTaskStatus(taskId) {
         <div>状态：${d.status || 'unknown'} &nbsp; 已创建:${d.created||0} 跳过:${d.skipped||0} 失败:${d.failed||0}</div>
         <div style="margin-top:8px">${parts}</div>
       `;
-      if ((d.status||'') !== 'finished') setTimeout(poll, interval);
-    } catch(e) { el.innerHTML = '<div class="alert alert-error">轮询出错：'+e+'</div>'; }
+      if ((d.status||'') !== 'finished') {
+        if (attempt >= MAX_ATTEMPTS) {
+          el.innerHTML = '<div class="alert alert-error">⏱ 轮询超时，任务未能按时完成。请稍后刷新页面查看 Issue 是否已创建，或检查后端日志。</div>';
+          return;
+        }
+        // 指数退避：间隔 *= 1.5，上限 MAX_INTERVAL
+        const delay = Math.min(BASE_INTERVAL * Math.pow(1.5, attempt - 1), MAX_INTERVAL);
+        setTimeout(poll, delay);
+      }
+    } catch(e) {
+      const delay = Math.min(BASE_INTERVAL * Math.pow(1.5, attempt), MAX_INTERVAL);
+      if (attempt >= MAX_ATTEMPTS) {
+        el.innerHTML = '<div class="alert alert-error">⏱ 网络请求持续失败，已停止轮询。请稍后刷新页面重试。</div>';
+      } else {
+        el.innerHTML = `<div class="alert alert-warning">网络请求异常：${escapeHtml(e.message||e)}，${Math.round(delay/1000)}s 后重试（第 ${attempt}/${MAX_ATTEMPTS} 次）</div>`;
+        setTimeout(poll, delay);
+      }
+    }
   };
   poll();
 }
