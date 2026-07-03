@@ -8,7 +8,10 @@ from typing import List, Dict, Any
 import requests
 
 # In-memory task store: task_id -> {items: [...], status: {...}}
+# 注意：进程重启后所有任务状态丢失，前端轮询会得到 {'status': 'unknown'}。
+# 长期方案应落库到 SQLite（项目已有 database.py 框架）。
 _TASKS: Dict[str, Dict[str, Any]] = {}
+_lock = threading.Lock()
 
 
 def _label_from_prefix(tag: str) -> str:
@@ -111,7 +114,8 @@ def start_create_task(items: List[Dict[str, Any]], repo_full: str, token: str, o
     """Start background task to create issues. Returns task_id."""
     task_id = str(uuid.uuid4())
     owner, repo = repo_full.split('/', 1)
-    _TASKS[task_id] = {'items': [], 'status': 'running', 'created': 0, 'skipped': 0, 'failed': 0, 'results': []}
+    with _lock:
+        _TASKS[task_id] = {'items': [], 'status': 'running', 'created': 0, 'skipped': 0, 'failed': 0, 'results': []}
 
     def _worker():
         try:
@@ -122,37 +126,47 @@ def start_create_task(items: List[Dict[str, Any]], repo_full: str, token: str, o
 
         for it in items:
             rec = {'id': it.get('id'), 'title': it.get('title'), 'status': 'pending'}
-            _TASKS[task_id]['items'].append(rec)
+            with _lock:
+                _TASKS[task_id]['items'].append(rec)
+
             # conflict check
             if it.get('title') in existing_map:
-                rec['status'] = 'skipped'
-                rec['reason'] = 'exists'
-                rec['existing'] = existing_map[it.get('title')]
-                _TASKS[task_id]['skipped'] += 1
-                _TASKS[task_id]['results'].append(rec)
+                with _lock:
+                    rec['status'] = 'skipped'
+                    rec['reason'] = 'exists'
+                    rec['existing'] = existing_map[it.get('title')]
+                    _TASKS[task_id]['skipped'] += 1
+                    _TASKS[task_id]['results'].append(rec)
                 continue
+
             # create
             try:
                 r = _create_issue(owner, repo, token, it.get('title'), it.get('body'), it.get('labels', []), it.get('assignee'))
                 if r.status_code in (200, 201):
                     data = r.json()
-                    rec['status'] = 'created'
-                    rec['number'] = data.get('number')
-                    rec['url'] = data.get('html_url')
-                    _TASKS[task_id]['created'] += 1
+                    with _lock:
+                        rec['status'] = 'created'
+                        rec['number'] = data.get('number')
+                        rec['url'] = data.get('html_url')
+                        _TASKS[task_id]['created'] += 1
                 else:
-                    rec['status'] = 'failed'
-                    rec['reason'] = f'{r.status_code} {r.text[:200]}'
-                    _TASKS[task_id]['failed'] += 1
-                _TASKS[task_id]['results'].append(rec)
+                    with _lock:
+                        rec['status'] = 'failed'
+                        rec['reason'] = f'{r.status_code} {r.text[:200]}'
+                        _TASKS[task_id]['failed'] += 1
+                with _lock:
+                    _TASKS[task_id]['results'].append(rec)
             except Exception as e:
-                rec['status'] = 'failed'
-                rec['reason'] = str(e)
-                _TASKS[task_id]['failed'] += 1
-                _TASKS[task_id]['results'].append(rec)
+                with _lock:
+                    rec['status'] = 'failed'
+                    rec['reason'] = str(e)
+                    _TASKS[task_id]['failed'] += 1
+                    _TASKS[task_id]['results'].append(rec)
             # small delay to be nice to API
             time.sleep(0.2)
-        _TASKS[task_id]['status'] = 'finished'
+
+        with _lock:
+            _TASKS[task_id]['status'] = 'finished'
 
     th = threading.Thread(target=_worker, daemon=True)
     th.start()
@@ -160,4 +174,10 @@ def start_create_task(items: List[Dict[str, Any]], repo_full: str, token: str, o
 
 
 def get_task_status(task_id: str) -> Dict[str, Any]:
-    return _TASKS.get(task_id, {'status': 'unknown'})
+    """返回任务状态。
+
+    注意：任务状态仅保存在内存中，进程重启后返回 {'status': 'unknown'}。
+    长期方案应落库到 SQLite（参见 project 已有 database.py 框架）。
+    """
+    with _lock:
+        return _TASKS.get(task_id, {'status': 'unknown'})
