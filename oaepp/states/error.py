@@ -52,3 +52,21 @@ if rx is not None:
             """
             self.has_error = False
             self.error_message = ""
+
+        # ── 网络状态管理 ──
+
+        def set_online(self):
+            """标记网络在线。
+
+            由前端 online 事件触发（参见 components/responsive.py 中的
+            _NETWORK_MONITOR_SCRIPT）。
+            """
+            self.network_online = True
+
+        def set_offline(self):
+            """标记网络离线。
+
+            由前端 offline 事件触发（参见 components/responsive.py 中的
+            _NETWORK_MONITOR_SCRIPT）。
+            """
+            self.network_online = False
