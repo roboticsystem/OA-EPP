@@ -16,15 +16,19 @@
   - 支持按工程实践 1-4 筛选
 """
 
-from __future__ import annotations
-
 import logging
 from datetime import datetime
 from typing import Any, Dict, List
 
-import reflex as rx
+try:
+    import reflex as rx
+except Exception:
+    rx = None
 
-from oaepp.database import db_sync
+try:
+    from oaepp.database import db_sync
+except Exception:
+    db_sync = None
 
 logger = logging.getLogger("oaepp.states.score_dashboard")
 
@@ -181,11 +185,10 @@ class ScoreDashboardState(rx.State):
 
     def on_mount(self):
         """页面挂载时加载课程列表和初始数据。"""
-        # 尝试从 GlobalState 获取当前登录学生信息
+        # 从 GlobalState 获取当前登录学生信息
         try:
-            gs = self.get_state(
-                __import__("oaepp.states", fromlist=["GlobalState"]).GlobalState
-            )
+            from oaepp.states import GlobalState
+            gs = self.get_state(GlobalState)
         except Exception:
             gs = None
 

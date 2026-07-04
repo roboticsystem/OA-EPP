@@ -11,9 +11,10 @@
   - 支持按工程实践 1-4 筛选
 """
 
-from __future__ import annotations
-
-import reflex as rx
+try:
+    import reflex as rx
+except Exception:
+    rx = None
 
 from oaepp.components.layout import page_layout
 from oaepp.states.score_dashboard import (
