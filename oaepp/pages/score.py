@@ -108,16 +108,16 @@ if rx is not None:
                 AuthState.is_authenticated,
                 rx.vstack(
                     rx.heading(
-                        f"{AuthState.current_full_name} 的综合成绩",
+                        rx.text(AuthState.current_full_name, " 的综合成绩"),
                         size="4",
                     ),
                     rx.text(
-                        f"学号: {AuthState.current_student_no}",
+                        rx.text("学号: ", AuthState.current_student_no),
                         color="gray",
                         size="2",
                     ),
                     rx.heading(
-                        f"总分: {ScoreState.total_score}",
+                        rx.text("总分: ", ScoreState.total_score),
                         size="3",
                     ),
                     _dimension_cards(),
@@ -137,6 +137,7 @@ if rx is not None:
                 ),
             ),
             width="100%", max_width="1200px", margin="0 auto", spacing="4",
+            on_mount=ScoreState.load_scores,
         )
         return page_layout(title="成绩看板", content=content)
 

@@ -28,8 +28,6 @@ DIMENSION_LABELS = {
 }
 DEFAULT_WEIGHTS = {"attendance": 20, "exam": 30, "code": 30, "pr": 20}
 
-_base = 57
-
 
 def _fetch_scores(user_id: int) -> dict:
     """同步查询数据库，返回成绩数据。"""
@@ -121,23 +119,21 @@ def _fetch_scores(user_id: int) -> dict:
 
 _Base = rx.State if rx is not None else object
 
-_init = _fetch_scores(_base) if rx is not None else {}
-
 
 class ScoreState(_Base):
     """成绩实时统计 State"""
 
-    attendance_score: float = _init.get("attendance_score", 0.0)
-    exam_score: float = _init.get("exam_score", 0.0)
-    code_score: float = _init.get("code_score", 0.0)
-    pr_score: float = _init.get("pr_score", 0.0)
-    total_score: float = _init.get("total_score", 0.0)
-    current_user_id: Optional[int] = _base
+    attendance_score: float = 0.0
+    exam_score: float = 0.0
+    code_score: float = 0.0
+    pr_score: float = 0.0
+    total_score: float = 0.0
+    current_user_id: Optional[int] = 0
 
-    student_info: dict = _init.get("student", {})
-    course_info: dict = _init.get("course", {})
-    weights: dict = _init.get("weights", {})
-    dimensions: dict = _init.get("dimensions", {})
+    student_info: dict = {}
+    course_info: dict = {}
+    weights: dict = {}
+    dimensions: dict = {}
     is_loading: bool = False
 
     def on_mount(self):
@@ -146,21 +142,10 @@ class ScoreState(_Base):
         self.is_loading = False
 
     def load_scores(self):
-        data = _fetch_scores(self.current_user_id or _base)
-        if not data:
+        uid = self.current_user_id
+        if not uid:
             return
-        self.attendance_score = data["attendance_score"]
-        self.exam_score = data["exam_score"]
-        self.code_score = data["code_score"]
-        self.pr_score = data["pr_score"]
-        self.total_score = data["total_score"]
-        self.weights = data["weights"]
-        self.dimensions = data["dimensions"]
-        self.student_info = data["student"]
-        self.course_info = data["course"]
-
-    def _load_from_db_sync(self):
-        data = _fetch_scores(self.current_user_id or _base)
+        data = _fetch_scores(uid)
         if not data:
             return
         self.attendance_score = data["attendance_score"]
