@@ -1,6 +1,5 @@
 import os
 import io
-import uuid
 import chardet
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Header, UploadFile, File, Query
@@ -13,53 +12,24 @@ from app.sync_exams import sync_exams
 from pypinyin import lazy_pinyin, Style
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
-from pydantic import Field, field_validator
-import re
+from fastapi import BackgroundTasks
+from pydantic import Field
 from app.github_issues import parse_markdown_for_features, start_create_task, get_task_status
+import json
 
 router = APIRouter()
 
 TEACHER_PASSWORD = os.environ.get("TEACHER_PASSWORD", "admin123")
 
 
-def _require_teacher(authorization: Optional[str]) -> dict:
+def _require_teacher(authorization: Optional[str]):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="请先登录")
     token = authorization.removeprefix("Bearer ").strip()
     try:
-        return verify_teacher_token(token)
+        verify_teacher_token(token)
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
-
-
-class ConfigItem(BaseModel):
-    key: str
-    value: Optional[str] = None
-
-
-@router.get('/api/teacher/config')
-def get_config_item(key: Optional[str] = None, authorization: Optional[str] = Header(None)):
-    """获取配置信息；不传 key 返回全部配置"""
-    _require_teacher(authorization)
-    with db() as conn:
-        if key:
-            row = conn.execute('SELECT value FROM config WHERE key=?', (key,)).fetchone()
-            if not row:
-                raise HTTPException(status_code=404, detail='配置未找到')
-            return {'key': key, 'value': row['value']}
-        rows = conn.execute('SELECT key, value FROM config').fetchall()
-    return {r['key']: r['value'] for r in rows}
-
-
-@router.post('/api/teacher/config')
-def set_config_item(item: ConfigItem, authorization: Optional[str] = Header(None)):
-    """设置单个配置项（插入或更新）"""
-    _require_teacher(authorization)
-    if not item.key:
-        raise HTTPException(status_code=422, detail='key 不能为空')
-    with db() as conn:
-        conn.execute('INSERT OR REPLACE INTO config (key, value) VALUES (?,?)', (item.key, item.value))
-    return {'ok': True, 'key': item.key, 'value': item.value}
 
 
 def _name_to_pinyin(name: str):
@@ -76,7 +46,7 @@ class LoginRequest(BaseModel):
 def teacher_login(req: LoginRequest):
     if req.password != TEACHER_PASSWORD:
         raise HTTPException(status_code=401, detail="密码错误")
-    token = create_token({"role": "teacher", "sub": str(uuid.uuid4())}, expires_hours=8)
+    token = create_token({"role": "teacher"}, expires_hours=8)
     return {"token": token}
 
 
@@ -366,8 +336,8 @@ def export_scores(exam_id: str = Query(...), authorization: Optional[str] = Head
 
 
 class PreviewRequest(BaseModel):
-    content: Optional[str] = Field(None, description="直接传入 Markdown 内容")
-    doc_path: Optional[str] = Field(None, description="仓库中文档路径，相对 docs/，例如 'chapter1/需求.md'")
+    content: str = Field(None, description="直接传入 Markdown 内容")
+    doc_path: str = Field(None, description="仓库中文档路径，相对 docs/，例如 'chapter1/需求.md'")
 
 
 @router.post('/api/teacher/issues/preview')
@@ -376,10 +346,7 @@ def preview_issues(req: PreviewRequest, authorization: Optional[str] = Header(No
     content = req.content
     if not content and req.doc_path:
         docs_dir = os.environ.get('DOCS_DIR', os.path.join(os.path.dirname(__file__), '..', '..', 'docs'))
-        docs_dir = os.path.realpath(docs_dir)
-        fp = os.path.realpath(os.path.join(docs_dir, req.doc_path))
-        if not fp.startswith(docs_dir + os.sep):
-            raise HTTPException(status_code=403, detail='非法路径：不允许访问 docs/ 以外的文件')
+        fp = os.path.join(docs_dir, req.doc_path)
         if not os.path.exists(fp):
             raise HTTPException(status_code=404, detail=f"文档未找到: {req.doc_path}")
         with open(fp, 'r', encoding='utf-8') as f:
@@ -395,9 +362,6 @@ def preview_issues(req: PreviewRequest, authorization: Optional[str] = Header(No
             'candidate_title': it['candidate_title'],
             'labels': it['labels'],
             'body': it['body'],
-            'module': it.get('module', ''),
-            'prototype_page': it.get('prototype_page', ''),
-            'prototype_name': it.get('prototype_name', ''),
         })
     return {'items': out}
 
@@ -408,7 +372,6 @@ class CreateItem(BaseModel):
     labels: Optional[List[str]] = None
     assignee: Optional[str] = None
     body: Optional[str] = None
-    module: Optional[str] = None
 
 
 class CreateRequest(BaseModel):
@@ -416,48 +379,22 @@ class CreateRequest(BaseModel):
     items: List[CreateItem]
     on_conflict: str = 'skip'
 
-    @field_validator('repo')
-    @classmethod
-    def validate_repo_format(cls, v):
-        if not re.match(r'^[\w.-]+/[\w.-]+$', v):
-            raise ValueError('仓库格式错误，应为 owner/repo，例如 uwislab/robotics-systems-course')
-        return v
-
-    @field_validator('on_conflict')
-    @classmethod
-    def validate_on_conflict(cls, v):
-        if v not in ('skip', 'update'):
-            raise ValueError("on_conflict 必须为 'skip' 或 'update'")
-        return v
-
 
 @router.post('/api/teacher/issues/create')
-def create_issues(req: CreateRequest, authorization: Optional[str] = Header(None)):
-    payload = _require_teacher(authorization)
-    owner_sub = payload.get('sub')
-    if not owner_sub:
-        raise HTTPException(status_code=401, detail='无效的登录凭证：缺少 sub 声明')
+def create_issues(req: CreateRequest, background_tasks: BackgroundTasks, authorization: Optional[str] = Header(None)):
+    _require_teacher(authorization)
     token = os.environ.get('GITHUB_TOKEN')
     if not token:
         raise HTTPException(status_code=500, detail='服务器未配置 GITHUB_TOKEN，请在环境变量中添加')
     # convert items to plain dicts
     items = []
     for it in req.items:
-        items.append({'id': it.id, 'title': it.title, 'labels': it.labels or [], 'assignee': it.assignee, 'body': it.body, 'module': it.module or ''})
-    task_id = start_create_task(items, req.repo, token, owner_sub, req.on_conflict)
+        items.append({'id': it.id, 'title': it.title, 'labels': it.labels or [], 'assignee': it.assignee, 'body': it.body})
+    task_id = start_create_task(items, req.repo, token, req.on_conflict)
     return {'task_id': task_id}
 
 
 @router.get('/api/teacher/issues/task/{task_id}')
 def issues_task_status(task_id: str, authorization: Optional[str] = Header(None)):
-    payload = _require_teacher(authorization)
-    owner_sub = payload.get('sub')
-    if not owner_sub:
-        raise HTTPException(status_code=401, detail='无效的登录凭证：缺少 sub 声明')
-    result = get_task_status(task_id, owner_sub)
-    if result is None:
-        raise HTTPException(status_code=404, detail='任务未找到或不属于当前会话')
-    # 浅拷贝后移除内部鉴权字段，不污染内存中的原始记录
-    safe = dict(result)
-    safe.pop('owner_sub', None)
-    return safe
+    _require_teacher(authorization)
+    return get_task_status(task_id)
