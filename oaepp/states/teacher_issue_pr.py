@@ -8,8 +8,6 @@
 - Webhook 监听 GitHub 直接关闭事件，未关联 PR 则生成后台警告记录
 - 规则配置按课程独立设置
 """
-from __future__ import annotations
-
 import json
 import logging
 import os
@@ -327,38 +325,3 @@ class IssuePRState(rx.State if rx is not None else object):
     def on_load(self):
         self.load_courses()
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-#  Webhook HTTP 端点注册（无需修改 app.py）
-#  GitHub Issue 关闭事件监听：POST /api/webhook/issue-closed
-# ═══════════════════════════════════════════════════════════════════════════
-
-try:
-    from oaepp.app import app as _oaepp_app
-    from starlette.routing import Route
-    from starlette.responses import JSONResponse
-
-    async def _webhook_issue_closed(request):
-        try:
-            payload = await request.json()
-        except Exception:
-            return JSONResponse({"status": "error", "message": "invalid payload"}, status_code=400)
-        action = payload.get("action", "")
-        if action != "closed":
-            return JSONResponse({"status": "ignored", "message": f"action={action} 非关闭事件"})
-        try:
-            state_instance = IssuePRState()
-            await state_instance.handle_issue_closed_webhook(payload)
-        except Exception as e:
-            logger.error("Webhook 处理异常: %s", e)
-            return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
-        return JSONResponse({"status": "ok", "message": "已处理 Issue 关闭事件"})
-
-    if _oaepp_app is not None and hasattr(_oaepp_app, "_api") and _oaepp_app._api is not None:
-        _existing = [r.path for r in _oaepp_app._api.routes]
-        if "/api/webhook/issue-closed" not in _existing:
-            _oaepp_app._api.routes.append(
-                Route("/api/webhook/issue-closed", _webhook_issue_closed, methods=["POST"])
-            )
-except Exception:
-    pass
