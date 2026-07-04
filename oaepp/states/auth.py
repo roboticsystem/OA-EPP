@@ -56,8 +56,8 @@ if rx is not None:
         """登录/退出状态管理"""
 
         is_authenticated: bool = True
-        current_user_id: Optional[int] = 57
-        current_student_no: str = "2021001"
+        current_user_id: Optional[int] = 1
+        current_student_no: str = "2024000001"
         current_full_name: str = "张三"
         current_role: str = "student"
         error_message: str = ""
