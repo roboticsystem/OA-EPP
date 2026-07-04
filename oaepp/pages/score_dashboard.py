@@ -16,12 +16,21 @@ try:
 except Exception:
     rx = None
 
-from oaepp.components.layout import page_layout
-from oaepp.states.score_dashboard import (
-    ScoreDashboardState,
-    DIMENSION_COLORS,
-    DIMENSION_LABELS,
-)
+try:
+    from oaepp.components.layout import page_layout
+except Exception:
+    page_layout = None  # type: ignore
+
+try:
+    from oaepp.states.score_dashboard import (
+        ScoreDashboardState,
+        DIMENSION_COLORS,
+        DIMENSION_LABELS,
+    )
+except Exception:
+    ScoreDashboardState = None  # type: ignore
+    DIMENSION_COLORS = {}  # type: ignore
+    DIMENSION_LABELS = {}  # type: ignore
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -305,18 +314,18 @@ def _completion_card() -> rx.Component:
         rx.vstack(
             rx.heading("✅ 任务完成率", size="4"),
             rx.hstack(
-                rx.circular_progress(
-                    value=ScoreDashboardState.completion_rate,
-                    size="100px",
-                    color="#22c55e",
-                    track_color="var(--gray-4)",
-                ),
                 rx.vstack(
                     rx.heading(
                         rx.text.span(ScoreDashboardState.completion_rate),
                         rx.text.span("%"),
-                        size="6",
+                        size="8",
+                        color="#22c55e",
                     ),
+                    spacing="1",
+                    align="center",
+                    min_width="80px",
+                ),
+                rx.vstack(
                     rx.text(
                         ScoreDashboardState.completed_count.to(str) + " / "
                         + ScoreDashboardState.total_tasks.to(str) + " 个任务已完成",
@@ -330,11 +339,19 @@ def _completion_card() -> rx.Component:
                         font_size="xs",
                         color="orange.500",
                     ),
+                    rx.progress(
+                        value=ScoreDashboardState.completion_rate,
+                        color_scheme="green",
+                        width="100%",
+                        size="2",
+                    ),
                     spacing="1",
                     align="start",
+                    width="100%",
                 ),
                 spacing="6",
                 align="center",
+                width="100%",
             ),
             width="100%",
             padding="16px",
@@ -344,44 +361,42 @@ def _completion_card() -> rx.Component:
     )
 
 
-def _deadline_badge(has_submitted: bool, days_left: str) -> rx.Component:
-    """截止状态标签。"""
-    if has_submitted:
-        return rx.badge("已提交", color_scheme="green", variant="soft", size="1")
-    if "已截止" in days_left:
-        return rx.badge("已截止", color_scheme="red", variant="soft", size="1")
-    # 判断紧急程度
-    try:
-        days = int(days_left.replace("剩余 ", "").replace(" 天", ""))
-        if days <= 2:
-            return rx.badge(days_left, color_scheme="red", variant="soft", size="1")
-        elif days <= 5:
-            return rx.badge(days_left, color_scheme="orange", variant="soft", size="1")
-    except (ValueError, AttributeError):
-        pass
-    return rx.badge(days_left, color_scheme="blue", variant="soft", size="1")
+def _deadline_badge(badge_color, badge_text) -> rx.Component:
+    """截止状态标签 — 使用服务端预计算的 badge 数据，通过 rx.cond 渲染。"""
+    return rx.badge(
+        badge_text,
+        color_scheme=badge_color,
+        variant="soft",
+        size="1",
+    )
 
 
-def _task_row(task: dict) -> rx.Component:
-    """单个即将到期任务行。"""
-    has_submitted = task.get("has_submitted", False)
-    days_left = task.get("days_left", "")
+def _task_row(task) -> rx.Component:
+    """单个即将到期任务行 — 使用 Var 下标访问（非 dict.get）。"""
     return rx.hstack(
         rx.hstack(
             rx.icon(
-                "check_circle" if has_submitted else "circle",
+                rx.cond(
+                    task["has_submitted"],
+                    "check_circle",
+                    "circle",
+                ),
                 size=16,
-                color="#22c55e" if has_submitted else "var(--gray-7)",
+                color=rx.cond(
+                    task["has_submitted"],
+                    "#22c55e",
+                    "var(--gray-7)",
+                ),
             ),
             rx.vstack(
                 rx.text(
-                    task.get("title", ""),
+                    task["title"],
                     font_size="sm",
                     font_weight="medium",
                     color="var(--gray-12)",
                 ),
                 rx.text(
-                    f"截止：{task.get('deadline', '')}",
+                    task["deadline"],
                     font_size="xs",
                     color="gray.500",
                 ),
@@ -392,7 +407,7 @@ def _task_row(task: dict) -> rx.Component:
             align="center",
             flex="1",
         ),
-        _deadline_badge(has_submitted, days_left),
+        _deadline_badge(task["badge_color"], task["badge_text"]),
         width="100%",
         padding_y="8px",
         border_bottom="1px solid var(--gray-4)",

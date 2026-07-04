@@ -429,12 +429,38 @@ class ScoreDashboardState(rx.State):
                                 days_left = f"剩余 {d} 天" if d >= 0 else "已截止"
                             else:
                                 days_left = str(dl)[:10]
+                        # 预计算 badge 信息（服务端完成，避免前端 Python 逻辑操作 Var）
+                        has_sub = bool(r.get("has_submitted"))
+                        if has_sub:
+                            badge_text = "已提交"
+                            badge_color = "green"
+                        elif isinstance(dl, datetime):
+                            delta = dl - now
+                            d = delta.days
+                            if d < 0:
+                                badge_text = "已截止"
+                                badge_color = "red"
+                            elif d <= 2:
+                                badge_text = days_left
+                                badge_color = "red"
+                            elif d <= 5:
+                                badge_text = days_left
+                                badge_color = "orange"
+                            else:
+                                badge_text = days_left
+                                badge_color = "blue"
+                        else:
+                            badge_text = days_left or str(dl)[:10]
+                            badge_color = "blue"
+
                         upcoming.append({
                             "id": r["id"],
                             "title": r.get("title", ""),
                             "deadline": self._fmt_dt(dl),
                             "days_left": days_left,
-                            "has_submitted": bool(r.get("has_submitted")),
+                            "has_submitted": has_sub,
+                            "badge_text": badge_text,
+                            "badge_color": badge_color,
                         })
                 self.upcoming_deadlines = upcoming
 
