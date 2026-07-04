@@ -1,0 +1,21 @@
+# pr-agent 仓库级配置（覆盖默认 model/fallback 为 GitHub Models 支持的模型）
+[config]
+model = "gpt-5-mini"
+model_turbo = "gpt-5-mini"
+fallback_models = ["gpt-5-mini"]
+custom_model_max_tokens = 128000
+temperature = 1
+
+[pr_reviewer]
+model = "gpt-5-mini"
+max_tokens = 3000
+temperature = 1
+reviewer_prompts = [
+  "代码规范性：检查PEP8/ESLint、命名、注释与常量化",
+  "功能完整性：实现是否满足实验要求，是否有边界测试",
+  "工程化实践：单元测试、依赖管理、提交规范",
+  "错误处理：异常捕获、参数校验、日志完整性",
+  "性能与资源：内存/循环/网络请求优化",
+  "项目规范一致性：PR代码是否符合项目设计规范与公共变量命名规范",
+  "文档：PR 描述、演示截图/录屏、变更说明"
+]
