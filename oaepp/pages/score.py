@@ -66,7 +66,7 @@ if rx is not None:
         """成绩看板页面 — 使用统一 page_layout。"""
         return page_layout(
             title="成绩看板",
-            content=rx.vstack(
+            content=rx.box(
                 rx.cond(
                     AuthState.is_authenticated,
                     rx.vstack(
@@ -95,6 +95,7 @@ if rx is not None:
                         padding="48px",
                     ),
                 ),
+                on_mount=ScoreState.load_scores,
                 spacing="4",
                 width="100%",
                 align="start",

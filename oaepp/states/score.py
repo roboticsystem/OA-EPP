@@ -48,15 +48,23 @@ class ScoreState(_Base):
     dimensions: dict = {}
     is_loading: bool = False
 
-    async def load_scores(self) -> dict:
+    async def load_scores(self):
         """加载当前学生的成绩看板数据。"""
+        try:
+            from states.auth import AuthState
+        except ImportError:
+            from oaepp.states.auth import AuthState
+        auth = await self.get_state(AuthState)
+        self.current_user_id = auth.current_user_id
+
         if self.current_user_id is None:
-            return {"error": "未设置用户"}
+            self.total_score = 0.0
+            return
 
         result = await self._load_from_db()
         if isinstance(result, dict) and "error" in result:
             self.total_score = 0.0
-            return result
+            return
 
         self.attendance_score = result["attendance_score"]
         self.exam_score = result["exam_score"]
@@ -68,14 +76,6 @@ class ScoreState(_Base):
         self.student_info = result["student"]
         self.course_info = result["course"]
 
-        return {
-            "student": result["student"],
-            "course": result["course"],
-            "weights": result["weights"],
-            "dimensions": result["dimensions"],
-            "total_score": result["total_score"],
-        }
-
     async def _load_from_db(self):
         async with db() as cur:
             student = await self._get_student_info(cur, self.current_user_id)
@@ -86,7 +86,7 @@ class ScoreState(_Base):
             if not courses:
                 return {"error": "未选课"}
 
-            course = await self._pick_course(cur, courses)
+            course = await self._pick_course(cur, courses, self.current_user_id)
             weights = await self._get_weights(cur, course["id"])
             score_items = await self._get_score_items(cur, course["id"], self.current_user_id)
             exam_scores = await self._get_exam_attempt_scores(cur, course["id"], self.current_user_id)
@@ -157,9 +157,22 @@ class ScoreState(_Base):
         return await cur.fetchall()
 
     @staticmethod
-    async def _pick_course(cur, courses):
+    async def _pick_course(cur, courses, user_id):
         for c in courses:
-            await cur.execute("SELECT COUNT(*) AS cnt FROM exams WHERE course_id = %s", (c["id"],))
+            await cur.execute(
+                "SELECT COUNT(*) AS cnt FROM score_items WHERE course_id = %s AND student_user_id = %s",
+                (c["id"], user_id),
+            )
+            row = await cur.fetchone()
+            if row["cnt"] > 0:
+                return c
+        for c in courses:
+            await cur.execute(
+                """SELECT COUNT(*) AS cnt FROM exam_attempts ea
+                   JOIN exams e ON ea.exam_id = e.id
+                   WHERE e.course_id = %s AND ea.student_user_id = %s""",
+                (c["id"], user_id),
+            )
             row = await cur.fetchone()
             if row["cnt"] > 0:
                 return c
