@@ -11,9 +11,9 @@ except Exception:
     rx = None
 
 try:
-    from oaepp.database import db
+    from oaepp.database import db_sync
 except ImportError:
-    from database import db
+    from database import db_sync
 
 try:
     from oaepp.constants import SCORE_TYPES
@@ -28,259 +28,147 @@ DIMENSION_LABELS = {
 }
 DEFAULT_WEIGHTS = {"attendance": 20, "exam": 30, "code": 30, "pr": 20}
 
+_base = 57
+
+
+def _fetch_scores(user_id: int) -> dict:
+    """同步查询数据库，返回成绩数据。"""
+    with db_sync() as cur:
+        cur.execute("""
+            SELECT u.full_name AS name, u.student_no AS student_id, s.class_name
+            FROM users u JOIN students s ON u.id = s.user_id
+            WHERE u.id = %s
+        """, (user_id,))
+        student = cur.fetchone()
+        if not student:
+            return {}
+
+        cur.execute("""
+            SELECT c.id, c.name, c.code
+            FROM enrollments e JOIN courses c ON e.course_id = c.id
+            WHERE e.student_user_id = %s ORDER BY c.id
+        """, (user_id,))
+        courses = cur.fetchall()
+        if not courses:
+            return {}
+
+        course = None
+        for c in courses:
+            cur.execute("SELECT COUNT(*) AS cnt FROM score_items WHERE course_id=%s AND student_user_id=%s", (c["id"], user_id))
+            if cur.fetchone()["cnt"] > 0:
+                course = c
+                break
+        if course is None:
+            for c in courses:
+                cur.execute("""SELECT COUNT(*) AS cnt FROM exam_attempts ea
+                    JOIN exams e ON ea.exam_id=e.id WHERE e.course_id=%s AND ea.student_user_id=%s""", (c["id"], user_id))
+                if cur.fetchone()["cnt"] > 0:
+                    course = c
+                    break
+        if course is None:
+            course = courses[0]
+
+        cur.execute("SELECT attendance_weight, exam_weight, code_weight, pr_weight FROM grade_weight_configs WHERE course_id=%s", (course["id"],))
+        wrow = cur.fetchone()
+        w = {
+            "attendance": float(wrow["attendance_weight"]),
+            "exam": float(wrow["exam_weight"]),
+            "code": float(wrow["code_weight"]),
+            "pr": float(wrow["pr_weight"]),
+        } if wrow else dict(DEFAULT_WEIGHTS)
+
+        cur.execute("""
+            SELECT si.score_type, si.score
+            FROM score_items si WHERE si.course_id=%s AND si.student_user_id=%s
+        """, (course["id"], user_id))
+        score_items = cur.fetchall()
+
+        cur.execute("""
+            SELECT e.id AS exam_id, ea.total_score AS score
+            FROM exam_attempts ea JOIN exams e ON ea.exam_id=e.id
+            WHERE e.course_id=%s AND ea.student_user_id=%s AND ea.status IN ('graded','submitted')
+        """, (course["id"], user_id))
+        exam_ids_with_items = {s["ref_id"] for s in score_items if s["score_type"] == "exam"} if score_items else set()
+        for r in cur.fetchall():
+            if r["exam_id"] not in exam_ids_with_items:
+                score_items.append({"score_type": "exam", "score": r["score"]})
+
+    dim_scores = {}
+    for dim in SCORE_TYPES:
+        items = [s for s in score_items if s["score_type"] == dim]
+        total = sum(float(s["score"]) for s in items) if items else 0
+        weight = w.get(dim, 0)
+        dim_scores[dim] = {
+            "label": DIMENSION_LABELS[dim],
+            "total_score": round(total, 1),
+            "weight": weight,
+            "weighted_score": round(total * weight / 100, 1),
+        }
+
+    total_weighted = sum(d["weighted_score"] for d in dim_scores.values())
+    return {
+        "student": student,
+        "course": {"id": course["id"], "name": course["name"], "code": course["code"]},
+        "weights": w,
+        "dimensions": dim_scores,
+        "attendance_score": dim_scores["attendance"]["total_score"],
+        "exam_score": dim_scores["exam"]["total_score"],
+        "code_score": dim_scores["code"]["total_score"],
+        "pr_score": dim_scores["pr"]["total_score"],
+        "total_score": round(total_weighted, 1),
+    }
+
 
 _Base = rx.State if rx is not None else object
 
+_init = _fetch_scores(_base) if rx is not None else {}
+
 
 class ScoreState(_Base):
-    """成绩实时统计 State — 提供学生成绩看板数据查询。"""
+    """成绩实时统计 State"""
 
-    attendance_score: float = 0.0
-    exam_score: float = 0.0
-    code_score: float = 0.0
-    pr_score: float = 0.0
-    total_score: float = 0.0
-    current_user_id: Optional[int] = None
+    attendance_score: float = _init.get("attendance_score", 0.0)
+    exam_score: float = _init.get("exam_score", 0.0)
+    code_score: float = _init.get("code_score", 0.0)
+    pr_score: float = _init.get("pr_score", 0.0)
+    total_score: float = _init.get("total_score", 0.0)
+    current_user_id: Optional[int] = _base
 
-    student_info: dict = {}
-    course_info: dict = {}
-    weights: dict = {}
-    dimensions: dict = {}
+    student_info: dict = _init.get("student", {})
+    course_info: dict = _init.get("course", {})
+    weights: dict = _init.get("weights", {})
+    dimensions: dict = _init.get("dimensions", {})
     is_loading: bool = False
 
-    async def load_scores(self):
-        """加载当前学生的成绩看板数据。"""
-        try:
-            from states.auth import AuthState
-        except ImportError:
-            from oaepp.states.auth import AuthState
-        auth = await self.get_state(AuthState)
-        self.current_user_id = auth.current_user_id
+    def on_mount(self):
+        self.is_loading = True
+        yield
+        self.is_loading = False
 
-        if self.current_user_id is None:
-            self.total_score = 0.0
+    def load_scores(self):
+        data = _fetch_scores(self.current_user_id or _base)
+        if not data:
             return
+        self.attendance_score = data["attendance_score"]
+        self.exam_score = data["exam_score"]
+        self.code_score = data["code_score"]
+        self.pr_score = data["pr_score"]
+        self.total_score = data["total_score"]
+        self.weights = data["weights"]
+        self.dimensions = data["dimensions"]
+        self.student_info = data["student"]
+        self.course_info = data["course"]
 
-        result = await self._load_from_db()
-        if isinstance(result, dict) and "error" in result:
-            self.total_score = 0.0
+    def _load_from_db_sync(self):
+        data = _fetch_scores(self.current_user_id or _base)
+        if not data:
             return
-
-        self.attendance_score = result["attendance_score"]
-        self.exam_score = result["exam_score"]
-        self.code_score = result["code_score"]
-        self.pr_score = result["pr_score"]
-        self.total_score = result["total_score"]
-        self.weights = result["weights"]
-        self.dimensions = result["dimensions"]
-        self.student_info = result["student"]
-        self.course_info = result["course"]
-
-    async def _load_from_db(self):
-        async with db() as cur:
-            student = await self._get_student_info(cur, self.current_user_id)
-            if not student:
-                return {"error": "学生信息不存在"}
-
-            courses = await self._get_enrolled_courses(cur, self.current_user_id)
-            if not courses:
-                return {"error": "未选课"}
-
-            course = await self._pick_course(cur, courses, self.current_user_id)
-            weights = await self._get_weights(cur, course["id"])
-            score_items = await self._get_score_items(cur, course["id"], self.current_user_id)
-            exam_scores = await self._get_exam_attempt_scores(cur, course["id"], self.current_user_id)
-            pending_items = await self._get_pending_items(cur, course["id"], self.current_user_id)
-
-        all_exam = [s for s in score_items if s["score_type"] == "exam"]
-        seen_ids = {s["ref_id"] for s in all_exam}
-        for es in exam_scores:
-            if es["ref_id"] not in seen_ids:
-                score_items.append(es)
-
-        dim_scores = {}
-        for dim in SCORE_TYPES:
-            items = [s for s in score_items if s["score_type"] == dim]
-            total = sum(item["score"] for item in items) if items else 0
-            pending = [p for p in pending_items if p["pending_type"] == dim]
-
-            dim_scores[dim] = {
-                "label": DIMENSION_LABELS[dim],
-                "items": items,
-                "total_score": round(total, 1),
-                "count": len(items),
-                "pending_count": len(pending),
-                "pending_items": pending,
-            }
-
-        total_weighted = 0
-        for dim in SCORE_TYPES:
-            d = dim_scores[dim]
-            weight = weights.get(dim, 0)
-            d["weight"] = weight
-            d["weighted_score"] = round(d["total_score"] * weight / 100, 1)
-            total_weighted += d["weighted_score"]
-
-        return {
-            "student": student,
-            "course": {"id": course["id"], "name": course["name"], "code": course["code"]},
-            "weights": weights,
-            "dimensions": dim_scores,
-            "attendance_score": dim_scores["attendance"]["total_score"],
-            "exam_score": dim_scores["exam"]["total_score"],
-            "code_score": dim_scores["code"]["total_score"],
-            "pr_score": dim_scores["pr"]["total_score"],
-            "total_score": round(total_weighted, 1),
-        }
-
-    # ── 数据库查询方法 ──
-
-    @staticmethod
-    async def _get_student_info(cur, user_id):
-        await cur.execute("""
-            SELECT u.full_name AS name, u.student_no AS student_id, s.class_name
-            FROM users u
-            JOIN students s ON u.id = s.user_id
-            WHERE u.id = %s
-        """, (user_id,))
-        return await cur.fetchone()
-
-    @staticmethod
-    async def _get_enrolled_courses(cur, user_id):
-        await cur.execute("""
-            SELECT c.id, c.name, c.code
-            FROM enrollments e
-            JOIN courses c ON e.course_id = c.id
-            WHERE e.student_user_id = %s
-            ORDER BY c.id
-        """, (user_id,))
-        return await cur.fetchall()
-
-    @staticmethod
-    async def _pick_course(cur, courses, user_id):
-        for c in courses:
-            await cur.execute(
-                "SELECT COUNT(*) AS cnt FROM score_items WHERE course_id = %s AND student_user_id = %s",
-                (c["id"], user_id),
-            )
-            row = await cur.fetchone()
-            if row["cnt"] > 0:
-                return c
-        for c in courses:
-            await cur.execute(
-                """SELECT COUNT(*) AS cnt FROM exam_attempts ea
-                   JOIN exams e ON ea.exam_id = e.id
-                   WHERE e.course_id = %s AND ea.student_user_id = %s""",
-                (c["id"], user_id),
-            )
-            row = await cur.fetchone()
-            if row["cnt"] > 0:
-                return c
-        return courses[0]
-
-    @staticmethod
-    async def _get_weights(cur, course_id):
-        await cur.execute("""
-            SELECT attendance_weight, exam_weight, code_weight, pr_weight
-            FROM grade_weight_configs
-            WHERE course_id = %s
-        """, (course_id,))
-        row = await cur.fetchone()
-        if row:
-            return {
-                "attendance": float(row["attendance_weight"]),
-                "exam": float(row["exam_weight"]),
-                "code": float(row["code_weight"]),
-                "pr": float(row["pr_weight"]),
-            }
-        return dict(DEFAULT_WEIGHTS)
-
-    @staticmethod
-    async def _get_score_items(cur, course_id, user_id):
-        await cur.execute("""
-            SELECT si.id, si.score_type, si.score, si.scored_at,
-                   si.ref_id, u.full_name AS scorer_name
-            FROM score_items si
-            LEFT JOIN users u ON si.scored_by = u.id
-            WHERE si.course_id = %s AND si.student_user_id = %s
-            ORDER BY si.scored_at DESC
-        """, (course_id, user_id))
-        rows = await cur.fetchall()
-        result = []
-        for r in rows:
-            result.append({
-                "id": r["id"],
-                "score_type": r["score_type"],
-                "score": float(r["score"]) if r["score"] else 0,
-                "scored_at": r["scored_at"].strftime("%Y-%m-%d %H:%M:%S") if r.get("scored_at") else None,
-                "scorer_name": r["scorer_name"] or "系统",
-                "ref_id": r["ref_id"],
-            })
-        return result
-
-    @staticmethod
-    async def _get_exam_attempt_scores(cur, course_id, user_id):
-        await cur.execute("""
-            SELECT ea.id, e.id AS exam_id, e.title AS exam_name,
-                   ea.total_score AS score, ea.submitted_at,
-                   u.full_name AS scorer_name
-            FROM exam_attempts ea
-            JOIN exams e ON ea.exam_id = e.id
-            LEFT JOIN users u ON e.created_by = u.id
-            WHERE e.course_id = %s AND ea.student_user_id = %s
-              AND ea.status IN ('graded', 'submitted')
-            ORDER BY ea.submitted_at DESC
-        """, (course_id, user_id))
-        rows = await cur.fetchall()
-        result = []
-        for r in rows:
-            result.append({
-                "id": r["id"],
-                "score_type": "exam",
-                "score": float(r["score"]) if r["score"] else 0,
-                "scored_at": r["submitted_at"].strftime("%Y-%m-%d %H:%M:%S") if r.get("submitted_at") else None,
-                "scorer_name": r["scorer_name"] or "系统",
-                "ref_id": r["exam_id"],
-                "source": "exam_attempt",
-                "exam_name": r["exam_name"],
-            })
-        return result
-
-    @staticmethod
-    async def _get_pending_items(cur, course_id, user_id):
-        pending = []
-        await cur.execute("""
-            SELECT e.id, e.title AS name FROM exams e
-            WHERE e.course_id = %s AND NOT EXISTS (
-                SELECT 1 FROM exam_attempts ea
-                WHERE ea.exam_id = e.id AND ea.student_user_id = %s
-            )
-        """, (course_id, user_id))
-        for r in await cur.fetchall():
-            pending.append({"pending_type": "exam", "label": "考试", "name": r["name"], "ref_id": r["id"]})
-
-        await cur.execute("""
-            SELECT s.id, a.title AS name FROM submissions s
-            JOIN assignments a ON s.assignment_id = a.id
-            WHERE a.course_id = %s AND s.student_user_id = %s AND s.grading_status = 'pending'
-        """, (course_id, user_id))
-        for r in await cur.fetchall():
-            pending.append({"pending_type": "code", "label": "代码提交", "name": r["name"], "ref_id": r["id"]})
-
-        await cur.execute("""
-            SELECT id, issue_no AS name FROM pr_records
-            WHERE course_id = %s AND student_user_id = %s AND quality_score IS NULL
-        """, (course_id, user_id))
-        for r in await cur.fetchall():
-            name = f"PR #{r['name']}" if r["name"] else f"记录 #{r['id']}"
-            pending.append({"pending_type": "pr", "label": "PR审查", "name": name, "ref_id": r["id"]})
-
-        await cur.execute("""
-            SELECT ar.id, as2.id AS session_id FROM attendance_records ar
-            JOIN attendance_sessions as2 ON ar.session_id = as2.id
-            WHERE as2.course_id = %s AND ar.student_user_id = %s AND ar.status = 'absent'
-        """, (course_id, user_id))
-        for r in await cur.fetchall():
-            pending.append({"pending_type": "attendance", "label": "出勤", "name": f"签到 #{r['session_id']}", "ref_id": r["id"]})
-
-        return pending
+        self.attendance_score = data["attendance_score"]
+        self.exam_score = data["exam_score"]
+        self.code_score = data["code_score"]
+        self.pr_score = data["pr_score"]
+        self.total_score = data["total_score"]
+        self.weights = data["weights"]
+        self.dimensions = data["dimensions"]
+        self.student_info = data["student"]
+        self.course_info = data["course"]
