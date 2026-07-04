@@ -1,0 +1,29 @@
+[
+  {
+    "id": "9ee25d4a-bd19-4a17-8fdc-67da157a1728",
+    "raw_title": "F-T-001 教师端：支持批量导入试题",
+    "candidate_title": "F-T-001 教师端：支持批量导入试题",
+    "labels": [
+      "teacher-feature"
+    ],
+    "body": "描述：教师可以上传 CSV/Markdown 导入试题。"
+  },
+  {
+    "id": "6d935d60-fcf1-4061-9f65-f42e8b7f3d6c",
+    "raw_title": "F-S-002 学生端：提交作业功能",
+    "candidate_title": "F-S-002 学生端：提交作业功能",
+    "labels": [
+      "student-feature"
+    ],
+    "body": "描述：学生可在截止时间前提交作业。"
+  },
+  {
+    "id": "9e6171c2-3740-41d0-974e-af43603db0c8",
+    "raw_title": "F-D-003 运维：部署自动化脚本",
+    "candidate_title": "F-D-003 运维：部署自动化脚本",
+    "labels": [
+      "devops"
+    ],
+    "body": "描述：提供一键部署脚本与说明。"
+  }
+]

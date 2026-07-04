@@ -139,6 +139,8 @@ git commit -m "chore: 更新 svgbob_cli 到新版本"
 └── .gitignore
 ```
 
+> **注意 — Issue 批量创建任务状态**：后端 `github_issues.py` 中的任务状态（创建进度、成功/失败计数）保存在**内存**中，进程重启后全部丢失，前端轮询会得到 `{'status': 'unknown'}`。长期方案将落库到 SQLite。
+
 ---
 
 ## 评论系统
