@@ -4,7 +4,7 @@ import chardet
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Header, UploadFile, File, Query
 from fastapi.responses import StreamingResponse
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel
 from app.database import db
 from app.auth_utils import create_token, verify_teacher_token
@@ -12,6 +12,10 @@ from app.sync_exams import sync_exams
 from pypinyin import lazy_pinyin, Style
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
+from fastapi import BackgroundTasks
+from pydantic import Field
+from app.github_issues import parse_markdown_for_features, start_create_task, get_task_status
+import json
 
 router = APIRouter()
 
@@ -329,3 +333,68 @@ def export_scores(exam_id: str = Query(...), authorization: Optional[str] = Head
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )
+
+
+class PreviewRequest(BaseModel):
+    content: str = Field(None, description="直接传入 Markdown 内容")
+    doc_path: str = Field(None, description="仓库中文档路径，相对 docs/，例如 'chapter1/需求.md'")
+
+
+@router.post('/api/teacher/issues/preview')
+def preview_issues(req: PreviewRequest, authorization: Optional[str] = Header(None)):
+    _require_teacher(authorization)
+    content = req.content
+    if not content and req.doc_path:
+        docs_dir = os.environ.get('DOCS_DIR', os.path.join(os.path.dirname(__file__), '..', '..', 'docs'))
+        fp = os.path.join(docs_dir, req.doc_path)
+        if not os.path.exists(fp):
+            raise HTTPException(status_code=404, detail=f"文档未找到: {req.doc_path}")
+        with open(fp, 'r', encoding='utf-8') as f:
+            content = f.read()
+    if not content:
+        raise HTTPException(status_code=422, detail='需要提供 content 或 doc_path')
+    items = parse_markdown_for_features(content)
+    # normalize to send candidate fields
+    out = []
+    for it in items:
+        out.append({
+            'id': it['id'],
+            'candidate_title': it['candidate_title'],
+            'labels': it['labels'],
+            'body': it['body'],
+        })
+    return {'items': out}
+
+
+class CreateItem(BaseModel):
+    id: str
+    title: str
+    labels: Optional[List[str]] = None
+    assignee: Optional[str] = None
+    body: Optional[str] = None
+
+
+class CreateRequest(BaseModel):
+    repo: str
+    items: List[CreateItem]
+    on_conflict: str = 'skip'
+
+
+@router.post('/api/teacher/issues/create')
+def create_issues(req: CreateRequest, background_tasks: BackgroundTasks, authorization: Optional[str] = Header(None)):
+    _require_teacher(authorization)
+    token = os.environ.get('GITHUB_TOKEN')
+    if not token:
+        raise HTTPException(status_code=500, detail='服务器未配置 GITHUB_TOKEN，请在环境变量中添加')
+    # convert items to plain dicts
+    items = []
+    for it in req.items:
+        items.append({'id': it.id, 'title': it.title, 'labels': it.labels or [], 'assignee': it.assignee, 'body': it.body})
+    task_id = start_create_task(items, req.repo, token, req.on_conflict)
+    return {'task_id': task_id}
+
+
+@router.get('/api/teacher/issues/task/{task_id}')
+def issues_task_status(task_id: str, authorization: Optional[str] = Header(None)):
+    _require_teacher(authorization)
+    return get_task_status(task_id)
