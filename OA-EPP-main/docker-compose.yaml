@@ -1,0 +1,120 @@
+services:
+  oaepp_web:
+    container_name: oaepp_web
+    build:
+      context: .
+      network: host          # 构建时 pip install 需要访问互联网
+    expose:
+      - "80"
+    restart: unless-stopped
+    depends_on:
+      - oaepp_api
+    healthcheck:
+      # 注意：仅用于监控，不影响 Caddy 路由。
+      # Dockerfile 不定义 HEALTHCHECK，避免 caddy-docker-proxy 等待 healthy 设备致路由。
+      test: ["CMD-SHELL", "pidof nginx || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    labels:
+      # Caddy docker-proxy 路由标签
+      caddy: "oaepp.uwis.cn"
+      caddy.reverse_proxy: "{{upstreams 80}}"
+    networks:
+      - coolify              # 让 Caddy 代理可以连接到此容器
+
+  oaepp_api:
+    container_name: oaepp_api
+    build:
+      context: .                        # 构建上下文扩展到项目根目录（需要复制 docs/）
+      dockerfile: backend/Dockerfile
+      network: host          # 构建时 pip install 需要访问互联网
+    expose:
+      - "8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - exam_data:/app/data  # SQLite 数据库持久化
+      - ./docs:/app/docs:rw  # Markdown 文件（sync_exams 可自动注入 exam-meta）
+    environment:
+      - TEACHER_PASSWORD=${TEACHER_PASSWORD:-admin123}
+      - JWT_SECRET=${JWT_SECRET:-please-change-this-secret}
+      - DB_PATH=/app/data/exam.db
+      - DOCS_DIR=/app/docs
+    networks:
+      - coolify
+
+  oaepp-mysql:
+    container_name: oaepp_mysql
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
+      MYSQL_USER: user
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
+      MYSQL_DATABASE: oaepp_database
+    volumes:
+      - oaepp_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - coolify
+
+  oaepp-phpmyadmin:
+    container_name: oaepp_phpmyadmin
+    image: phpmyadmin:latest
+    restart: unless-stopped
+    environment:
+      PMA_HOST: oaepp-mysql
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
+    ports:
+      - "5050:80"
+    depends_on:
+      - oaepp-mysql
+    networks:
+      - coolify
+
+  oaepp-redis:
+    container_name: oaepp_redis
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - oaepp_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - coolify
+
+  oaepp-redis-commander:
+    container_name: oaepp_redis_commander
+    image: rediscommander/redis-commander:latest
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:oaepp-redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - oaepp-redis
+    networks:
+      - coolify
+
+volumes:
+  exam_data:
+  oaepp_mysql_data:
+  oaepp_redis_data:
+
+networks:
+  coolify:
+    external: true           # 引用已存在的 Coolify 全局网络

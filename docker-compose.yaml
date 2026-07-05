@@ -45,7 +45,11 @@ services:
     environment:
       - TEACHER_PASSWORD=${TEACHER_PASSWORD:-admin123}
       - JWT_SECRET=${JWT_SECRET:-please-change-this-secret}
-      - DB_PATH=/app/data/exam.db
+      - DB_HOST=156.239.252.40
+      - DB_PORT=13306
+      - DB_NAME=oaepp_dev
+      - DB_USER=student_dev
+      - DB_PASSWORD=OaEpp@Dev2026
       - DOCS_DIR=/app/docs
     networks:
       - coolify

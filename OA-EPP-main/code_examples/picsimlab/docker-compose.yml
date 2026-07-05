@@ -1,0 +1,21 @@
+services:
+  picsimlab:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: picsimlab-vnc
+    restart: unless-stopped
+    ports:
+      - "6080:6080"       # noVNC（浏览器访问）
+      - "5000:5000"       # PicSimLab 远程控制接口（rcontrol）
+    environment:
+      - VNC_PW=picsimlab
+      - VNC_RESOLUTION=1280x800
+      - TZ=Asia/Shanghai
+    volumes:
+      - picsimlab-data:/home/picsimlab/work
+      - picsimlab-firmware:/firmware
+
+volumes:
+  picsimlab-data:
+  picsimlab-firmware:

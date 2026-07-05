@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>教师管理后台 — 研究生课程《机器人系统》</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; background: #f5f5f5; color: #333; }
+  .header { background: #1565c0; color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-size: 1.2rem; }
+  .header button { background: rgba(255,255,255,.2); color: #fff; border: 1px solid rgba(255,255,255,.5); padding: 6px 16px; border-radius: 4px; cursor: pointer; }
+  .header button:hover { background: rgba(255,255,255,.35); }
+  .container { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
+  .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.12); margin-bottom: 20px; overflow: hidden; }
+  .card-title { background: #e3f2fd; padding: 12px 20px; font-weight: bold; font-size: .95rem; border-bottom: 1px solid #bbdefb; display: flex; align-items: center; justify-content: space-between; }
+  .card-body { padding: 20px; }
+  .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .login-box { background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,.15); width: 340px; text-align: center; }
+  .login-box h2 { margin-bottom: 8px; color: #1565c0; }
+  .login-box p { color: #888; margin-bottom: 24px; font-size: .9rem; }
+  input[type=text], input[type=password], input[type=file] { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; margin-bottom: 12px; }
+  input[type=text]:focus, input[type=password]:focus { outline: none; border-color: #1565c0; }
+  .btn { display: inline-block; padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: .95rem; font-weight: bold; }
+  .btn-primary { background: #1565c0; color: #fff; }
+  .btn-primary:hover { background: #0d47a1; }
+  .btn-success { background: #2e7d32; color: #fff; }
+  .btn-success:hover { background: #1b5e20; }
+  .btn-danger { background: #c62828; color: #fff; }
+  .btn-danger:hover { background: #b71c1c; }
+  .btn-warning { background: #e65100; color: #fff; }
+  .btn-warning:hover { background: #bf360c; }
+  .btn-outline { background: transparent; color: #1565c0; border: 1px solid #1565c0; }
+  .btn-outline:hover { background: #e3f2fd; }
+  .btn-outline-danger { background: transparent; color: #c62828; border: 1px solid #c62828; }
+  .btn-outline-danger:hover { background: #ffebee; }
+  .btn-sm { padding: 6px 14px; font-size: .85rem; }
+  .btn-full { width: 100%; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .stat-item { background: #f8f9fa; border-radius: 8px; padding: 16px; text-align: center; }
+  .stat-value { font-size: 1.8rem; font-weight: bold; color: #1565c0; }
+  .stat-label { font-size: .8rem; color: #888; margin-top: 4px; }
+  .exam-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .exam-tab { padding: 6px 16px; border-radius: 20px; border: 1px solid #1565c0; color: #1565c0; cursor: pointer; font-size: .9rem; background: #fff; }
+  .exam-tab.active { background: #1565c0; color: #fff; }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  th { background: #e3f2fd; padding: 10px 12px; text-align: left; font-weight: bold; }
+  td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; }
+  tr:hover td { background: #fafafa; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: .8rem; }
+  .badge-green { background: #e8f5e9; color: #2e7d32; }
+  .badge-gray { background: #f5f5f5; color: #888; }
+  .upload-area { border: 2px dashed #bbdefb; border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: border-color .2s; }
+  .upload-area:hover { border-color: #1565c0; }
+  .upload-area input { display: none; }
+  .upload-hint { color: #888; font-size: .9rem; margin-top: 8px; }
+  .alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 12px; font-size: .9rem; }
+  .alert-success { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+  .alert-error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+  .flex-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .toggle-switch { display: flex; align-items: center; gap: 8px; }
+  .switch { position: relative; width: 42px; height: 24px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; inset: 0; background: #ccc; border-radius: 24px; cursor: pointer; transition: .3s; }
+  .slider:before { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: .3s; }
+  input:checked + .slider { background: #1565c0; }
+  input:checked + .slider:before { transform: translateX(18px); }
+  /* 添加学生表单 */
+  .add-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; align-items: end; }
+  .add-form input { margin-bottom: 0; }
+  .form-label { font-size: .8rem; color: #555; margin-bottom: 4px; display: block; }
+  /* 确认弹窗 */
+  .confirm-dialog-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+  .confirm-dialog { background: #fff; border-radius: 10px; padding: 28px 24px; max-width: 400px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,.2); text-align: center; }
+  .confirm-dialog h3 { margin-bottom: 10px; }
+  .confirm-dialog p { color: #666; font-size: .9rem; margin-bottom: 20px; line-height: 1.6; }
+  .confirm-dialog .btn-row { display: flex; gap: 10px; justify-content: center; }
+  #app { display: none; }
+</style>
+</head>
+<body>
+
+<!-- 登录页 -->
+<div id="login-page" class="login-wrap">
+  <div class="login-box">
+    <h2>🎓 教师管理后台</h2>
+    <p>研究生课程《机器人系统》考试系统</p>
+    <div id="login-msg"></div>
+    <input type="password" id="login-pwd" placeholder="请输入教师密码" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn btn-primary btn-full" onclick="doLogin()">登 录</button>
+  </div>
+</div>
+
+<!-- 主界面 -->
+<div id="app">
+  <div class="header">
+    <h1>🎓 教师管理后台 — 研究生课程《机器人系统》</h1>
+    <button onclick="logout()">退出登录</button>
+  </div>
+  <div class="container">
+
+    <!-- 上传名单 -->
+    <div class="card">
+      <div class="card-title">📋 上传学生名单（批量）</div>
+      <div class="card-body">
+        <div id="upload-msg"></div>
+        <p style="font-size:.88rem;color:#888;margin-bottom:12px">
+          CSV 格式：<code>姓名,学号,班级</code>（第一行为表头，编码 UTF-8 或 GBK 均支持）
+        </p>
+        <label class="upload-area" id="upload-area">
+          <input type="file" id="csv-file" accept=".csv" onchange="handleFile(this)">
+          <div style="font-size:2rem">📂</div>
+          <div>点击选择 CSV 文件</div>
+          <div class="upload-hint" id="file-name">未选择文件</div>
+        </label>
+        <div style="margin-top:12px">
+          <button class="btn btn-success" onclick="uploadStudents()">上传名单</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 学生名单管理 -->
+    <div class="card">
+      <div class="card-title">
+        <span>👤 学生名单管理</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline-danger btn-sm" onclick="confirmClearStudents()">🗑 清空全部名单</button>
+          <button class="btn btn-warning btn-sm" onclick="confirmNewSemester()">🔄 新学期重置</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="student-msg"></div>
+
+        <!-- 添加单个学生 -->
+        <div style="margin-bottom:16px;">
+          <p style="font-size:.88rem;font-weight:bold;margin-bottom:8px;color:#555">➕ 添加单个学生</p>
+          <div class="add-form">
+            <div>
+              <label class="form-label">姓名 *</label>
+              <input type="text" id="add-name" placeholder="如：张三">
+            </div>
+            <div>
+              <label class="form-label">学号 *</label>
+              <input type="text" id="add-sid" placeholder="如：20230001">
+            </div>
+            <div>
+              <label class="form-label">班级（可选）</label>
+              <input type="text" id="add-class" placeholder="如：2023级软工1班">
+            </div>
+            <button class="btn btn-primary btn-sm" style="height:42px;white-space:nowrap" onclick="addStudent()">添加</button>
+          </div>
+        </div>
+
+        <!-- 学生列表 -->
+        <div id="student-list">加载中…</div>
+      </div>
+    </div>
+
+    <!-- 考试管理 -->
+    <div class="card">
+      <div class="card-title">📝 考试管理 & 成绩查看</div>
+      <div class="card-body">
+        <div id="exams-content">加载中…</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API = '';
+let TOKEN = sessionStorage.getItem('teacher_token') || '';
+
+function showMsg(id, msg, type='success') {
+  const el = document.getElementById(id);
+  el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+  setTimeout(() => { if(el) el.innerHTML=''; }, 5000);
+}
+
+async function doLogin() {
+  const pwd = document.getElementById('login-pwd').value;
+  try {
+    const r = await fetch(`${API}/api/teacher/login`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({password: pwd})
+    });
+    if (!r.ok) { const e = await r.json(); showMsg('login-msg', e.detail || '密码错误', 'error'); return; }
+    const d = await r.json();
+    TOKEN = d.token;
+    sessionStorage.setItem('teacher_token', TOKEN);
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadExams();
+    loadStudentList();
+  } catch(e) { showMsg('login-msg', '网络错误：' + e, 'error'); }
+}
+
+function logout() {
+  TOKEN = '';
+  sessionStorage.removeItem('teacher_token');
+  location.reload();
+}
+
+function handleFile(input) {
+  document.getElementById('file-name').textContent = input.files[0]?.name || '未选择文件';
+}
+
+async function uploadStudents() {
+  const file = document.getElementById('csv-file').files[0];
+  if (!file) { showMsg('upload-msg', '请先选择 CSV 文件', 'error'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const r = await fetch(`${API}/api/teacher/students`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`},
+      body: fd
+    });
+    const d = await r.json();
+    if (!r.ok) { showMsg('upload-msg', d.detail || '上传失败', 'error'); return; }
+    showMsg('upload-msg', `✅ 成功导入 ${d.count} 名学生`, 'success');
+    loadExams();
+    loadStudentList();
+  } catch(e) { showMsg('upload-msg', '网络错误：' + e, 'error'); }
+}
+
+let currentExamId = null;
+let examsData = [];
+
+async function loadExams() {
+  const r = await fetch(`${API}/api/teacher/exams`, {
+    headers: {'Authorization': `Bearer ${TOKEN}`}
+  });
+  if (r.status === 401) { logout(); return; }
+  examsData = await r.json();
+  renderExams();
+}
+
+function renderExams() {
+  if (!examsData.length) {
+    document.getElementById('exams-content').innerHTML = '<p style="color:#888">暂无考试记录</p>';
+    return;
+  }
+  if (!currentExamId) currentExamId = examsData[0].id;
+
+  const tabs = examsData.map(e => `
+    <button class="exam-tab ${e.id===currentExamId?'active':''}" onclick="switchExam('${e.id}')">${e.title}</button>
+  `).join('');
+
+  const exam = examsData.find(e => e.id === currentExamId) || examsData[0];
+  const isActive = exam.is_active === 1;
+
+  document.getElementById('exams-content').innerHTML = `
+    <div class="exam-tabs">${tabs}</div>
+    <div class="stats-grid">
+      <div class="stat-item"><div class="stat-value">${exam.total_students}</div><div class="stat-label">名单人数</div></div>
+      <div class="stat-item"><div class="stat-value">${exam.submitted}</div><div class="stat-label">已提交</div></div>
+      <div class="stat-item"><div class="stat-value">${exam.avg_score ?? '—'}</div><div class="stat-label">平均分</div></div>
+      <div class="stat-item"><div class="stat-value">${exam.total_students ? Math.round(exam.submitted/exam.total_students*100) : 0}%</div><div class="stat-label">完成率</div></div>
+    </div>
+    <div class="flex-row" style="margin-bottom:16px">
+      <div class="toggle-switch">
+        <span style="font-size:.9rem">考试状态：</span>
+        <label class="switch">
+          <input type="checkbox" ${isActive?'checked':''} onchange="toggleExam('${exam.id}', this.checked)">
+          <span class="slider"></span>
+        </label>
+        <span style="font-size:.9rem;color:${isActive?'#2e7d32':'#888'}">${isActive?'开放中':'已关闭'}</span>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="downloadExcel('${exam.id}', '${exam.title}')">⬇ 下载 Excel 成绩单</button>
+    </div>
+    <div id="scores-table">加载成绩中…</div>
+  `;
+  loadScores(currentExamId);
+}
+
+async function switchExam(id) {
+  currentExamId = id;
+  renderExams();
+}
+
+async function toggleExam(id, active) {
+  await fetch(`${API}/api/teacher/exams/${id}`, {
+    method: 'PUT',
+    headers: {'Authorization':`Bearer ${TOKEN}`,'Content-Type':'application/json'},
+    body: JSON.stringify({is_active: active ? 1 : 0})
+  });
+  loadExams();
+}
+
+async function loadScores(examId) {
+  const r = await fetch(`${API}/api/teacher/scores?exam_id=${examId}`, {
+    headers: {'Authorization': `Bearer ${TOKEN}`}
+  });
+  const d = await r.json();
+  const rows = d.rows || [];
+  if (!rows.length) {
+    document.getElementById('scores-table').innerHTML = '<p style="color:#888;margin-top:8px">名单为空，请先上传学生名单</p>';
+    return;
+  }
+  const tbody = rows.map(r => `
+    <tr>
+      <td>${r.name}</td>
+      <td>${r.student_id}</td>
+      <td>${r.class_name || '—'}</td>
+      <td>${r.score !== null ? `<strong>${r.score}</strong>` : '<span style="color:#bbb">未提交</span>'}</td>
+      <td>${r.total ?? '—'}</td>
+      <td style="font-size:.85rem;color:#888">${r.submitted_at || '—'}</td>
+    </tr>
+  `).join('');
+  document.getElementById('scores-table').innerHTML = `
+    <table>
+      <thead><tr><th>姓名</th><th>学号</th><th>班级</th><th>得分</th><th>满分</th><th>提交时间</th></tr></thead>
+      <tbody>${tbody}</tbody>
+    </table>
+  `;
+}
+
+async function downloadExcel(examId, title) {
+  const url = `${API}/api/teacher/scores/export?exam_id=${examId}`;
+  const r = await fetch(url, { headers: {'Authorization': `Bearer ${TOKEN}`} });
+  if (!r.ok) { alert('导出失败'); return; }
+  const blob = await r.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  a.download = `成绩单_${title}_${date}.xlsx`;
+  a.click();
+}
+
+// ───── 学生名单管理 ─────
+
+async function loadStudentList() {
+  const r = await fetch(`${API}/api/teacher/students/list`, {
+    headers: {'Authorization': `Bearer ${TOKEN}`}
+  });
+  if (!r.ok) { document.getElementById('student-list').innerHTML = '<p style="color:#c62828">加载失败</p>'; return; }
+  const students = await r.json();
+  if (!students.length) {
+    document.getElementById('student-list').innerHTML = '<p style="color:#888;font-size:.9rem">名单为空，请添加学生或上传 CSV</p>';
+    return;
+  }
+  const rows = students.map(s => `
+    <tr>
+      <td>${s.name}</td>
+      <td>${s.student_id}</td>
+      <td>${s.class_name || '—'}</td>
+      <td>
+        <button class="btn btn-outline-danger btn-sm" onclick="deleteStudent('${s.student_id}','${s.name}')">删除</button>
+      </td>
+    </tr>
+  `).join('');
+  document.getElementById('student-list').innerHTML = `
+    <p style="font-size:.85rem;color:#888;margin-bottom:8px">共 ${students.length} 名学生</p>
+    <table>
+      <thead><tr><th>姓名</th><th>学号</th><th>班级</th><th>操作</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+async function addStudent() {
+  const name = document.getElementById('add-name').value.trim();
+  const sid  = document.getElementById('add-sid').value.trim();
+  const cls  = document.getElementById('add-class').value.trim();
+  if (!name || !sid) { showMsg('student-msg', '姓名和学号不能为空', 'error'); return; }
+  try {
+    const r = await fetch(`${API}/api/teacher/students/add`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify({name, student_id: sid, class_name: cls || null})
+    });
+    const d = await r.json();
+    if (!r.ok) { showMsg('student-msg', d.detail || '添加失败', 'error'); return; }
+    showMsg('student-msg', `✅ 已添加学生：${name}（${sid}）`);
+    document.getElementById('add-name').value = '';
+    document.getElementById('add-sid').value = '';
+    document.getElementById('add-class').value = '';
+    loadStudentList();
+    loadExams();
+  } catch(e) { showMsg('student-msg', '网络错误：' + e, 'error'); }
+}
+
+async function deleteStudent(sid, name) {
+  showConfirmDialog(
+    '删除学生',
+    `确认删除学生 <strong>${name}（${sid}）</strong>？<br>该学生的成绩记录也将一并删除。`,
+    async () => {
+      const r = await fetch(`${API}/api/teacher/students/${encodeURIComponent(sid)}`, {
+        method: 'DELETE',
+        headers: {'Authorization': `Bearer ${TOKEN}`}
+      });
+      const d = await r.json();
+      if (!r.ok) { showMsg('student-msg', d.detail || '删除失败', 'error'); return; }
+      showMsg('student-msg', `✅ 已删除学生：${name}`);
+      loadStudentList();
+      loadExams();
+    }
+  );
+}
+
+function confirmClearStudents() {
+  showConfirmDialog(
+    '⚠️ 清空全部学生名单',
+    '此操作将删除<strong>所有学生名单</strong>及其成绩记录，无法恢复。<br>确认要继续吗？',
+    async () => {
+      const r = await fetch(`${API}/api/teacher/students`, {
+        method: 'DELETE',
+        headers: {'Authorization': `Bearer ${TOKEN}`}
+      });
+      const d = await r.json();
+      if (!r.ok) { showMsg('student-msg', d.detail || '操作失败', 'error'); return; }
+      showMsg('student-msg', '✅ 已清空全部学生名单');
+      loadStudentList();
+      loadExams();
+    }
+  );
+}
+
+function confirmNewSemester() {
+  showConfirmDialog(
+    '🔄 新学期重置',
+    '此操作将删除<strong>所有学生名单、所有考试记录和全部成绩</strong>，相当于全新开始。<br><br>此操作<strong>无法撤销</strong>，确认继续？',
+    async () => {
+      const r = await fetch(`${API}/api/teacher/reset`, {
+        method: 'POST',
+        headers: {'Authorization': `Bearer ${TOKEN}`}
+      });
+      const d = await r.json();
+      if (!r.ok) { showMsg('student-msg', d.detail || '操作失败', 'error'); return; }
+      showMsg('student-msg', '✅ 新学期重置完成，所有数据已清空');
+      currentExamId = null;
+      examsData = [];
+      loadStudentList();
+      loadExams();
+    }
+  );
+}
+
+// ───── 确认对话框 ─────
+
+function showConfirmDialog(title, message, onConfirm) {
+  const backdrop = document.createElement('div');
+  backdrop.className = 'confirm-dialog-backdrop';
+  backdrop.innerHTML = `
+    <div class="confirm-dialog">
+      <h3>${title}</h3>
+      <p>${message}</p>
+      <div class="btn-row">
+        <button class="btn btn-outline btn-sm" id="confirm-cancel">取消</button>
+        <button class="btn btn-danger btn-sm" id="confirm-ok">确认执行</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+  backdrop.querySelector('#confirm-cancel').onclick = () => backdrop.remove();
+  backdrop.querySelector('#confirm-ok').onclick = () => { backdrop.remove(); onConfirm(); };
+}
+
+// ───── 初始化：检查已有 token ─────
+if (TOKEN) {
+  fetch(`${API}/api/teacher/exams`, { headers: {'Authorization': `Bearer ${TOKEN}`} })
+    .then(r => {
+      if (r.ok) {
+        document.getElementById('login-page').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        loadExams();
+        loadStudentList();
+      } else {
+        TOKEN = ''; sessionStorage.removeItem('teacher_token');
+      }
+    }).catch(() => {});
+}
+</script>
+</body>
+</html>

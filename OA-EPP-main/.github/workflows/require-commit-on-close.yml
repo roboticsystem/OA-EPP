@@ -1,0 +1,58 @@
+name: "关闭Issue必须填写commit编号"
+
+on:
+  issues:
+    types: [closed]
+
+permissions:
+  issues: write
+
+jobs:
+  check_commit_hash:
+    runs-on: ubuntu-latest
+    # 排除 bot 自动关闭（如 dependabot），人工关闭和 commit 自动关闭均放行检查
+    if: github.event.sender.type != 'Bot'
+    steps:
+      - name: 获取关闭时的评论
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issueNumber = context.issue.number;
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              per_page: 100
+            });
+
+            // 只检查人工评论，排除 bot（如 github-actions[bot] 自己的提示）
+            const humanComments = comments.data.filter(c => c.user.type !== 'Bot');
+            const lastComment = humanComments[humanComments.length - 1]?.body || '';
+            console.log("最后人工评论：", lastComment);
+
+            // 正则匹配 commit hash（独立 7-40 位十六进制，排除纯数字和常见单词）
+            const commitRegex = /\b[0-9a-f]{7,40}\b/i;
+            const matches = lastComment.match(commitRegex);
+            // 额外验证：匹配结果必须包含至少一个字母和一个数字（排除纯数字/纯字母）
+            const hasValidCommit = matches ? matches.some(m => /[0-9]/.test(m) && /[a-f]/i.test(m)) : false;
+
+            if (!hasValidCommit) {
+              // 1. 重新打开
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                state: 'open'
+              });
+              // 2. 评论提醒
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: `⚠️ **关闭失败**：必须在"Add a comment"中填写 **修复该Issue的commit哈希**（7位或40位SHA），例如：\`Fixes #${issueNumber}, commit: a1b2c3d\``
+              });
+              console.log("未填commit，已重新打开Issue");
+            } else {
+              console.log("已包含合法commit，允许关闭");
+            }

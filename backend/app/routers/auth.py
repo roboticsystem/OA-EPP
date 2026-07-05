@@ -20,29 +20,33 @@ def verify_identity(req: VerifyRequest):
     - 未提交 → {already_submitted: false, token}
     """
     with db() as conn:
-        student = conn.execute(
-            "SELECT name, student_id, class_name FROM students WHERE student_id = ?",
-            (req.student_id,)
-        ).fetchone()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT name, student_id, class_name FROM students WHERE student_id = %s",
+                (req.student_id,)
+            )
+            student = cur.fetchone()
 
-        if not student:
-            raise HTTPException(status_code=403, detail="学号不在名单中，请联系老师确认")
+            if not student:
+                raise HTTPException(status_code=403, detail="学号不在名单中，请联系老师确认")
 
-        exam = conn.execute(
-            "SELECT id, title, is_active FROM exams WHERE id = ?",
-            (req.exam_id,)
-        ).fetchone()
+            cur.execute(
+                "SELECT id, title, is_active FROM exams WHERE id = %s",
+                (req.exam_id,)
+            )
+            exam = cur.fetchone()
 
-        if not exam:
-            raise HTTPException(status_code=404, detail="考试不存在")
+            if not exam:
+                raise HTTPException(status_code=404, detail="考试不存在")
 
-        if not exam["is_active"]:
-            raise HTTPException(status_code=403, detail="本次考试已关闭，无法答题")
+            if not exam["is_active"]:
+                raise HTTPException(status_code=403, detail="本次考试已关闭，无法答题")
 
-        existing = conn.execute(
-            "SELECT score, total, submitted_at FROM scores WHERE student_id = ? AND exam_id = ?",
-            (req.student_id, req.exam_id)
-        ).fetchone()
+            cur.execute(
+                "SELECT score, total, submitted_at FROM scores WHERE student_id = %s AND exam_id = %s",
+                (req.student_id, req.exam_id)
+            )
+            existing = cur.fetchone()
 
         if existing:
             return {

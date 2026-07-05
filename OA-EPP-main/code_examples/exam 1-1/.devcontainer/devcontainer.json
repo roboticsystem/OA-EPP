@@ -1,0 +1,29 @@
+{
+    "name": "STM32 QEMU Env",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "remote.extensionKind": {
+                    "mcu-debug.debug-tracker-vscode": [
+                        "workspace"
+                    ],
+                    "mcu-debug.peripheral-viewer": [
+                        "workspace"
+                    ]
+                }
+            },
+            "extensions": [
+                "ms-vscode.cpptools",
+                "mcu-debug.debug-tracker-vscode",
+                "marus25.cortex-debug",
+                "ms-vscode.serial-monitor",
+                "GitHub.copilot"
+            ]
+        }
+    },
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "workspaceFolder": "/workspace"
+}

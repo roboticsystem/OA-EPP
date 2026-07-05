@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>成绩管理 - 教师端 - OA-EPP</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- 顶部导航 -->
+  <nav class="bg-indigo-700 text-white px-6 py-3 flex items-center justify-between shadow">
+    <div class="flex items-center gap-4">
+      <a href="#" class="text-white font-bold text-lg">OA-EPP</a>
+      <span class="px-2 py-0.5 bg-indigo-500 text-xs rounded">教师端</span>
+      <span class="text-indigo-200 text-sm">/ 成绩管理</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-sm text-indigo-200">李老师</span>
+      <div class="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-sm font-bold">李</div>
+    </div>
+  </nav>
+
+  <!-- 侧边栏 + 主内容 -->
+  <div class="flex">
+    <!-- 侧边栏 -->
+    <aside class="w-56 bg-white border-r border-gray-200 min-h-screen pt-4">
+      <nav class="px-3 space-y-1">
+        <a href="admin_students.html" class="flex items-center gap-2 px-3 py-2 rounded text-gray-600 hover:bg-gray-100 text-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          学生管理
+        </a>
+        <a href="admin_grades.html" class="flex items-center gap-2 px-3 py-2 rounded bg-indigo-50 text-indigo-700 font-medium text-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          成绩管理
+        </a>
+        <a href="admin_devops.html" class="flex items-center gap-2 px-3 py-2 rounded text-gray-600 hover:bg-gray-100 text-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          开发运维
+        </a>
+        <a href="admin_settings.html" class="flex items-center gap-2 px-3 py-2 rounded text-gray-600 hover:bg-gray-100 text-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+          系统设置
+        </a>
+      </nav>
+    </aside>
+
+    <!-- 主内容 -->
+    <main class="flex-1 p-6">
+      <h1 class="text-xl font-bold text-gray-800 mb-6">成绩管理</h1>
+
+      <!-- Tab 切换（锚链接跳转对应区块）-->
+      <div class="flex gap-1 bg-gray-100 p-1 rounded-lg mb-6 w-fit">
+        <a href="#tab-grades" class="px-4 py-1.5 bg-white text-indigo-700 font-medium rounded-md text-sm shadow-sm no-underline">成绩单导出</a>
+        <a href="#tab-devlogs" class="px-4 py-1.5 text-gray-500 hover:text-gray-700 rounded-md text-sm no-underline">开发日志导出</a>
+        <a href="#tab-weights" class="px-4 py-1.5 text-gray-500 hover:text-gray-700 rounded-md text-sm no-underline">得分权重配置</a>
+      </div>
+
+      <!-- ===== 成绩单导出 (F-T-008) ===== -->
+      <div id="tab-grades" class="scroll-mt-4">
+
+      <!-- 筛选区 -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm mb-5">
+        <div class="px-5 py-4 border-b border-gray-100">
+          <h2 class="font-semibold text-gray-800">筛选导出范围</h2>
+        </div>
+        <div class="px-5 py-4">
+          <div class="grid grid-cols-3 gap-4 mb-4">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">课程</label>
+              <select class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                <option>工程实践4（2025春）</option>
+                <option>工程实践3（2024秋）</option>
+                <option>工程实践2（2024春）</option>
+                <option>工程实践1（2023秋）</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">班级</label>
+              <select class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                <option>全部班级</option>
+                <option>计算机2101</option>
+                <option>计算机2102</option>
+                <option>软件工程2101</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">学期</label>
+              <select class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                <option>2025 春季学期</option>
+                <option>2024 秋季学期</option>
+              </select>
+            </div>
+          </div>
+          <button class="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-200">
+            预览表格数据
+          </button>
+        </div>
+      </div>
+
+      <!-- 预览表格 -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm mb-5">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 class="font-semibold text-gray-800">数据预览（工程实践4 / 计算机2101 / 2025春）</h2>
+          <span class="text-sm text-gray-400">共 32 条记录</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-gray-400 text-xs uppercase border-b border-gray-100 bg-gray-50">
+                <th class="px-4 py-3">学号</th>
+                <th class="px-4 py-3">姓名</th>
+                <th class="px-4 py-3">班级</th>
+                <th class="px-4 py-3">出勤（15）</th>
+                <th class="px-4 py-3">考试（30）</th>
+                <th class="px-4 py-3">代码（35）</th>
+                <th class="px-4 py-3">PR（20）</th>
+                <th class="px-4 py-3">总评</th>
+                <th class="px-4 py-3">等级</th>
+                <th class="px-4 py-3">备注</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+              <tr class="hover:bg-gray-50">
+                <td class="px-4 py-2.5 font-mono text-gray-700">20210001</td>
+                <td class="px-4 py-2.5 font-medium">张小明</td>
+                <td class="px-4 py-2.5 text-gray-500">计算机2101</td>
+                <td class="px-4 py-2.5">12.5</td>
+                <td class="px-4 py-2.5">26</td>
+                <td class="px-4 py-2.5">31</td>
+                <td class="px-4 py-2.5">17</td>
+                <td class="px-4 py-2.5 font-bold text-green-600">86.5</td>
+                <td class="px-4 py-2.5"><span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">B</span></td>
+                <td class="px-4 py-2.5"><input type="text" placeholder="备注" class="border border-gray-200 rounded px-2 py-1 text-xs w-24 focus:outline-none focus:ring-1 focus:ring-indigo-300"></td>
+              </tr>
+              <tr class="hover:bg-gray-50">
+                <td class="px-4 py-2.5 font-mono text-gray-700">20210002</td>
+                <td class="px-4 py-2.5 font-medium">李华</td>
+                <td class="px-4 py-2.5 text-gray-500">计算机2101</td>
+                <td class="px-4 py-2.5">15</td>
+                <td class="px-4 py-2.5">29</td>
+                <td class="px-4 py-2.5">34</td>
+                <td class="px-4 py-2.5">20</td>
+                <td class="px-4 py-2.5 font-bold text-green-600">98</td>
+                <td class="px-4 py-2.5"><span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">A</span></td>
+                <td class="px-4 py-2.5"><input type="text" placeholder="备注" class="border border-gray-200 rounded px-2 py-1 text-xs w-24 focus:outline-none focus:ring-1 focus:ring-indigo-300"></td>
+              </tr>
+              <tr class="hover:bg-gray-50">
+                <td class="px-4 py-2.5 font-mono text-gray-700">20210003</td>
+                <td class="px-4 py-2.5 font-medium">王芳</td>
+                <td class="px-4 py-2.5 text-gray-500">计算机2101</td>
+                <td class="px-4 py-2.5">10</td>
+                <td class="px-4 py-2.5">18</td>
+                <td class="px-4 py-2.5">22</td>
+                <td class="px-4 py-2.5">12</td>
+                <td class="px-4 py-2.5 font-bold text-yellow-600">62</td>
+                <td class="px-4 py-2.5"><span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">D</span></td>
+                <td class="px-4 py-2.5"><input type="text" placeholder="备注" class="border border-gray-200 rounded px-2 py-1 text-xs w-24 focus:outline-none focus:ring-1 focus:ring-indigo-300"></td>
+              </tr>
+              <tr class="text-gray-400 text-xs">
+                <td colspan="10" class="px-4 py-2 text-center">… 另外 29 条记录</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="px-5 py-4 border-t border-gray-100 flex items-center justify-between">
+          <p class="text-xs text-gray-400">文件名：<span class="font-mono">工程实践4_计算机2101_2025春_成绩单_20250525.xlsx</span></p>
+          <div class="flex gap-2">
+            <button class="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50">
+              取消
+            </button>
+            <button class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              导出 Excel（全班）
+            </button>
+          </div>
+        </div>
+      </div>
+
+      </div><!-- /#tab-grades -->
+
+      <!-- ===== 开发日志导出 (F-T-010) ===== -->
+      <div id="tab-devlogs" class="scroll-mt-4">
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 class="font-semibold text-gray-800">学生开发日志导出（F-T-010）</h2>
+          <span class="text-xs text-gray-400">9 维度全量报告</span>
+        </div>
+        <div class="px-5 py-4">
+          <!-- 维度说明 -->
+          <div class="grid grid-cols-3 gap-3 mb-5">
+            <div class="border border-gray-100 rounded-lg p-3 text-center">
+              <div class="text-xs font-medium text-gray-700 mb-0.5">分支记录</div>
+              <div class="text-xs text-gray-400">功能分支列表</div>
+            </div>
+            <div class="border border-gray-100 rounded-lg p-3 text-center">
+              <div class="text-xs font-medium text-gray-700 mb-0.5">提交历史</div>
+              <div class="text-xs text-gray-400">Commit 详情</div>
+            </div>
+            <div class="border border-gray-100 rounded-lg p-3 text-center">
+              <div class="text-xs font-medium text-gray-700 mb-0.5">代码质量</div>
+              <div class="text-xs text-gray-400">AI 评分（pr-agent）</div>
+            </div>
+            <div class="border border-gray-100 rounded-lg p-3 text-center">
+              <div class="text-xs font-medium text-gray-700 mb-0.5">PR 情况</div>
+              <div class="text-xs text-gray-400">PR 列表与状态</div>
+            </div>
+            <div class="border border-gray-100 rounded-lg p-3 text-center">
+              <div class="text-xs font-medium text-gray-700 mb-0.5">PR 分析质量</div>
+              <div class="text-xs text-gray-400">AI 审查结论</div>
+            </div>
+            <div class="border border-gray-100 rounded-lg p-3 text-center">
+              <div class="text-xs font-medium text-gray-700 mb-0.5">教师评语</div>
+              <div class="text-xs text-gray-400">历次评论摘要</div>
+            </div>
+            <div class="border border-gray-100 rounded-lg p-3 text-center">
+              <div class="text-xs font-medium text-gray-700 mb-0.5">在线考试</div>
+              <div class="text-xs text-gray-400">各次考试详情</div>
+            </div>
+            <div class="border border-gray-100 rounded-lg p-3 text-center">
+              <div class="text-xs font-medium text-gray-700 mb-0.5">考勤情况</div>
+              <div class="text-xs text-gray-400">出勤率汇总</div>
+            </div>
+            <div class="border border-gray-100 rounded-lg p-3 text-center">
+              <div class="text-xs font-medium text-gray-700 mb-0.5">课程得分</div>
+              <div class="text-xs text-gray-400">加权总评</div>
+            </div>
+          </div>
+          <!-- 操作栏 -->
+          <div class="flex gap-3 items-end">
+            <div class="flex-1">
+              <label class="block text-xs text-gray-500 mb-1">选择学生（单个导出）</label>
+              <select class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                <option>-- 选择学生 --</option>
+                <option>张小明（20210001）</option>
+                <option>李华（20210002）</option>
+                <option>王芳（20210003）</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">导出格式</label>
+              <select class="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                <option>PDF</option>
+                <option>HTML</option>
+                <option>Excel</option>
+              </select>
+            </div>
+            <button class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              导出单人报告
+            </button>
+            <button class="px-5 py-2 bg-gray-700 hover:bg-gray-800 text-white font-medium rounded-lg text-sm flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+              批量导出全班（ZIP）
+            </button>
+          </div>
+          <p class="text-xs text-gray-400 mt-2">数据实时从平台数据库 + GitHub API 聚合，生成耗时约 10–30 秒（视 API 响应而定）。导出操作将记录审计日志。</p>
+        </div>
+      </div>
+
+      </div><!-- /#tab-devlogs -->
+
+      <!-- ===== 得分权重配置 Tab ===== -->
+      <div id="tab-weights" class="scroll-mt-4">
+      <!-- 课程选择 + 说明 -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm mb-5">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h2 class="font-semibold text-gray-800">得分权重配置</h2>
+            <p class="text-xs text-gray-400 mt-0.5">调整各维度占总评的百分比，四项权重之和必须等于 100 分</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <label class="text-xs text-gray-500">配置课程</label>
+            <select class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+              <option>工程实践4（2025春）</option>
+              <option>工程实践3（2024秋）</option>
+              <option>工程实践2（2024春）</option>
+              <option>工程实践1（2023秋）</option>
+            </select>
+          </div>
+        </div>
+        <div class="px-5 py-5">
+          <div class="grid grid-cols-3 gap-6">
+
+            <!-- 左：权重输入区 -->
+            <div class="col-span-2 space-y-4">
+
+              <!-- 维度1：出勤 -->
+              <div class="border border-gray-100 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-green-400 flex-shrink-0"></span>
+                    <span class="text-sm font-medium text-gray-700">出勤（考勤分）</span>
+                    <span class="text-xs text-gray-400">· 课堂签到 + 迟到/缺勤扣分</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <input type="number" value="15" min="0" max="100"
+                      class="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center text-gray-700 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    <span class="text-sm text-gray-500">分</span>
+                  </div>
+                </div>
+                <!-- 伪滑动条 -->
+                <div class="relative h-2 bg-gray-100 rounded-full">
+                  <div class="absolute left-0 top-0 h-2 bg-green-400 rounded-full" style="width:15%"></div>
+                  <div class="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-green-400 rounded-full shadow" style="left:calc(15% - 8px)"></div>
+                </div>
+                <div class="flex justify-between text-xs text-gray-300 mt-1">
+                  <span>0</span><span>25</span><span>50</span><span>75</span><span>100</span>
+                </div>
+              </div>
+
+              <!-- 维度2：在线考试 -->
+              <div class="border border-gray-100 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-blue-400 flex-shrink-0"></span>
+                    <span class="text-sm font-medium text-gray-700">在线考试（笔试分）</span>
+                    <span class="text-xs text-gray-400">· 课堂在线测验平均分</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <input type="number" value="30" min="0" max="100"
+                      class="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center text-gray-700 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    <span class="text-sm text-gray-500">分</span>
+                  </div>
+                </div>
+                <div class="relative h-2 bg-gray-100 rounded-full">
+                  <div class="absolute left-0 top-0 h-2 bg-blue-400 rounded-full" style="width:30%"></div>
+                  <div class="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-blue-400 rounded-full shadow" style="left:calc(30% - 8px)"></div>
+                </div>
+                <div class="flex justify-between text-xs text-gray-300 mt-1">
+                  <span>0</span><span>25</span><span>50</span><span>75</span><span>100</span>
+                </div>
+              </div>
+
+              <!-- 维度3：代码质量 -->
+              <div class="border border-gray-100 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-indigo-400 flex-shrink-0"></span>
+                    <span class="text-sm font-medium text-gray-700">代码质量（AI 评分）</span>
+                    <span class="text-xs text-gray-400">· pr-agent 自动审查评分</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <input type="number" value="35" min="0" max="100"
+                      class="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center text-gray-700 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    <span class="text-sm text-gray-500">分</span>
+                  </div>
+                </div>
+                <div class="relative h-2 bg-gray-100 rounded-full">
+                  <div class="absolute left-0 top-0 h-2 bg-indigo-400 rounded-full" style="width:35%"></div>
+                  <div class="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-indigo-400 rounded-full shadow" style="left:calc(35% - 8px)"></div>
+                </div>
+                <div class="flex justify-between text-xs text-gray-300 mt-1">
+                  <span>0</span><span>25</span><span>50</span><span>75</span><span>100</span>
+                </div>
+              </div>
+
+              <!-- 维度4：PR 协作 -->
+              <div class="border border-gray-100 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-orange-400 flex-shrink-0"></span>
+                    <span class="text-sm font-medium text-gray-700">PR 协作（参与度）</span>
+                    <span class="text-xs text-gray-400">· PR 数量 + 评审贡献</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <input type="number" value="20" min="0" max="100"
+                      class="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center text-gray-700 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    <span class="text-sm text-gray-500">分</span>
+                  </div>
+                </div>
+                <div class="relative h-2 bg-gray-100 rounded-full">
+                  <div class="absolute left-0 top-0 h-2 bg-orange-400 rounded-full" style="width:20%"></div>
+                  <div class="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-orange-400 rounded-full shadow" style="left:calc(20% - 8px)"></div>
+                </div>
+                <div class="flex justify-between text-xs text-gray-300 mt-1">
+                  <span>0</span><span>25</span><span>50</span><span>75</span><span>100</span>
+                </div>
+              </div>
+
+              <!-- 合计校验 -->
+              <div class="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                <div class="flex items-center gap-2">
+                  <span class="w-5 h-5 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
+                  <span class="text-sm font-medium text-green-700">权重合计：100 / 100 分（有效）</span>
+                </div>
+                <div class="flex gap-2">
+                  <button class="text-xs border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">重置为默认</button>
+                  <button class="text-xs border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">从其他课程复制</button>
+                  <button class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg font-medium">保存并应用</button>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- 右：可视化 + 等级映射 -->
+            <div class="space-y-4">
+
+              <!-- 权重分布可视化（环形图占位） -->
+              <div class="border border-gray-100 rounded-xl p-4">
+                <h4 class="text-xs font-semibold text-gray-600 mb-3">权重分布</h4>
+                <!-- SVG 饼图占位 -->
+                <svg viewBox="0 0 120 120" class="w-full max-w-[120px] mx-auto mb-3" aria-label="权重分布饼图占位">
+                  <!-- 圆环分四段：出勤15% 考试30% 代码35% PR20% -->
+                  <!-- 用 stroke-dasharray 模拟圆环图 -->
+                  <circle cx="60" cy="60" r="45" fill="none" stroke="#e5e7eb" stroke-width="20"/>
+                  <!-- PR 橙色 20% → dasharray=28.27 circumference=282.7 -->
+                  <circle cx="60" cy="60" r="45" fill="none" stroke="#fb923c" stroke-width="20"
+                    stroke-dasharray="56.5 226.2" stroke-dashoffset="0" transform="rotate(-90 60 60)"/>
+                  <!-- 代码 靛蓝 35% -->
+                  <circle cx="60" cy="60" r="45" fill="none" stroke="#818cf8" stroke-width="20"
+                    stroke-dasharray="98.9 183.8" stroke-dashoffset="-56.5" transform="rotate(-90 60 60)"/>
+                  <!-- 考试 蓝色 30% -->
+                  <circle cx="60" cy="60" r="45" fill="none" stroke="#60a5fa" stroke-width="20"
+                    stroke-dasharray="84.8 197.9" stroke-dashoffset="-155.4" transform="rotate(-90 60 60)"/>
+                  <!-- 出勤 绿色 15% -->
+                  <circle cx="60" cy="60" r="45" fill="none" stroke="#4ade80" stroke-width="20"
+                    stroke-dasharray="42.4 240.3" stroke-dashoffset="-240.2" transform="rotate(-90 60 60)"/>
+                  <!-- 中心文字 -->
+                  <text x="60" y="64" text-anchor="middle" class="text-xs" font-size="11" fill="#374151" font-weight="bold">100分</text>
+                </svg>
+                <!-- 图例 -->
+                <div class="space-y-1.5">
+                  <div class="flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-green-400 flex-shrink-0"></span><span class="text-gray-600">出勤</span></div>
+                    <span class="font-medium text-gray-700">15 分</span>
+                  </div>
+                  <div class="flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-blue-400 flex-shrink-0"></span><span class="text-gray-600">考试</span></div>
+                    <span class="font-medium text-gray-700">30 分</span>
+                  </div>
+                  <div class="flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-indigo-400 flex-shrink-0"></span><span class="text-gray-600">代码</span></div>
+                    <span class="font-medium text-gray-700">35 分</span>
+                  </div>
+                  <div class="flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-orange-400 flex-shrink-0"></span><span class="text-gray-600">PR协作</span></div>
+                    <span class="font-medium text-gray-700">20 分</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 等级映射表 -->
+              <div class="border border-gray-100 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <h4 class="text-xs font-semibold text-gray-600">等级映射（百分制 → 等级）</h4>
+                  <button class="text-xs text-indigo-500 hover:underline">编辑</button>
+                </div>
+                <div class="space-y-1.5">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">A</span>
+                    <span class="text-gray-500">≥ 90 分</span>
+                    <span class="text-gray-400">优秀</span>
+                  </div>
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded font-medium">B</span>
+                    <span class="text-gray-500">80 – 89 分</span>
+                    <span class="text-gray-400">良好</span>
+                  </div>
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded font-medium">C</span>
+                    <span class="text-gray-500">70 – 79 分</span>
+                    <span class="text-gray-400">中等</span>
+                  </div>
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="px-2 py-0.5 bg-orange-100 text-orange-700 rounded font-medium">D</span>
+                    <span class="text-gray-500">60 – 69 分</span>
+                    <span class="text-gray-400">及格</span>
+                  </div>
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="px-2 py-0.5 bg-red-100 text-red-700 rounded font-medium">F</span>
+                    <span class="text-gray-500">&lt; 60 分</span>
+                    <span class="text-gray-400">不及格</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 历史版本 -->
+              <div class="border border-gray-100 rounded-xl p-4">
+                <h4 class="text-xs font-semibold text-gray-600 mb-3">权重变更历史</h4>
+                <div class="space-y-2.5">
+                  <div class="text-xs">
+                    <div class="flex justify-between text-gray-500">
+                      <span class="font-medium">当前版本</span>
+                      <span class="text-gray-400">2025-05-20</span>
+                    </div>
+                    <p class="text-gray-400 mt-0.5">15 / 30 / 35 / 20</p>
+                  </div>
+                  <div class="text-xs border-t border-gray-50 pt-2">
+                    <div class="flex justify-between text-gray-500">
+                      <span>上一版本</span>
+                      <span class="text-gray-400">2025-03-01</span>
+                    </div>
+                    <p class="text-gray-400 mt-0.5">10 / 40 / 30 / 20</p>
+                  </div>
+                  <div class="text-xs border-t border-gray-50 pt-2">
+                    <div class="flex justify-between text-gray-500">
+                      <span>初始配置</span>
+                      <span class="text-gray-400">2025-02-15</span>
+                    </div>
+                    <p class="text-gray-400 mt-0.5">20 / 30 / 30 / 20</p>
+                  </div>
+                  <button class="text-xs text-indigo-500 hover:underline">查看完整变更日志 →</button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+      </div><!-- /#tab-weights -->
+
+    </main>
+  </div>
+</body>
+</html>

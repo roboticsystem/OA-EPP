@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>成绩查询 — 研究生课程《机器人系统》</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; background: #f0f4f8; color: #333; min-height: 100vh; }
+  .header { background: #1565c0; color: #fff; padding: 16px 24px; }
+  .header h1 { font-size: 1.2rem; }
+  .header p { font-size: .85rem; opacity: .85; margin-top: 4px; }
+  .container { max-width: 680px; margin: 32px auto; padding: 0 16px; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.1); overflow: hidden; margin-bottom: 20px; }
+  .search-box { padding: 28px; }
+  .search-box h2 { font-size: 1.1rem; margin-bottom: 16px; color: #1565c0; }
+  .input-row { display: flex; gap: 10px; }
+  input[type=text] { flex: 1; padding: 12px 16px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
+  input[type=text]:focus { outline: none; border-color: #1565c0; box-shadow: 0 0 0 3px rgba(21,101,192,.1); }
+  .btn { padding: 12px 24px; background: #1565c0; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; white-space: nowrap; }
+  .btn:hover { background: #0d47a1; }
+  .candidates { border-top: 1px solid #f0f0f0; }
+  .candidates-title { padding: 10px 28px; font-size: .85rem; color: #888; background: #fafafa; }
+  .candidate-item { padding: 14px 28px; cursor: pointer; border-bottom: 1px solid #f5f5f5; display: flex; align-items: center; gap: 16px; transition: background .15s; }
+  .candidate-item:hover { background: #e3f2fd; }
+  .candidate-item.selected { background: #e3f2fd; border-left: 4px solid #1565c0; }
+  .cand-name { font-weight: bold; font-size: 1rem; }
+  .cand-meta { font-size: .85rem; color: #888; }
+  .results-section { padding: 24px 28px; }
+  .student-info { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+  .avatar { width: 48px; height: 48px; background: #1565c0; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; flex-shrink: 0; }
+  .student-detail h3 { font-size: 1.1rem; }
+  .student-detail p { font-size: .88rem; color: #888; margin-top: 2px; }
+  .score-list { display: flex; flex-direction: column; gap: 10px; }
+  .score-item { border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; }
+  .score-item.submitted { border-color: #a5d6a7; background: #f1f8e9; }
+  .score-item.pending { opacity: .65; }
+  .exam-title { font-weight: bold; font-size: .95rem; }
+  .exam-time { font-size: .8rem; color: #888; margin-top: 2px; }
+  .score-badge { text-align: right; }
+  .score-value { font-size: 1.4rem; font-weight: bold; color: #1565c0; }
+  .score-total { font-size: .85rem; color: #888; }
+  .score-pending { font-size: .9rem; color: #bbb; }
+  .hint { font-size: .85rem; color: #888; margin-top: 10px; text-align: center; }
+  .empty { padding: 32px; text-align: center; color: #bbb; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>📊 成绩查询</h1>
+  <p>研究生课程《机器人系统》 — 成都信息工程大学软件工程学院</p>
+</div>
+<div class="container">
+  <div class="card">
+    <div class="search-box">
+      <h2>🔍 查询我的成绩</h2>
+      <div class="input-row">
+        <input type="text" id="name-input" placeholder="输入姓名或拼音（如：张三 / zhangsan / zs）" oninput="onInput()" onkeydown="if(event.key==='Enter')doSearch()">
+        <button class="btn" onclick="doSearch()">搜索</button>
+      </div>
+    </div>
+
+    <div id="candidates-wrap" style="display:none">
+      <div class="candidates">
+        <div class="candidates-title">请点击选择自己的姓名：</div>
+        <div id="candidates-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="results-card" class="card" style="display:none">
+    <div class="results-section">
+      <div class="student-info">
+        <div class="avatar" id="avatar-text">?</div>
+        <div class="student-detail">
+          <h3 id="result-name"></h3>
+          <p id="result-meta"></p>
+        </div>
+      </div>
+      <div class="score-list" id="score-list"></div>
+      <p class="hint">成绩由服务器记录，如有疑问请联系授课教师</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let searchTimer = null;
+
+function onInput() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(doSearch, 300);
+}
+
+async function doSearch() {
+  const q = document.getElementById('name-input').value.trim();
+  if (!q) { document.getElementById('candidates-wrap').style.display='none'; return; }
+  try {
+    const r = await fetch(`${API}/api/students/search?q=${encodeURIComponent(q)}`);
+    const list = await r.json();
+    renderCandidates(list);
+  } catch(e) { console.error(e); }
+}
+
+function renderCandidates(list) {
+  const wrap = document.getElementById('candidates-wrap');
+  const container = document.getElementById('candidates-list');
+  if (!list.length) {
+    wrap.style.display = 'block';
+    container.innerHTML = '<div class="empty">未找到匹配的学生，请检查输入</div>';
+    return;
+  }
+  wrap.style.display = 'block';
+  container.innerHTML = list.map(s => `
+    <div class="candidate-item" onclick="selectStudent('${s.student_id}', '${s.name}', '${s.class_name||''}')">
+      <div>
+        <div class="cand-name">${s.name}</div>
+        <div class="cand-meta">${s.student_id}${s.class_name ? ' · ' + s.class_name : ''}</div>
+      </div>
+      <span style="color:#1565c0;font-size:.9rem">查看成绩 →</span>
+    </div>
+  `).join('');
+}
+
+async function selectStudent(studentId, name, className) {
+  // 高亮选中
+  document.querySelectorAll('.candidate-item').forEach(el => el.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+
+  try {
+    const r = await fetch(`${API}/api/scores?student_id=${encodeURIComponent(studentId)}`);
+    if (!r.ok) { alert('查询失败'); return; }
+    const d = await r.json();
+    renderResults(d);
+  } catch(e) { alert('网络错误：' + e); }
+}
+
+function renderResults(data) {
+  const card = document.getElementById('results-card');
+  const s = data.student;
+  document.getElementById('avatar-text').textContent = s.name.slice(-1);
+  document.getElementById('result-name').textContent = s.name;
+  document.getElementById('result-meta').textContent =
+    `学号：${s.student_id}${s.class_name ? ' · ' + s.class_name : ''}`;
+
+  const scoreHtml = data.scores.map(item => {
+    if (item.score !== null) {
+      return `
+        <div class="score-item submitted">
+          <div>
+            <div class="exam-title">${item.exam_title}</div>
+            <div class="exam-time">${item.submitted_at}</div>
+          </div>
+          <div class="score-badge">
+            <div class="score-value">${item.score}</div>
+            <div class="score-total">/ ${item.total} 分</div>
+          </div>
+        </div>`;
+    } else {
+      return `
+        <div class="score-item pending">
+          <div><div class="exam-title">${item.exam_title}</div></div>
+          <div class="score-pending">未参加</div>
+        </div>`;
+    }
+  }).join('');
+
+  document.getElementById('score-list').innerHTML = scoreHtml;
+  card.style.display = 'block';
+  card.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+</script>
+</body>
+</html>

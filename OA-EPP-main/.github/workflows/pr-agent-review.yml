@@ -1,0 +1,69 @@
+name: 机器人系统课程 - PR Agent 自动Review
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  pr_agent_review:
+    runs-on: ubuntu-latest
+    env:
+      # 消除 Node.js 20 弃用警告（checkout@v4 / setup-python@v5 仍基于 Node.js 20）
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    permissions:
+      pull-requests: write
+      contents: read
+      checks: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install PR-Agent
+        run: |
+          # 安装固定版本以保证稳定性，失败则回退到最新版本
+          pip install pr-agent==0.2.4 || pip install pr-agent
+          # 升级 litellm 以修复与新版 openai 的 proxies 参数不兼容问题
+          pip install "litellm>=1.35.0" --upgrade
+          pr-agent --version || true
+
+      - name: 加载课程专属配置
+        run: |
+          echo "加载机器人系统课程 Review规则..."
+          echo '--- configuration start ---'
+          sed -n '1,200p' .github/pr_agent/configuration.toml || true
+          echo '--- configuration end ---'
+
+      - name: Run PR Agent Review（机器人系统课程定制版）
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # dynaconf 双下划线映射：github.user_token
+          GITHUB__USER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 使用有 models 权限的 PAT 调用 GitHub Models 端点（Actions 自带 GITHUB_TOKEN 无此权限）
+          OPENAI_API_KEY: ${{ secrets.MODELS_API_KEY }}
+          OPENAI_API_BASE: https://models.inference.ai.azure.com
+          LITELLM_DROP_PARAMS: "true"
+          PR_AGENT_CONFIG_PATH: .github/pr_agent/configuration.toml
+        run: |
+          set -x
+          # pr-agent 0.2.4 语法：--pr_url 必须在子命令之前
+          pr-agent --pr_url "${{ github.event.pull_request.html_url }}" review || true
+
+      - name: 输出PR-Agent输出与日志（便于调试）
+        if: always()
+        run: |
+          echo "=== pr-agent ps aux ==="
+          ps aux | head -n 50 || true
+          echo "=== pr-agent logs dir ==="
+          ls -la ~/.pr_agent || true
+          echo "=== pr-agent log files ==="
+          ls -la ~/.pr_agent/logs || true
+          echo "=== pr-agent main log ==="
+          if [ -f ~/.pr_agent/logs/pr_agent.log ]; then
+            tail -n 200 ~/.pr_agent/logs/pr_agent.log
+          else
+            echo "No pr_agent.log found"
+          fi
