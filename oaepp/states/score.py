@@ -141,16 +141,22 @@ class ScoreState(_Base):
         yield
         self.is_loading = False
 
-    def load_scores(self):
+    async def load_scores(self):
         try:
             from states.auth import AuthState
         except ImportError:
             from oaepp.states.auth import AuthState
-        auth = self.get_state(AuthState)
+        auth = await self.get_state(AuthState)
         uid = auth.current_user_id
         if not uid:
-            return
-        data = _fetch_scores(uid)
+            uid = 0
+        data = _fetch_scores(uid) if uid else {}
+        if not data and auth.current_student_no:
+            with db_sync() as cur:
+                cur.execute("SELECT id FROM users WHERE student_no = %s", (auth.current_student_no,))
+                row = cur.fetchone()
+                if row:
+                    data = _fetch_scores(row["id"])
         if not data:
             return
         self.attendance_score = data["attendance_score"]
