@@ -5,13 +5,6 @@
 - REFLEX_DB_URL: 强制使用内存数据库，不依赖生产环境
 """
 import os
-import sys
-from pathlib import Path
-
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
 import pytest
 import sqlmodel
 
