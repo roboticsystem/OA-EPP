@@ -142,7 +142,12 @@ class ScoreState(_Base):
         self.is_loading = False
 
     def load_scores(self):
-        uid = self.current_user_id
+        try:
+            from states.auth import AuthState
+        except ImportError:
+            from oaepp.states.auth import AuthState
+        auth = self.get_state(AuthState)
+        uid = auth.current_user_id
         if not uid:
             return
         data = _fetch_scores(uid)
