@@ -1,0 +1,87 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "name": "pytest: 当前文件",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "${file}",
+                "-v",
+                "--tb=short",
+                "--color=yes"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/oaepp;${workspaceFolder}/backend;${workspaceFolder}"
+            }
+        },
+        {
+            "name": "pytest: F-S-021 版本测试",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests/reflex/test_F_S_021_versions.py",
+                "-v",
+                "--tb=long",
+                "--color=yes"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/oaepp;${workspaceFolder}/backend;${workspaceFolder}"
+            }
+        },
+        {
+            "name": "pytest: 全部测试",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests/reflex/",
+                "-v",
+                "--tb=short",
+                "--color=yes"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/oaepp;${workspaceFolder}/backend;${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Reflex: 启动应用 (dev)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "reflex",
+            "args": [
+                "run"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/oaepp",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/oaepp;${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Python: 当前文件",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/oaepp;${workspaceFolder}/backend;${workspaceFolder}"
+            }
+        }
+    ]
+}
