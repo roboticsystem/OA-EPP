@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作业提交 — 研究生课程《机器人系统》</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; background: #f0f4f8; color: #333; min-height: 100vh; }
+  .header { background: #1565c0; color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-size: 1.2rem; }
+  .header p { font-size: .85rem; opacity: .85; margin-top: 4px; }
+  .header .user-info { display: flex; align-items: center; gap: 12px; }
+  .header .user-info .name { font-size: .95rem; }
+  .header .user-info .logout-btn { background: rgba(255,255,255,.2); color: #fff; border: 1px solid rgba(255,255,255,.5); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: .8rem; }
+  .header .user-info .logout-btn:hover { background: rgba(255,255,255,.35); }
+  .container { max-width: 960px; margin: 24px auto; padding: 0 16px; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.1); overflow: hidden; margin-bottom: 20px; }
+  .card-title { background: #e3f2fd; padding: 12px 20px; font-weight: bold; font-size: .95rem; border-bottom: 1px solid #bbdefb; }
+  .card-body { padding: 20px; }
+  .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .login-box { background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,.15); width: 360px; text-align: center; }
+  .login-box h2 { margin-bottom: 8px; color: #1565c0; }
+  .login-box p { color: #888; margin-bottom: 24px; font-size: .9rem; }
+  input[type=text], input[type=password], textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; margin-bottom: 12px; }
+  input[type=text]:focus, input[type=password]:focus, textarea:focus { outline: none; border-color: #1565c0; box-shadow: 0 0 0 3px rgba(21,101,192,.1); }
+  .btn { display: inline-block; padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: .95rem; font-weight: bold; }
+  .btn-primary { background: #1565c0; color: #fff; }
+  .btn-primary:hover { background: #0d47a1; }
+  .btn-primary:disabled { background: #90caf9; cursor: not-allowed; }
+  .btn-success { background: #2e7d32; color: #fff; }
+  .btn-success:hover { background: #1b5e20; }
+  .btn-danger { background: #c62828; color: #fff; }
+  .btn-danger:hover { background: #b71c1c; }
+  .btn-outline { background: transparent; color: #1565c0; border: 1px solid #1565c0; }
+  .btn-outline:hover { background: #e3f2fd; }
+  .btn-sm { padding: 6px 14px; font-size: .85rem; }
+  .btn-full { width: 100%; }
+  .alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 12px; font-size: .9rem; }
+  .alert-success { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+  .alert-error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+  .alert-info { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+  .alert-warning { background: #fff3e0; color: #e65100; border: 1px solid #ffe0b2; }
+  .status-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: .8rem; font-weight: bold; }
+  .status-open { background: #e8f5e9; color: #2e7d32; }
+  .status-closed { background: #ffebee; color: #c62828; }
+  .status-submitted { background: #e3f2fd; color: #1565c0; }
+  .status-pending { background: #fff3e0; color: #e65100; }
+  .status-late { background: #fce4ec; color: #c62828; }
+  .empty-state { padding: 40px 20px; text-align: center; color: #bbb; }
+  .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+  .empty-state p { font-size: .95rem; }
+  .assignment-list { list-style: none; }
+  .assignment-item { padding: 16px 20px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: background .15s; display: flex; align-items: center; gap: 16px; }
+  .assignment-item:hover { background: #f8f9fa; }
+  .assignment-item.active { background: #e3f2fd; border-left: 4px solid #1565c0; }
+  .assignment-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+  .assignment-icon.open { background: #e8f5e9; }
+  .assignment-icon.closed { background: #f5f5f5; }
+  .assignment-icon.submitted { background: #e3f2fd; }
+  .assignment-info { flex: 1; min-width: 0; }
+  .assignment-info h3 { font-size: .95rem; font-weight: 600; }
+  .assignment-info .meta { font-size: .82rem; color: #888; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .assignment-info .meta span { display: inline-flex; align-items: center; gap: 4px; }
+  .submit-area { padding: 2px 0; }
+  .submit-area h3 { font-size: 1rem; margin-bottom: 4px; color: #1565c0; }
+  .submit-area .deadline-info { font-size: .85rem; color: #888; margin-bottom: 16px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: .88rem; font-weight: 500; color: #555; margin-bottom: 6px; }
+  .form-group textarea { resize: vertical; min-height: 80px; }
+  .upload-zone { border: 2px dashed #bbdefb; border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; }
+  .upload-zone:hover { border-color: #1565c0; background: #f8f9fa; }
+  .upload-zone.has-file { border-color: #2e7d32; background: #f1f8e9; }
+  .upload-zone input { display: none; }
+  .upload-zone .icon { font-size: 2rem; margin-bottom: 8px; }
+  .upload-zone .hint { color: #888; font-size: .85rem; margin-top: 6px; }
+  .upload-zone .file-info { color: #2e7d32; font-size: .88rem; font-weight: 500; display: none; }
+  .upload-zone.has-file .file-info { display: block; }
+  .upload-zone.has-file .placeholder { display: none; }
+  .version-info { background: #f8f9fa; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: .85rem; color: #666; }
+  .version-info strong { color: #333; }
+  .submission-history { margin-top: 20px; }
+  .submission-history h4 { font-size: .9rem; color: #555; margin-bottom: 10px; }
+  .history-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  .history-table th { background: #f5f5f5; padding: 8px 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #e0e0e0; }
+  .history-table td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; }
+  .history-table tr:hover td { background: #fafafa; }
+  .history-table .version-tag { display: inline-block; background: #e3f2fd; color: #1565c0; padding: 1px 8px; border-radius: 10px; font-size: .8rem; font-weight: 600; }
+  .flex-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .mt-16 { margin-top: 16px; }
+  .mb-16 { margin-bottom: 16px; }
+  .text-center { text-align: center; }
+  .text-sm { font-size: .85rem; }
+  .text-muted { color: #888; }
+  .hidden { display: none !important; }
+  #app { display: none; }
+</style>
+</head>
+<body>
+
+<div id="login-page" class="login-wrap">
+  <div class="login-box">
+    <h2>📝 作业提交系统</h2>
+    <p>研究生课程《机器人系统》<br>成都信息工程大学软件工程学院</p>
+    <div id="login-msg"></div>
+    <input type="text" id="login-sid" placeholder="请输入学号" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn btn-primary btn-full" onclick="doLogin()">进入作业系统</button>
+  </div>
+</div>
+
+<div id="app">
+  <div class="header">
+    <div>
+      <h1>📝 作业提交</h1>
+      <p>研究生课程《机器人系统》 — 成都信息工程大学软件工程学院</p>
+    </div>
+    <div class="user-info">
+      <span class="name" id="header-name"></span>
+      <button class="logout-btn" onclick="logout()">退出</button>
+    </div>
+  </div>
+  <div class="container">
+    <div id="global-msg"></div>
+
+    <div class="card">
+      <div class="card-title">📋 作业列表</div>
+      <div class="card-body" id="assignments-wrap">
+        <div class="empty-state"><div class="icon">📭</div><p>暂无可用作业</p></div>
+      </div>
+    </div>
+
+    <div id="submit-card" class="card hidden">
+      <div class="card-title" id="submit-card-title">提交作业</div>
+      <div class="card-body submit-area">
+        <div id="submit-msg"></div>
+        <h3 id="submit-title"></h3>
+        <div class="deadline-info" id="deadline-info"></div>
+
+        <div class="form-group">
+          <label for="content-text">提交说明（可选）</label>
+          <textarea id="content-text" placeholder="填写提交说明或备注..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>上传文件（可选）</label>
+          <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+            <input type="file" id="file-input" onchange="onFileChange(this)">
+            <div class="placeholder">
+              <div class="icon">📂</div>
+              <div>点击选择文件</div>
+              <div class="hint" id="format-hint"></div>
+            </div>
+            <div class="file-info" id="file-info"></div>
+          </div>
+        </div>
+
+        <div class="version-info" id="version-info">
+          当前版本：<strong id="version-label">v1（首次提交）</strong><br>
+          截止前可多次提交，每次提交版本号自动递增
+        </div>
+
+        <button class="btn btn-primary btn-full" id="submit-btn" onclick="submitAssignment()">确认提交</button>
+        <p class="text-center text-sm text-muted mt-16">提交后在截止前可重新上传，版本号自动递增</p>
+
+        <div class="submission-history" id="history-wrap">
+          <h4>📜 提交历史</h4>
+          <div id="history-content"><p class="text-sm text-muted">暂无提交记录</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let TOKEN = sessionStorage.getItem('assignment_token') || '';
+let CURRENT_USER = null;
+let CURRENT_ASSIGNMENT = null;
+let SELECTED_FILE = null;
+
+function showMsg(id, msg, type='success') {
+  const el = typeof id === 'string' ? document.getElementById(id) : id;
+  if (!el) return;
+  el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+  setTimeout(() => { el.innerHTML = ''; }, 5000);
+}
+
+async function doLogin() {
+  const sid = document.getElementById('login-sid').value.trim();
+  if (!sid) { showMsg('login-msg', '请输入学号', 'error'); return; }
+  try {
+    const r = await fetch(`${API}/api/auth/student/login`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({student_id: sid})
+    });
+    if (!r.ok) { const e = await r.json(); showMsg('login-msg', e.detail || '登录失败', 'error'); return; }
+    const d = await r.json();
+    TOKEN = d.token;
+    CURRENT_USER = d;
+    sessionStorage.setItem('assignment_token', TOKEN);
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('header-name').textContent = `${d.name}（${d.student_id}）`;
+    loadAssignments();
+  } catch(e) { showMsg('login-msg', '网络错误：' + e, 'error'); }
+}
+
+function logout() {
+  TOKEN = '';
+  CURRENT_USER = null;
+  sessionStorage.removeItem('assignment_token');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('login-sid').value = '';
+}
+
+async function loadAssignments() {
+  try {
+    const r = await fetch(`${API}/api/assignments`);
+    if (!r.ok) return;
+    const list = await r.json();
+    renderAssignments(list);
+  } catch(e) { console.error(e); }
+}
+
+function renderAssignments(list) {
+  const wrap = document.getElementById('assignments-wrap');
+  if (!list.length) {
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>暂无可用作业</p></div>';
+    return;
+  }
+
+  const now = new Date();
+  const items = list.map(a => {
+    const deadline = new Date(a.deadline.replace(' ', 'T'));
+    const isExpired = deadline < now;
+    const statusClass = isExpired ? 'closed' : 'open';
+    const statusLabel = isExpired ? '已截止' : '进行中';
+    const timeLeft = isExpired ? '' : getTimeLeft(deadline);
+
+    return `
+      <div class="assignment-item ${CURRENT_ASSIGNMENT && CURRENT_ASSIGNMENT.id === a.id ? 'active' : ''}" onclick="selectAssignment('${a.id}')">
+        <div class="assignment-icon ${statusClass}">
+          ${isExpired ? '🔒' : '📄'}
+        </div>
+        <div class="assignment-info">
+          <h3>${a.title}</h3>
+          <div class="meta">
+            <span>📅 截止：${a.deadline}</span>
+            <span>📎 ${a.allowed_formats}</span>
+            <span>⚡ ${isExpired ? '已截止' : timeLeft}</span>
+          </div>
+        </div>
+        <span class="status-badge status-${statusClass}">${statusLabel}</span>
+      </div>
+    `;
+  }).join('');
+
+  wrap.innerHTML = `<div class="assignment-list">${items}</div>`;
+}
+
+function getTimeLeft(deadline) {
+  const now = new Date();
+  const diff = deadline - now;
+  if (diff <= 0) return '已截止';
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  if (days > 0) return `剩余 ${days} 天 ${hours} 小时`;
+  return `剩余 ${hours} 小时`;
+}
+
+async function selectAssignment(id) {
+  try {
+    const r = await fetch(`${API}/api/assignments/${id}`);
+    if (!r.ok) { showMsg('global-msg', '获取作业详情失败', 'error'); return; }
+    CURRENT_ASSIGNMENT = await r.json();
+    showAssignmentDetail();
+    loadMySubmissions(id);
+  } catch(e) { showMsg('global-msg', '网络错误：' + e, 'error'); }
+}
+
+function showAssignmentDetail() {
+  const a = CURRENT_ASSIGNMENT;
+  const card = document.getElementById('submit-card');
+  card.classList.remove('hidden');
+
+  document.getElementById('submit-card-title').textContent = `📝 ${a.title}`;
+  document.getElementById('submit-title').textContent = a.title;
+  if (a.description) {
+    document.getElementById('deadline-info').innerHTML = `📅 截止时间：<strong>${a.deadline}</strong><br>📋 ${a.description}`;
+  } else {
+    document.getElementById('deadline-info').innerHTML = `📅 截止时间：<strong>${a.deadline}</strong>`;
+  }
+  document.getElementById('format-hint').textContent = `支持格式：${a.allowed_formats} · 最大 ${formatSize(a.max_file_size)}`;
+
+  const now = new Date();
+  const deadline = new Date(a.deadline.replace(' ', 'T'));
+  const isExpired = deadline < now;
+  document.getElementById('submit-btn').disabled = isExpired || !a.is_active;
+  document.getElementById('submit-btn').textContent = isExpired ? '已截止，无法提交' : !a.is_active ? '该作业已关闭' : '确认提交';
+  document.getElementById('submit-btn').className = `btn btn-full ${isExpired || !a.is_active ? 'btn-primary' : 'btn-primary'}`;
+
+  document.querySelectorAll('.assignment-item').forEach(el => el.classList.remove('active'));
+  const items = document.querySelectorAll('.assignment-item');
+  items.forEach(el => {
+    if (el.querySelector('h3')?.textContent === a.title) el.classList.add('active');
+  });
+
+  card.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+async function loadMySubmissions(assignmentId) {
+  try {
+    const r = await fetch(`${API}/api/assignments/${assignmentId}/my-submissions`, {
+      headers: {'Authorization': `Bearer ${TOKEN}`}
+    });
+    if (!r.ok) return;
+    const list = await r.json();
+    renderSubmissionHistory(list);
+  } catch(e) { console.error(e); }
+}
+
+function renderSubmissionHistory(list) {
+  const container = document.getElementById('history-content');
+  if (!list.length) {
+    document.getElementById('version-label').textContent = 'v1（首次提交）';
+    container.innerHTML = '<p class="text-sm text-muted">暂无提交记录</p>';
+    return;
+  }
+
+  document.getElementById('version-label').textContent = `v${list[0].version}（第 ${list[0].version} 次提交）`;
+
+  const rows = list.map(s => `
+    <tr>
+      <td><span class="version-tag">v${s.version}</span></td>
+      <td>${s.submitted_at}</td>
+      <td>${s.file_name || '—'}</td>
+      <td>${s.file_size_display || '—'}</td>
+      <td>${s.content_text ? s.content_text.substring(0, 40) + (s.content_text.length > 40 ? '...' : '') : '—'}</td>
+    </tr>
+  `).join('');
+
+  container.innerHTML = `
+    <table class="history-table">
+      <thead><tr><th>版本</th><th>提交时间</th><th>文件名</th><th>大小</th><th>说明</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function onFileChange(input) {
+  const zone = document.getElementById('upload-zone');
+  const info = document.getElementById('file-info');
+  if (input.files && input.files[0]) {
+    SELECTED_FILE = input.files[0];
+    zone.classList.add('has-file');
+    info.textContent = `📎 ${SELECTED_FILE.name}（${formatSize(SELECTED_FILE.size)}）`;
+  } else {
+    SELECTED_FILE = null;
+    zone.classList.remove('has-file');
+  }
+}
+
+async function submitAssignment() {
+  if (!CURRENT_ASSIGNMENT) return;
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = '提交中...';
+
+  const text = document.getElementById('content-text').value.trim();
+  if (!text && !SELECTED_FILE) {
+    showMsg('submit-msg', '请填写提交说明或选择文件', 'error');
+    btn.disabled = false;
+    btn.textContent = '确认提交';
+    return;
+  }
+
+  const fd = new FormData();
+  if (text) fd.append('content_text', text);
+  if (SELECTED_FILE) fd.append('file', SELECTED_FILE);
+
+  try {
+    const r = await fetch(`${API}/api/assignments/${CURRENT_ASSIGNMENT.id}/submit`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`},
+      body: fd
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      showMsg('submit-msg', d.detail || '提交失败', 'error');
+      btn.disabled = false;
+      btn.textContent = '确认提交';
+      return;
+    }
+
+    showMsg('submit-msg', `✅ 提交成功！版本 v${d.version}，提交时间：${d.submitted_at}`, 'success');
+    document.getElementById('content-text').value = '';
+    SELECTED_FILE = null;
+    document.getElementById('upload-zone').classList.remove('has-file');
+    document.getElementById('file-input').value = '';
+
+    loadMySubmissions(CURRENT_ASSIGNMENT.id);
+    loadAssignments();
+    btn.disabled = false;
+    btn.textContent = '确认提交';
+  } catch(e) {
+    showMsg('submit-msg', '网络错误：' + e, 'error');
+    btn.disabled = false;
+    btn.textContent = '确认提交';
+  }
+}
+
+function formatSize(bytes) {
+  if (!bytes) return '0B';
+  if (bytes < 1024) return bytes + 'B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + 'KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + 'MB';
+}
+
+if (TOKEN) {
+  (async () => {
+    try {
+      const r = await fetch(`${API}/api/assignments`);
+      if (r.ok) {
+        document.getElementById('login-page').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        document.getElementById('header-name').textContent = '已登录';
+        loadAssignments();
+      }
+    } catch(e) {}
+  })();
+}
+</script>
+</body>
+</html>
