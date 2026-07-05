@@ -12,9 +12,9 @@ except Exception:
 # 优先使用相对导入（运行在 oaepp/ 目录内），fallback 绝对导入（运行在仓库根目录）
 if rx is not None:
     try:
-        from states.course_state import CourseState, CourseProgress
+        from states.courses import CourseState, CourseProgress
     except ImportError:
-        from oaepp.states.course_state import CourseState, CourseProgress
+        from oaepp.states.courses import CourseState, CourseProgress
     try:
         from components.layout import page_layout
     except ImportError:
@@ -64,7 +64,11 @@ def course_card(course: "CourseProgress") -> "rx.Component":
                 rx.vstack(
                     rx.text("已完成任务", color="gray", size="2"),
                     rx.heading(
-                        f"{course.completed_tasks}/{course.total_tasks}",
+                        rx.text(
+                            course.completed_tasks,
+                            "/",
+                            course.total_tasks,
+                        ),
                         size="6",
                         color_scheme="green",
                     ),
@@ -74,7 +78,10 @@ def course_card(course: "CourseProgress") -> "rx.Component":
                 rx.vstack(
                     rx.text("完成度", color="gray", size="2"),
                     rx.heading(
-                        f"{course.progress_percentage:.0f}%",
+                        rx.text(
+                            course.progress_percentage,
+                            "%",
+                        ),
                         size="6",
                         color_scheme="purple",
                     ),
@@ -98,7 +105,8 @@ def course_card(course: "CourseProgress") -> "rx.Component":
                     rx.hstack(
                         rx.icon(tag="timer"),
                         rx.text(
-                            f"下一截止: {course.next_due_date_str}",
+                            "下一截止: ",
+                            course.next_due_date_str,
                             color="orange",
                             size="2",
                         ),
