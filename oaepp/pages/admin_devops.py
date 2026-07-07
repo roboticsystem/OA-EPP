@@ -337,7 +337,7 @@ if rx is not None:
     # ── 快捷链接 ──────────────────────────────────────────────────────
     def _quick_links():
         links = [
-            ("github", "仓库主页", "https://github.com"),
+            ("folder-git-2", "仓库主页", "https://github.com"),
             ("git-pull-request", "Pull Requests", "https://github.com/pulls"),
             ("circle-dot", "Issues", "https://github.com/issues"),
             ("play", "Actions", "https://github.com/actions"),
