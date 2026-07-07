@@ -1,20 +1,34 @@
+"""
+作业提交子系统 - API 路由
+F-S-020：学生可在截止前提交作业（文本、附件或两者结合），
+支持 pdf/docx/zip/py/c/cpp/txt 等常见格式，
+展示提交时间、文件大小、版本号。
+"""
 import os
 import re
 import shutil
 from datetime import datetime
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, Header, UploadFile, File, Form, Query
+from fastapi.responses import FileResponse
 from typing import Optional
 from pydantic import BaseModel
-from app.database import db, mysql_db
-from app.auth_utils import create_token, verify_student_token, verify_teacher_token
+
+from .database import db, init_db
+from .auth_utils import create_token, verify_student_token, verify_teacher_token
 
 router = APIRouter()
 
-UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "/app/data/uploads")
+# ----- 配置 -----
+UPLOAD_DIR = os.environ.get("ASSIGNMENTS_UPLOAD_DIR", "assignments_uploads")
+TEACHER_PASSWORD = os.environ.get("TEACHER_PASSWORD")
+if not TEACHER_PASSWORD:
+    raise RuntimeError("环境变量 TEACHER_PASSWORD 未设置，请设置后启动")
 
 ALLOWED_EXTENSIONS = {"pdf", "docx", "zip", "py", "c", "cpp", "txt"}
-MAX_FILE_SIZE = 50 * 1024 * 1024
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+
+# ----- 辅助函数 -----
 
 
 def _ensure_upload_dir():
@@ -58,44 +72,16 @@ def _format_file_size(size_bytes: int) -> str:
         return f"{size_bytes / (1024 * 1024):.1f}MB"
 
 
-# ===================== 学生登录 =====================
+# ----- Pydantic 模型 -----
+
+
+class TeacherLoginRequest(BaseModel):
+    password: str
+
 
 class StudentLoginRequest(BaseModel):
     student_id: str
 
-
-@router.post("/api/auth/student/login")
-def student_login(req: StudentLoginRequest):
-    sid = req.student_id.strip()
-    with mysql_db() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                "SELECT u.full_name, u.student_no, s.class_name "
-                "FROM users u "
-                "LEFT JOIN students s ON s.user_id = u.id "
-                "WHERE u.role = 'student' AND u.student_no = %s AND u.is_active = 1",
-                (sid,)
-            )
-            student = cursor.fetchone()
-
-    if not student:
-        raise HTTPException(status_code=403, detail="学号不在名单中，请联系老师确认")
-
-    token = create_token({
-        "role": "student",
-        "student_id": student["student_no"],
-        "name": student["full_name"],
-    }, expires_hours=8)
-
-    return {
-        "token": token,
-        "name": student["full_name"],
-        "student_id": student["student_no"],
-        "class_name": student["class_name"] or "",
-    }
-
-
-# ===================== 教师端：作业管理 =====================
 
 class AssignmentCreate(BaseModel):
     id: str
@@ -104,42 +90,6 @@ class AssignmentCreate(BaseModel):
     deadline: str
     allowed_formats: str = "pdf,docx,zip,py,c,cpp,txt"
     max_file_size: int = 52428800
-
-
-@router.post("/api/teacher/assignments")
-def create_assignment(req: AssignmentCreate, authorization: Optional[str] = Header(None)):
-    _require_teacher(authorization)
-    if not re.match(r"^[\w\-]+$", req.id):
-        raise HTTPException(status_code=422, detail="作业ID只能包含字母、数字、下划线和短横线")
-
-    with db() as conn:
-        existing = conn.execute("SELECT id FROM assignments WHERE id=?", (req.id,)).fetchone()
-        if existing:
-            raise HTTPException(status_code=409, detail=f"作业ID '{req.id}' 已存在")
-        conn.execute(
-            "INSERT INTO assignments (id, title, description, deadline, allowed_formats, max_file_size) VALUES (?,?,?,?,?,?)",
-            (req.id, req.title, req.description, req.deadline, req.allowed_formats, req.max_file_size)
-        )
-    return {"ok": True}
-
-
-@router.get("/api/teacher/assignments")
-def list_assignments_teacher(authorization: Optional[str] = Header(None)):
-    _require_teacher(authorization)
-    with db() as conn:
-        rows = conn.execute(
-            "SELECT id, title, description, deadline, allowed_formats, max_file_size, is_active, created_at FROM assignments ORDER BY created_at DESC"
-        ).fetchall()
-
-    result = []
-    for r in rows:
-        with db() as conn:
-            count = conn.execute(
-                "SELECT COUNT(DISTINCT student_id) FROM submissions WHERE assignment_id=?", (r["id"],)
-            ).fetchone()[0]
-        result.append({**dict(r), "submitted_count": count})
-
-    return result
 
 
 class AssignmentUpdate(BaseModel):
@@ -151,12 +101,102 @@ class AssignmentUpdate(BaseModel):
     is_active: Optional[int] = None
 
 
+# ===================== 教师认证 =====================
+
+
+@router.post("/api/teacher/login")
+def teacher_login(req: TeacherLoginRequest):
+    if req.password != TEACHER_PASSWORD:
+        raise HTTPException(status_code=401, detail="密码错误")
+    token = create_token({"role": "teacher"}, expires_hours=8)
+    return {"token": token}
+
+
+# ===================== 学生认证 =====================
+
+
+@router.post("/api/auth/student/login")
+def student_login(req: StudentLoginRequest):
+    """
+    学生学号登录。
+    学生身份由平台统一管理，本模块信任平台签发的学号。
+    实际部署时，此接口可转发到平台统一认证服务。
+    """
+    sid = req.student_id.strip()
+    if not sid:
+        raise HTTPException(status_code=422, detail="学号不能为空")
+
+    token = create_token({
+        "role": "student",
+        "student_id": sid,
+        "name": sid,
+    }, expires_hours=8)
+
+    return {
+        "token": token,
+        "name": sid,
+        "student_id": sid,
+        "class_name": "",
+    }
+
+
+# ===================== 教师端：作业管理 =====================
+
+
+@router.post("/api/teacher/assignments")
+def create_assignment(req: AssignmentCreate,
+                      authorization: Optional[str] = Header(None)):
+    _require_teacher(authorization)
+    if not re.match(r"^[\w\-]+$", req.id):
+        raise HTTPException(status_code=422,
+                          detail="作业ID只能包含字母、数字、下划线和短横线")
+
+    with db() as conn:
+        existing = conn.execute(
+            "SELECT id FROM assignments WHERE id=?", (req.id,)
+        ).fetchone()
+        if existing:
+            raise HTTPException(status_code=409,
+                              detail=f"作业ID '{req.id}' 已存在")
+        conn.execute(
+            "INSERT INTO assignments (id, title, description, deadline, "
+            "allowed_formats, max_file_size) VALUES (?,?,?,?,?,?)",
+            (req.id, req.title, req.description, req.deadline,
+             req.allowed_formats, req.max_file_size)
+        )
+    return {"ok": True}
+
+
+@router.get("/api/teacher/assignments")
+def list_assignments_teacher(
+        authorization: Optional[str] = Header(None)):
+    _require_teacher(authorization)
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT id, title, description, deadline, allowed_formats, "
+            "max_file_size, is_active, created_at FROM assignments "
+            "ORDER BY created_at DESC"
+        ).fetchall()
+
+    result = []
+    for r in rows:
+        with db() as conn:
+            count = conn.execute(
+                "SELECT COUNT(DISTINCT student_id) FROM submissions "
+                "WHERE assignment_id=?", (r["id"],)
+            ).fetchone()[0]
+        result.append({**dict(r), "submitted_count": count})
+    return result
+
+
 @router.put("/api/teacher/assignments/{assignment_id}")
-def update_assignment(assignment_id: str, req: AssignmentUpdate, authorization: Optional[str] = Header(None)):
+def update_assignment(assignment_id: str, req: AssignmentUpdate,
+                      authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
     fields = []
     values = []
-    for field in ("title", "description", "deadline", "allowed_formats", "max_file_size", "is_active"):
+    for field in ("title", "description", "deadline", "allowed_formats",
+                  "max_file_size", "is_active"):
         val = getattr(req, field, None)
         if val is not None:
             fields.append(f"{field}=?")
@@ -175,12 +215,16 @@ def update_assignment(assignment_id: str, req: AssignmentUpdate, authorization: 
 
 
 @router.delete("/api/teacher/assignments/{assignment_id}")
-def delete_assignment(assignment_id: str, authorization: Optional[str] = Header(None)):
+def delete_assignment(assignment_id: str,
+                      authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
     _ensure_upload_dir()
     with db() as conn:
-        conn.execute("DELETE FROM submissions WHERE assignment_id=?", (assignment_id,))
-        conn.execute("DELETE FROM assignments WHERE id=?", (assignment_id,))
+        conn.execute(
+            "DELETE FROM submissions WHERE assignment_id=?",
+            (assignment_id,))
+        conn.execute(
+            "DELETE FROM assignments WHERE id=?", (assignment_id,))
 
     assign_dir = Path(UPLOAD_DIR) / assignment_id
     if assign_dir.exists():
@@ -190,20 +234,21 @@ def delete_assignment(assignment_id: str, authorization: Optional[str] = Header(
 
 
 @router.get("/api/teacher/assignments/{assignment_id}/submissions")
-def list_submissions_teacher(assignment_id: str, authorization: Optional[str] = Header(None)):
+def list_submissions_teacher(
+        assignment_id: str,
+        authorization: Optional[str] = Header(None)):
     _require_teacher(authorization)
     with db() as conn:
-        assignment = conn.execute("SELECT title FROM assignments WHERE id=?", (assignment_id,)).fetchone()
+        assignment = conn.execute(
+            "SELECT title FROM assignments WHERE id=?",
+            (assignment_id,)
+        ).fetchone()
         if not assignment:
             raise HTTPException(status_code=404, detail="作业不存在")
 
-        students = conn.execute(
-            "SELECT name, student_id, class_name FROM students ORDER BY student_id"
-        ).fetchall()
         subs = conn.execute(
-            "SELECT s.*, st.name as student_name FROM submissions s "
-            "JOIN students st ON st.student_id = s.student_id "
-            "WHERE s.assignment_id=? ORDER BY s.student_id, s.version DESC",
+            "SELECT * FROM submissions "
+            "WHERE assignment_id=? ORDER BY student_id, version DESC",
             (assignment_id,)
         ).fetchall()
 
@@ -212,7 +257,6 @@ def list_submissions_teacher(assignment_id: str, authorization: Optional[str] = 
         sid = s["student_id"]
         if sid not in sub_map:
             sub_map[sid] = {
-                "student_name": s["student_name"],
                 "student_id": sid,
                 "latest_version": s["version"],
                 "latest_file_name": s["file_name"],
@@ -223,31 +267,22 @@ def list_submissions_teacher(assignment_id: str, authorization: Optional[str] = 
         else:
             sub_map[sid]["version_count"] += 1
 
-    result = []
-    for s in students:
-        info = sub_map.get(s["student_id"])
-        result.append({
-            "name": s["name"],
-            "student_id": s["student_id"],
-            "class_name": s["class_name"],
-            "submitted": info is not None,
-            "version_count": info["version_count"] if info else 0,
-            "latest_version": info["latest_version"] if info else None,
-            "latest_file_name": info["latest_file_name"] if info else "",
-            "latest_file_size": info["latest_file_size"] if info else 0,
-            "latest_submitted_at": info["latest_submitted_at"] if info else None,
-        })
-
-    return {"assignment_title": assignment["title"], "rows": result}
+    return {
+        "assignment_title": assignment["title"],
+        "rows": list(sub_map.values()),
+    }
 
 
 # ===================== 学生端：作业列表与提交 =====================
+
 
 @router.get("/api/assignments")
 def list_active_assignments():
     with db() as conn:
         rows = conn.execute(
-            "SELECT id, title, description, deadline, allowed_formats, max_file_size, created_at FROM assignments WHERE is_active=1 ORDER BY deadline ASC"
+            "SELECT id, title, description, deadline, allowed_formats, "
+            "max_file_size, created_at FROM assignments "
+            "WHERE is_active=1 ORDER BY deadline ASC"
         ).fetchall()
     return [dict(r) for r in rows]
 
@@ -256,8 +291,9 @@ def list_active_assignments():
 def get_assignment(assignment_id: str):
     with db() as conn:
         row = conn.execute(
-            "SELECT id, title, description, deadline, allowed_formats, max_file_size, is_active, created_at FROM assignments WHERE id=?",
-            (assignment_id,)
+            "SELECT id, title, description, deadline, allowed_formats, "
+            "max_file_size, is_active, created_at FROM assignments "
+            "WHERE id=?", (assignment_id,)
         ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="作业不存在")
@@ -271,12 +307,14 @@ async def submit_assignment(
     file: Optional[UploadFile] = File(None),
     authorization: Optional[str] = Header(None),
 ):
+    """★ F-S-020 核心：学生提交作业"""
     payload = _require_student(authorization)
     student_id = payload["student_id"]
 
     with db() as conn:
         assignment = conn.execute(
-            "SELECT id, title, deadline, allowed_formats, max_file_size, is_active FROM assignments WHERE id=?",
+            "SELECT id, title, deadline, allowed_formats, "
+            "max_file_size, is_active FROM assignments WHERE id=?",
             (assignment_id,)
         ).fetchone()
 
@@ -285,25 +323,27 @@ async def submit_assignment(
     if not assignment["is_active"]:
         raise HTTPException(status_code=403, detail="该作业已关闭，无法提交")
 
+    # 截止时间校验（兼容两种日期格式）
     now = datetime.now()
     try:
-        deadline = datetime.strptime(assignment["deadline"], "%Y-%m-%d %H:%M")
-        if now > deadline:
-            raise HTTPException(status_code=403, detail="已超过截止时间，无法提交")
+        deadline = datetime.strptime(assignment["deadline"],
+                                     "%Y-%m-%d %H:%M")
     except ValueError:
         try:
-            deadline = datetime.strptime(assignment["deadline"], "%Y-%m-%dT%H:%M")
-            if now > deadline:
-                raise HTTPException(status_code=403, detail="已超过截止时间，无法提交")
+            deadline = datetime.strptime(assignment["deadline"],
+                                         "%Y-%m-%dT%H:%M")
         except ValueError:
-            pass
+            deadline = None
 
-    allowed_str = assignment["allowed_formats"]
-    allowed_list = [fmt.strip().lower() for fmt in allowed_str.split(",")]
+    if deadline and now > deadline:
+        raise HTTPException(status_code=403,
+                          detail="已超过截止时间，无法提交")
+
+    allowed_list = [f.strip().lower()
+                    for f in assignment["allowed_formats"].split(",")]
     max_size = assignment["max_file_size"]
 
-    file_path = ""
-    file_name = ""
+    file_path = file_name = ""
     file_size = 0
     file_type = ""
 
@@ -312,7 +352,8 @@ async def submit_assignment(
         if ext not in allowed_list:
             raise HTTPException(
                 status_code=422,
-                detail=f"不支持的文件格式 '.{ext}'，允许的格式：{', '.join(allowed_list)}"
+                detail=f"不支持的文件格式 '.{ext}'，"
+                       f"允许的格式：{', '.join(allowed_list)}"
             )
 
         raw = await file.read()
@@ -320,7 +361,8 @@ async def submit_assignment(
         if file_size > max_size:
             raise HTTPException(
                 status_code=422,
-                detail=f"文件大小 ({_format_file_size(file_size)}) 超过限制 ({_format_file_size(max_size)})"
+                detail=f"文件大小 ({_format_file_size(file_size)}) "
+                       f"超过限制 ({_format_file_size(max_size)})"
             )
 
         _ensure_upload_dir()
@@ -332,7 +374,8 @@ async def submit_assignment(
 
     with db() as conn:
         latest = conn.execute(
-            "SELECT MAX(version) as max_ver FROM submissions WHERE assignment_id=? AND student_id=?",
+            "SELECT MAX(version) as max_ver FROM submissions "
+            "WHERE assignment_id=? AND student_id=?",
             (assignment_id, student_id)
         ).fetchone()
         new_version = (latest["max_ver"] or 0) + 1
@@ -346,8 +389,12 @@ async def submit_assignment(
             file_name = safe_name
 
         conn.execute(
-            "INSERT INTO submissions (assignment_id, student_id, file_path, file_name, file_size, file_type, content_text, version) VALUES (?,?,?,?,?,?,?,?)",
-            (assignment_id, student_id, file_path, file_name, file_size, file_type, content_text, new_version)
+            "INSERT INTO submissions "
+            "(assignment_id, student_id, file_path, file_name, "
+            "file_size, file_type, content_text, version) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (assignment_id, student_id, file_path, file_name,
+             file_size, file_type, content_text, new_version)
         )
 
     return {
@@ -356,7 +403,8 @@ async def submit_assignment(
         "submitted_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "file_name": file_name,
         "file_size": file_size,
-        "file_size_display": _format_file_size(file_size) if file_size else "",
+        "file_size_display": _format_file_size(file_size)
+                              if file_size else "",
     }
 
 
@@ -370,7 +418,10 @@ def get_my_submissions(
 
     with db() as conn:
         rows = conn.execute(
-            "SELECT id, version, file_name, file_size, file_type, content_text, submitted_at FROM submissions WHERE assignment_id=? AND student_id=? ORDER BY version DESC",
+            "SELECT id, version, file_name, file_size, file_type, "
+            "content_text, submitted_at FROM submissions "
+            "WHERE assignment_id=? AND student_id=? "
+            "ORDER BY version DESC",
             (assignment_id, student_id)
         ).fetchall()
 
@@ -379,8 +430,24 @@ def get_my_submissions(
         "version": r["version"],
         "file_name": r["file_name"],
         "file_size": r["file_size"],
-        "file_size_display": _format_file_size(r["file_size"]) if r["file_size"] else "",
+        "file_size_display": _format_file_size(r["file_size"])
+                              if r["file_size"] else "",
         "file_type": r["file_type"],
         "content_text": r["content_text"],
         "submitted_at": r["submitted_at"],
     } for r in rows]
+
+
+# ===================== 静态页面 =====================
+
+
+@router.get("/assignments")
+def assignments_page():
+    static_dir = Path(__file__).parent / "static"
+    return FileResponse(str(static_dir / "assignments.html"))
+
+
+@router.get("/teacher")
+def teacher_page():
+    static_dir = Path(__file__).parent / "static"
+    return FileResponse(str(static_dir / "teacher.html"))

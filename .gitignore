@@ -46,3 +46,7 @@ secrets.yml
 *.sqlite
 *.sqlite3
 .local_exam_data/
+
+# 作业提交上传目录（运行时数据，不提交）
+assignments_uploads/
+backend/uploads/
