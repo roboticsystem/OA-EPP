@@ -20,7 +20,7 @@ run_feature_tests() {
     echo "  测试文件: $(basename "${test_file}")"
     echo ""
 
-    python -m pytest "${test_file}" -v --tb=short --no-header \
+    python3 -m pytest "${test_file}" -v --tb=short --no-header \
         --rootdir="$(dirname "$(dirname "${test_file}")")" 2>&1
 
     local rc=$?

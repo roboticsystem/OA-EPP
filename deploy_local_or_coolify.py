@@ -186,7 +186,7 @@ def install_requirements():
             sys.exit(1)
         print(f"⚙️  安装依赖：{req_file.relative_to(REPO_ROOT)}")
         subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "--quiet", "-r", str(req_file)]
+            [sys.executable, "-m", "pip", "install", "--quiet", "--break-system-packages", "-r", str(req_file)]
         )
     print("✅ 依赖安装完成\n")
 
@@ -491,7 +491,7 @@ def deploy_coolify(sync_summary: dict):
     except ImportError:
         print("⚙️  安装部署依赖（requests / urllib3）...")
         subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "--quiet", "requests", "urllib3"]
+            [sys.executable, "-m", "pip", "install", "--quiet", "--break-system-packages", "requests", "urllib3"]
         )
 
     _step("Step 1: 检查源文件")
@@ -624,7 +624,7 @@ def run_reflex_dev(sync_summary: dict = None, port: int = REFLEX_PORT):
     if oaepp_reqs.exists():
         print(f"⚙️  安装 oaepp 依赖: {oaepp_reqs.relative_to(REPO_ROOT)}")
         try:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "-r", str(oaepp_reqs)])
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "--break-system-packages", "-r", str(oaepp_reqs)])
         except subprocess.CalledProcessError:
             print("⚠️  安装 oaepp 依赖失败，继续尝试启动（若缺少 reflex 运行时将报错）")
 

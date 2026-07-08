@@ -13,8 +13,7 @@ echo "========================================"
 echo ""
 
 for script in "$SCRIPT_DIR"/F-*.sh; do
-    bash "$script"
-    if [ $? -eq 0 ]; then
+    if bash "$script"; then
         ((PASS++)) || true
     else
         ((FAIL++)) || true
