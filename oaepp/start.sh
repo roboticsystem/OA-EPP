@@ -25,32 +25,44 @@ else
     rm -rf /app/.web
 fi
 
+# ── 辅助函数 ─────────────────────────────────────────────────────────────
+
+# 等待 Reflex 就绪。参数：Reflex 的 PID。
+# 返回 0 表示就绪，1 表示超时（60s）或进程已崩溃。
+wait_reflex_ready() {
+    _pid="$1"
+    for _i in $(seq 1 60); do
+        if curl -sf -o /dev/null http://127.0.0.1:8000/api/status 2>/dev/null; then
+            echo "[start.sh] Reflex 已就绪（${_i}s）"
+            return 0
+        fi
+        if ! kill -0 "$_pid" 2>/dev/null; then
+            echo "[start.sh] Reflex 进程异常退出！"
+            return 1
+        fi
+        sleep 1
+    done
+    return 1
+}
+
+# 写入缓存标记，避免下次重启重复编译。
+# 无论在初始启动还是守护重启后就绪，只要 Reflex 成功编译完成就写入。
+mark_cache_valid() {
+    mkdir -p /app/.web
+    touch /app/.web/.cache_valid
+    echo "[start.sh] 已写入编译缓存标记"
+}
+
 # ── 启动 Reflex ──────────────────────────────────────────────────────────
+
 echo "[start.sh] 启动 Reflex (生产模式)..."
 # --single-port 模式下前后端共享同一端口，无需显式指定 --backend-port
 reflex run --env prod --single-port --frontend-port 8000 &
 REFLEX_PID=$!
 
-# ── 等待 Reflex 就绪 ────────────────────────────────────────────────────
 echo "[start.sh] 等待 Reflex 就绪..."
-READY=0
-for i in $(seq 1 60); do
-    if curl -sf -o /dev/null http://127.0.0.1:8000/api/status 2>/dev/null; then
-        echo "[start.sh] Reflex 已就绪（${i}s）"
-        READY=1
-        break
-    fi
-    if ! kill -0 "$REFLEX_PID" 2>/dev/null; then
-        echo "[start.sh] Reflex 进程异常退出！"
-        break
-    fi
-    sleep 1
-done
-
-# 就绪后写入缓存标记，避免下次重启重复编译
-if [ "$READY" -eq 1 ]; then
-    mkdir -p /app/.web
-    touch /app/.web/.cache_valid
+if wait_reflex_ready "$REFLEX_PID"; then
+    mark_cache_valid
 else
     echo "[start.sh] 警告：Reflex 未能在 60s 内就绪，Nginx 将继续运行"
 fi
@@ -62,6 +74,18 @@ while kill -0 "$NGINX_PID" 2>/dev/null; do
         echo "[start.sh] Reflex 进程意外退出，尝试重启..."
         reflex run --env prod --single-port --frontend-port 8000 &
         REFLEX_PID=$!
+        echo "[start.sh] 等待 Reflex 重新就绪..."
+        if wait_reflex_ready "$REFLEX_PID"; then
+            mark_cache_valid
+            echo "[start.sh] Reflex 已恢复"
+        else
+            echo "[start.sh] 警告：Reflex 重启后未能在 60s 内就绪，将继续尝试"
+        fi
+    fi
+    # 兜底：若缓存标记尚未写入（如首次编译 >60s 但进程未崩溃），
+    # 探测到 Reflex 实际已就绪时补写标记，确保后续重启复用缓存。
+    if [ ! -f /app/.web/.cache_valid ] && curl -sf -o /dev/null http://127.0.0.1:8000/api/status 2>/dev/null; then
+        mark_cache_valid
     fi
     sleep 2
 done
