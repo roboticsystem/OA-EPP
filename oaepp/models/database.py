@@ -343,3 +343,18 @@ class CommitlintConfig(SQLModel, table=True):
     config_version: int = Field(default=1)
     updated_by: int = Field(foreign_key="users.id")
     updated_at: datetime = Field(default_factory=datetime.now)
+
+
+class ReqDocument(SQLModel, table=True):
+    """需求文档 — 映射到 req_documents 表 (F-T-006)"""
+    __tablename__ = "req_documents"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    course_id: int = Field(foreign_key="courses.id", index=True)
+    title: str = Field(default="")
+    content_md: Optional[str] = Field(default=None)
+    status: str = Field(default="draft")            # enum: draft, sealed
+    version_no: int = Field(default=1)
+    created_by: int = Field(foreign_key="users.id")
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
